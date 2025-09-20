@@ -1,4 +1,5 @@
-﻿using HKLib.hk2018.hkaiCollisionAvoidance.Solver;
+﻿using HKLib.hk2018.hk;
+using HKLib.hk2018.hkaiCollisionAvoidance.Solver;
 using HKLib.hk2018.hke;
 using JortPob.Common;
 using JortPob.Worker;
@@ -6,12 +7,14 @@ using SoulsFormats;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static JortPob.Dialog;
 using static JortPob.NpcContent;
+using static JortPob.NpcManager;
 using static JortPob.NpcManager.TopicData;
 using static JortPob.Script;
 
@@ -34,11 +37,59 @@ namespace JortPob
         public List<Faction> factions;
         public List<Cell> exterior, interior;
 
-        public ESM(string path, ScriptManager scriptManager)
+        public ESM(ScriptManager scriptManager)
         {
-            Lort.Log($"Loading '{path}' ...", Lort.Type.Main);
+            /* Check if a json has been generated from the esm, if not make one */
+            string jsonPath = $"{Const.CACHE_PATH}morrowind.json";
+            if (!File.Exists(jsonPath))
+            {
+                /* Merge load order to a single file using merge_to_master */
+                string esmPath;
+                if (Const.LOAD_ORDER.Length == 1)
+                {
+                    esmPath = $"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[0]}";
+                }
+                else
+                {
+                    // Copy our master esm to the cache folder
+                    esmPath = $"{Const.CACHE_PATH}morrowind.esm";
+                    if(File.Exists(esmPath)) { File.Delete(esmPath); }
+                    if(!Directory.Exists(Const.CACHE_PATH)) { Directory.CreateDirectory(Const.CACHE_PATH); }
+                    File.Copy($"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[0]}", esmPath);
 
-            string tempRawJson = File.ReadAllText(path);
+                    // Merge the rest of the load order into that esm
+                    for (int i=1;i<Const.LOAD_ORDER.Length;i++)
+                    {
+                        Lort.Log($"Merging '{Const.LOAD_ORDER[i]}' ...", Lort.Type.Main);
+                        string childPath = $"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[i]}";
+
+                        ProcessStartInfo mergeStartInfo = new(Utility.ResourcePath(@"tools\MergeToMaster\merge_to_master.exe"), $"-o \"{childPath}\" \"{esmPath}\"")
+                        {
+                            WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        var mergeProcess = Process.Start(mergeStartInfo);
+                        mergeProcess.WaitForExit();
+                    }
+                }
+
+                /* Convert esm to a json file using tes3conv */
+                Lort.Log($"Creating 'cache\\morrowind.json' ...", Lort.Type.Main);
+                ProcessStartInfo convStartInfo = new(Utility.ResourcePath(@"tools\Tes3Conv\tes3conv.exe"), $"-c \"{esmPath}\" \"{jsonPath}\"")
+                {
+                    WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                var convProcess = Process.Start(convStartInfo);
+                convProcess.WaitForExit();
+            }
+            /* Process json */
+            Lort.Log($"Loading 'cache\\morrowind.json' ...", Lort.Type.Main);
+            Lort.Log($"Delete this file if you change the load order.", Lort.Type.Main);
+
+            string tempRawJson = File.ReadAllText(jsonPath);
             JsonArray json = JsonNode.Parse(tempRawJson).AsArray();
 
             recordsByType = new Dictionary<Type, Dictionary<string, JsonNode>>();
@@ -82,9 +133,9 @@ namespace JortPob
                 }
                 else
                 {
-                    recordsByType[type].Add(record["id"].ToString(), record);
+                        recordsByType[type].Add(record["id"].ToString(), record);
+                    }
                 }
-            }
 
             /* Handle dialog stuff now */
             dialog = new();
@@ -210,7 +261,7 @@ namespace JortPob
         {
             foreach (Cell cell in exterior)
             {
-                if (cell.coordinate == position) { return cell; }
+                if (cell.coordinate == position && !cell.HasFlag(Cell.Flag.IsInterior)) { return cell; }
             }
             return null;
         }
@@ -281,7 +332,7 @@ namespace JortPob
         }
 
         /* Get dialog and character data for building esd */
-        public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(NpcContent npc)
+        public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, NpcContent npc)
         {
             List<Tuple<DialogRecord, List<DialogInfoRecord>>> ds = new();  // i am really sorry about this type
             foreach(DialogRecord dialogRecord in dialog)
@@ -292,14 +343,14 @@ namespace JortPob
                 List<DialogInfoRecord> infos = new();
                 foreach(DialogInfoRecord info in dialogRecord.infos)
                 {
-                    // Check if the npc meets all static requirements for this dialog line
-                    if (info.speaker != null && info.speaker != npc.id) { continue; }
-                    if (info.race != NpcContent.Race.Any && info.race != npc.race) { continue; }
-                    if (info.job != null && info.job != npc.job) { continue; }
-                    if (info.faction != null && info.faction != npc.faction) { continue; }
-                    if (info.rank > npc.rank) { continue; }
-                    if (info.cell != null && npc.cell.name != null && !npc.cell.name.ToLower().StartsWith(info.cell.ToLower())) { continue; }
-                    if (info.sex != NpcContent.Sex.Any && info.sex != npc.sex) { continue; }
+                    if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Flee) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Intruder) { continue; } // discarding this for now
+
+                    // Check if the npc meets all static requirements for this dialog line. this includes resolving some filter to see if they can ever pass
+                    if (info.IsUnreachableFor(scriptManager, npc)) { continue; }
 
                     infos.Add(info);
 

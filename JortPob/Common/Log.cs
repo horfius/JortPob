@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace JortPob.Common
 {
@@ -29,7 +30,7 @@ namespace JortPob.Common
 
         public static void Log(string message, Lort.Type type)
         {
-            switch(type)
+            switch (type)
             {
                 case Type.Main:
                     mainOutput.Add(message); break;

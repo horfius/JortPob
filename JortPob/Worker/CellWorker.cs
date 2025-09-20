@@ -38,10 +38,11 @@ namespace JortPob.Worker
                 JsonNode node = json[i];
 
                 /* ================== DEBUG GARBAGE YOU CAN IGNORE LOL ================== */
+                bool is_interior = node["data"]["flags"].GetValue<string>().ToLower().Contains("is_interior");
                 int x = int.Parse(node["data"]["grid"][0].ToString());
                 int y = int.Parse(node["data"]["grid"][1].ToString());
                 if (Const.DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME != null && !(node["name"] != null && node["name"].ToString() == Const.DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME)) { continue; }
-                if (Math.Abs(x) > Const.CELL_EXTERIOR_BOUNDS || Math.Abs(y) > Const.CELL_EXTERIOR_BOUNDS)
+                if (Math.Abs(x) > Const.CELL_EXTERIOR_BOUNDS || Math.Abs(y) > Const.CELL_EXTERIOR_BOUNDS || is_interior)
                 {
                     if (!Const.DEBUG_EXCLUSIVE_INTERIOR_BUILD_NAME(node["name"].ToString()) || Const.DEBUG_SKIP_INTERIOR)
                     {
@@ -114,7 +115,7 @@ namespace JortPob.Worker
             {
                 foreach (Cell cell in worker.cells)
                 {
-                    if (Math.Abs(cell.coordinate.x) > Const.CELL_EXTERIOR_BOUNDS || Math.Abs(cell.coordinate.y) > Const.CELL_EXTERIOR_BOUNDS)
+                    if (Math.Abs(cell.coordinate.x) > Const.CELL_EXTERIOR_BOUNDS || Math.Abs(cell.coordinate.y) > Const.CELL_EXTERIOR_BOUNDS || cell.HasFlag(Cell.Flag.IsInterior))
                     {
                         interior.Add(cell);
                     }

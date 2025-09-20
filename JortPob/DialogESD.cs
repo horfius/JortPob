@@ -112,11 +112,11 @@ namespace JortPob
             defs.Add(State_x35(id));
             defs.Add(State_x36(id));
             defs.Add(State_x37(id));
-            defs.Add(State_x38(id, hit.talks[0].talkRow));
+            defs.Add(State_x38(id, hit.talks[0].primaryTalkRow));
             defs.Add(State_x39(id, hit));
 
-            defs.Add(State_x40(id, attack.talks[0].talkRow));
-            defs.Add(State_x41(id, hit.talks[0].talkRow));
+            defs.Add(State_x40(id, attack.talks[0].primaryTalkRow));
+            defs.Add(State_x41(id, hit.talks[0].primaryTalkRow));
             defs.Add(State_x42(id));
             defs.Add(State_x43(id));
             defs.Add(State_x44(id, npcContent.services, talk));
@@ -399,7 +399,7 @@ namespace JortPob
 
                     greetLine += $"    {ifop}{filters}:\r\n";
                     greetLine += $"        # greeting: \"{Common.Utility.SanitizeTextForComment(talkData.dialogInfo.text)}\"\r\n";
-                    greetLine += $"        TalkToPlayer({talkData.talkRow}, -1, -1, 0)\r\n        assert CheckSpecificPersonTalkHasEnded(0)\r\n";
+                    greetLine += $"        TalkToPlayer({talkData.primaryTalkRow}, -1, -1, 0)\r\n        assert CheckSpecificPersonTalkHasEnded(0)\r\n";
 
                     foreach (DialogRecord dialog in talkData.dialogInfo.unlocks)
                     {
@@ -420,7 +420,7 @@ namespace JortPob
             // Or if there is just a single possible greeting just stick there and call it done
             else
             {
-                string greetLine = $"    TalkToPlayer({greeting.talks[0].talkRow}, -1, -1, 0)\r\n    assert CheckSpecificPersonTalkHasEnded(0)\r\n";
+                string greetLine = $"    TalkToPlayer({greeting.talks[0].primaryTalkRow}, -1, -1, 0)\r\n    assert CheckSpecificPersonTalkHasEnded(0)\r\n";
                 foreach (DialogRecord dialog in greeting.talks[0].dialogInfo.unlocks)
                 {
                     greetLine += $"    SetEventFlag({dialog.flag.id}, FlagState.On)\r\n";
@@ -529,7 +529,7 @@ namespace JortPob
 
                 s += $"    {ifop} {filters}:\r\n";
                 s += $"        # hurt: \"{Common.Utility.SanitizeTextForComment(hurt.dialogInfo.text)}\"\r\n";
-                s += $"        assert t{id_s}_x33(text2={hurt.talkRow}, mode4=1)\r\n";
+                s += $"        assert t{id_s}_x33(text2={hurt.primaryTalkRow}, mode4=1)\r\n";
 
                 if(ifop == "if") { ifop = "elif"; }
             }
@@ -644,7 +644,7 @@ namespace JortPob
 
                     s += $"            {ifopB} {filters}:\r\n";
                     s += $"                # talk: \"{Common.Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
-                    s += $"                assert t{id_s}_x33(text2={talk.talkRow}, mode4=1)\r\n";
+                    s += $"                assert t{id_s}_x33(text2={talk.primaryTalkRow}, mode4=1)\r\n";
 
                     foreach (DialogRecord dialog in talk.dialogInfo.unlocks)
                     {
@@ -768,7 +768,7 @@ namespace JortPob
                     int choiceTextId = textManager.AddChoice(choiceText);
 
                     createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
-                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}:\r\n            assert t{id_s}_x33(text2={talkData.talkRow}, mode4=1)\r\n";
+                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}:\r\n            assert t{id_s}_x33(text2={talkData.primaryTalkRow}, mode4=1)\r\n";
 
                     foreach (DialogRecord dialog in talkData.dialogInfo.unlocks)
                     {

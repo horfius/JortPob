@@ -475,7 +475,7 @@ namespace JortPob
 
             public WarpDestination(Vector3 position, Vector3 rotation, uint id)
             {
-                this.position = position;
+                this.position = position - new Vector3(0f, Const.NPC_ROOT_OFFSET, 0f);  // fix load door offset
                 this.rotation = rotation;
                 this.id = id;
             }

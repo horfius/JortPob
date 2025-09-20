@@ -1,19 +1,25 @@
 ﻿using JortPob.Common;
+using SharpAssimp.Configs;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using static JortPob.NpcContent;
 
 namespace JortPob
 {
     public class Cell
     {
+        public enum Flag { IsInterior, HasWater, RestingIsIllegal, BehavesLikeExterior, Unk40 }
+
         public readonly string name;
         public readonly string region;
         public readonly Int2 coordinate;  // Position on the cell grid
         public readonly Vector3 center;
         public readonly Vector3 boundsMin;
         public readonly Vector3 boundsMax;
+
+        public readonly List<Flag> flags;
 
         public readonly List<Content> contents;            // All of this
         public readonly List<CreatureContent> creatures;
@@ -28,6 +34,16 @@ namespace JortPob
             /* Cell Data */
             name = json["name"].ToString() == "" ? null : json["name"].ToString();
             region = json["region"] != null ? json["region"].ToString() : "null";
+
+            flags = new();
+            string[] fs = json["data"]["flags"].GetValue<string>().ToLower().Split("|");
+            foreach(string f in fs)
+            {
+                string trim = f.Trim().ToLower().Replace("_", "");
+                if(trim == "0x40") { trim = "unk40"; }
+                Flag flag = (Flag)Enum.Parse(typeof(Flag), trim, true);
+                flags.Add(flag);
+            }
 
             int x = int.Parse(json["data"]["grid"][0].ToString());
             int y = int.Parse(json["data"]["grid"][1].ToString());
@@ -101,6 +117,11 @@ namespace JortPob
             const float PAD = 10f; // originally was multiplying but that resulted in the box being moved when all 4 points existed in the same quadrant (XY). padding is easier and safe
             boundsMin = new Vector3(x1, y1, z1) - new Vector3(PAD); // this is calc'd before we load models so we can't get a perfectly accurate bounding box. so we just pad it a bit and call it a day
             boundsMax = new Vector3(x2, y2, z2) + new Vector3(PAD);
+        }
+
+        public bool HasFlag(Flag flag)
+        {
+            return flags.Contains(flag);
         }
 
         public bool IsPointInside(Vector3 point)

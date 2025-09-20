@@ -1,5 +1,4 @@
-﻿using HKLib.hk2018.hk;
-using JortPob.Common;
+﻿using JortPob.Common;
 using JortPob.Worker;
 using PortJob;
 using SoulsFormats;
@@ -23,7 +22,7 @@ namespace JortPob
 
             /* Loading stuff */
             ScriptManager scriptManager = new();                                                // Manages EMEVD scripts
-            ESM esm = new ESM($"{Const.MORROWIND_PATH}\\Data Files\\Morrowind.json", scriptManager);      // Morrowind ESM parse and partial serialization
+            ESM esm = new ESM(scriptManager);                                               // Morrowind ESM parse and partial serialization
             Cache cache = Cache.Load(esm);                                                  // Load existing cache (FAST!) or generate a new one (SLOW!)
             Paramanager param = new();                                                        // Class for managing PARAM files
             TextManager text = new();                                                           // Manages FMG text files
@@ -602,6 +601,9 @@ namespace JortPob
                 debugMSB.Write($"{Const.OUTPUT_PATH}\\map\\mapstudio\\m60_42_36_00.msb.dcx");
                 Lort.Log($"Created {debugCounty} debug warps...", Lort.Type.Main);
             }
+
+
+            if (param.param[Paramanager.ParamType.TalkParam].Rows.Count() >= ushort.MaxValue) { throw new Exception("Ran out of talk param rows! Will fail to compile params!"); }
 
             /* Write sound BNKs */
             sound.Write($"{Const.OUTPUT_PATH}sd\\enus\\");

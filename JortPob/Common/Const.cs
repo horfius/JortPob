@@ -11,6 +11,7 @@ namespace JortPob.Common
         public static string ELDEN_PATH = Settable.Get("ELDEN_PATH");
         public static string OUTPUT_PATH = Settable.Get("OUTPUT_PATH");
         public static string CACHE_PATH = $"{OUTPUT_PATH}cache\\";
+        public static string[] LOAD_ORDER = Settable.GetArray("LOAD_ORDER");
         #endregion
 
         #region Optimization
@@ -23,6 +24,8 @@ namespace JortPob.Common
         public static readonly float CELL_SIZE = 8192f * GLOBAL_SCALE;
         public static readonly float TILE_SIZE = 256f;
         public static readonly int CELL_GRID_SIZE = 64;    // terrain vertices
+
+        public static readonly float NPC_ROOT_OFFSET = 75f * GLOBAL_SCALE;  // how far the morrownid npc root (pelvis) is from it's feet. this is to fix the offset of spawn points since elden ring uses feet for characters position and mw uses pelvis
 
         public static readonly float TERRAIN_UV_SCALE = 20f;  // uv scale for terrain textures
         public static readonly int TERRAIN_COLOR_OVERLAY_SIZE = 256;  // size of texture generated for vertex color overlay on terrain meshes
@@ -81,6 +84,11 @@ namespace JortPob.Common
         public static readonly int ESD_STATE_HARDCODE_RANKREQUIREMENT = 49;
         #endregion
 
+        #region Dialog
+        public static readonly int MAX_CHAR_PER_TALK = 160;
+        public static readonly int MAX_ESD_PER_VCBNK = 10;
+        #endregion
+
 
         #region TEST
         public static readonly Vector3 TEST_OFFSET1 = new(0, 200, 0); // just shifting vertical position a bit so the morrowind map isn't super far down
@@ -93,7 +101,7 @@ namespace JortPob.Common
         public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = true; // slow as shit, skipping this saves about a minute per build
         public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
-        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = null; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
+        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] {-3, -10, -1, -8 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }
         // balmora area (small) = new int[] {-4, -3, -2, -1}
@@ -110,7 +118,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = null; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] { "Seyda Neen", "Mournhold" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

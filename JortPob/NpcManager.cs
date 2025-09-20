@@ -67,13 +67,13 @@ namespace JortPob
             EsdInfo lookup = GetEsdInfoByContentId(content.id);
             if (lookup != null) { lookup.AddMsb(msbIdList); return lookup.id; }
 
-            List<Tuple<DialogRecord, List<DialogInfoRecord>>> dialog = esm.GetDialog(content);
+            List<Tuple<DialogRecord, List<DialogInfoRecord>>> dialog = esm.GetDialog(scriptManager, content);
             SoundManager.SoundBankInfo bankInfo = sound.GetBank(content);
 
             List<TopicData> data = [];
             foreach ((DialogRecord dia, List<DialogInfoRecord> infos) in dialog)
             {
-                int topicId;
+                int topicId = 20000000; // generic "talk" as default, should never actually end up being used
                 if (dia.type == DialogRecord.Type.Topic)
                 {
                     if (!topicText.TryGetValue(dia.id, out topicId))
@@ -82,27 +82,35 @@ namespace JortPob
                         topicText.Add(dia.id, topicId);
                     }
                 }
-                else
-                {
-                    topicId = 20000000; // generic "talk"
-                }
 
                 TopicData topicData = new(dia, topicId);
 
                 foreach (DialogInfoRecord info in infos)
                 {
-                    /* Search existing soundbanks for the specific dialoginfo we are about to generate. if it exists just yoink it instead of generating a new one */
-                    /* If we generate a new talkparam row for every possible line we run out of talkparam rows entirely and the project fails to build */
-                    /* This sharing is required, and unfortunately it had to be added in at the end so its not a great implementation */
-                    SoundBank.Sound snd = sound.FindSound(content, info.id); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
+                    /* If this dialog is too long for a single subtitle we split it into pieces */
+                    List<string> lines = Utility.CivilizedSplit(info.text);
+                    List<int> talkRows = new();
+                    for (int i=0;i<lines.Count();i++)
+                    {
+                        string line = lines[i];
+                        /* Search existing soundbanks for the specific dialoginfo we are about to generate. if it exists just yoink it instead of generating a new one */
+                        /* If we generate a new talkparam row for every possible line we run out of talkparam rows entirely and the project fails to build */
+                        /* This sharing is required, and unfortunately it had to be added in at the end so its not a great implementation */
+                        SoundBank.Sound snd = sound.FindSound(content, info.id + i); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
 
-                    // Make a new sound and talkparam row because no suitable match was found!
-                    int talkRowId;
-                    if (snd == null) { talkRowId = (int)bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id, info.text); }
-                    // Use an existing wem and talkparam we already generated because it's a match
-                    else { talkRowId = (int)bankInfo.bank.AddSound(snd); }
+                        // Use an existing wem and talkparam we already generated because it's a match
+                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); }
+                        // If this is not the first line in a talkparam group we must generate with sequential ids!
+                        else if (talkRows.Count() > 0)
+                        {
+                            uint nxtid = (uint)(talkRows[0] + i);
+                            talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line, nxtid));
+                        }
+                        // Make a new sound and talkparam row because no suitable match was found!
+                        else { talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line)); }
+                    }
                     // The parmanager function will automatically skip duplicates when addign talkparam rows so we don't need to do anything here. the esd gen needs those dupes so ye
-                    topicData.talks.Add(new(info, talkRowId));
+                    topicData.talks.Add(new(info, talkRows, lines));
                 }
 
                 if (topicData.talks.Count > 0) { data.Add(topicData); } // if no valid lines for a topic, discard
@@ -305,12 +313,16 @@ namespace JortPob
             public class TalkData
             {
                 public readonly DialogInfoRecord dialogInfo;
-                public readonly int talkRow;
+                public readonly int primaryTalkRow;  // first row for this talk, all that really matters game engine automatically plays subsequent rows in order
+                public readonly List<int> talkRows;
+                public readonly List<string> splitText;
 
-                public TalkData(DialogInfoRecord dialogInfo, int talkRow)
+                public TalkData(DialogInfoRecord dialogInfo, List<int> talkRows, List<string> splitText)
                 {
                     this.dialogInfo = dialogInfo;
-                    this.talkRow = talkRow;
+                    this.primaryTalkRow = talkRows[0];
+                    this.talkRows = talkRows;
+                    this.splitText = splitText;
                 }
 
                 public bool IsChoice()

@@ -1,4 +1,5 @@
 ﻿using HKLib.hk2018.hkaiCollisionAvoidance;
+using HKLib.hk2018.hkAsyncThreadPool;
 using JortPob.Common;
 using System;
 using System.Collections.Generic;
@@ -42,9 +43,9 @@ namespace JortPob
 
         public class DialogInfoRecord
         {
-            private static uint NEXT_ID = 0;
+            private static int NEXT_ID = 0;
 
-            public readonly uint id; // generated id used when lookin up wems, not used by elden ring or morrowind
+            public readonly int id; // generated id used when lookin up wems, not used by elden ring or morrowind
             public readonly DialogRecord.Type type;
 
             // static requirements for a dialog to be added
@@ -68,7 +69,7 @@ namespace JortPob
 
             public DialogInfoRecord(DialogRecord.Type type, JsonNode json)
             {
-                id = DialogInfoRecord.NEXT_ID++;
+                id = DialogInfoRecord.NEXT_ID+=10;  // increment by 10 so we can use the 9 values between each id as the split text ids (guh)
                 this.type = type;
 
                 string NullEmpty(string s) { return s.Trim() == "" ? null : s; }
@@ -102,6 +103,167 @@ namespace JortPob
                 }
 
                 unlocks = new();
+            }
+
+            /* Very special function for optimization */
+            // So basically, this function is dedicated to determining if any filters in this DialogRecord cause it to be completely unreachable for a given npc
+            // Most filters require runtime information to determine if they will resolve true or false, but many can be statically determined based on the npcs data
+            // Good examples of statically determined filters are things like NotRace or NotLocal. Or if a character has no faction then any faction related filters.
+            // It is important to be careful here though, we don't want to accidentally discard dialog lines that could resolve true at some point
+            private static uint DISCARD_COUNT = 0; // some tracking to see how effective the filter discards are
+            public bool IsUnreachableFor(ScriptManager scriptManager, NpcContent npc)
+            {
+                if (speaker != null && speaker != npc.id) { return true; }
+                if (race != NpcContent.Race.Any && race != npc.race) { return true; }
+                if (job != null && job != npc.job) { return true; }
+                if (faction != null && faction != npc.faction) { return true; }
+                if (rank > npc.rank || (rank >= 0 && npc.faction == null)) { return true; }  // unsure if this is correct, i *think* it is but haven't verified
+                if ((cell != null && npc.cell.name == null) || (cell != null && npc.cell.name != null && !npc.cell.name.ToLower().StartsWith(cell.ToLower()))) { return true; }
+                if (sex != NpcContent.Sex.Any && sex != npc.sex) { return true; }
+
+                DISCARD_COUNT++;
+                foreach (DialogFilter filter in filters)
+                {
+                    switch (filter.type)
+                    {
+                        case DialogFilter.Type.Function:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.FactionRankDifference:
+                                    {
+                                        if (npc.faction == null) { return true; } break;
+                                    }
+                                case DialogFilter.Function.RankRequirement:
+                                    {
+                                        if (npc.faction == null) { return true; }
+                                        break;
+                                    }
+                                case DialogFilter.Function.SameFaction:
+                                    {
+                                        if (npc.faction == null) { return true; }
+                                        break;
+                                    }
+                                case DialogFilter.Function.PcExpelled:
+                                    {
+                                        if (npc.faction == null) { return true; }
+                                        break;
+                                    }
+                                case DialogFilter.Function.Reputation:
+                                    {
+                                        if(!filter.ResolveOperator(npc.reputation)) { return true; }
+                                        break;
+                                    }
+                                case DialogFilter.Function.Level:
+                                    {
+                                        if (!filter.ResolveOperator(npc.level)) { return true; }
+                                        break;
+                                    }
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotLocal:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.VariableCompare:
+                                    {
+                                        string localId = $"{npc.id}.{filter.id}"; // local vars use the characters id + the var id. many characters can have their own copy of a local
+                                        Flag lvar = scriptManager.GetFlag(Script.Flag.Designation.Local, localId); // look for flag
+                                        if (lvar != null) { return true; } // local vars are preprocessed so we can just check if the local var exists or not
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.Local:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.VariableCompare:
+                                    {
+                                        string localId = $"{npc.id}.{filter.id}"; // local vars use the characters id + the var id. many characters can have their own copy of a local
+                                        Flag lvar = scriptManager.GetFlag(Script.Flag.Designation.Local, localId); // look for flag
+                                        if (lvar == null) { return true; } // local vars are preprocessed so we can just check if the local var exists or not
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotCell:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.NotCell:
+                                    {
+                                        // static check, characters in elden ring can't really travel around so it's fine for now. may need to change at some point tho
+                                        if (npc.cell.name != null && npc.cell.name.ToLower().StartsWith(filter.id.ToLower())) { return true; }
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotId:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.NotIdType:
+                                    {
+                                        if (npc.id == filter.id) { return true; }
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotClass:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.NotClass:
+                                    {
+                                        if (npc.job == filter.id) { return true; }
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotRace:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.NotRace:
+                                    {
+                                        if (npc.race.ToString().ToLower() == filter.id) { return true; }
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        case DialogFilter.Type.NotFaction:
+                            switch (filter.function)
+                            {
+                                case DialogFilter.Function.NotFaction:
+                                    {
+                                        // Checking speakers faction, static true/false is fine for this as well
+                                        if (npc.faction == filter.id) { return true; }
+                                        break;
+                                    }
+
+                                default: break;
+                            }
+                            break;
+
+                        default: break;
+                    }
+                }
+                DISCARD_COUNT--;
+                return false;
             }
 
             /* Generates an ESD condition for this line using the data from its filters */ // used by DialogESD.cs
@@ -191,6 +353,10 @@ namespace JortPob
                                         }
                                     case DialogFilter.Function.Reputation:
                                         {
+                                            return $"{npcContent.reputation} {filter.OperatorSymbol()} {filter.value}"; // could be statically resolved
+                                        }
+                                    case DialogFilter.Function.PcReputation:
+                                        {
                                             Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.Reputation, "Reputation");
                                             return $"GetEventFlagValue({rvar.id}, {rvar.Bits()}) {filter.OperatorSymbol()} {filter.value}";
                                         }
@@ -266,7 +432,7 @@ namespace JortPob
                                         {
                                             string localId = $"{npcContent.id}.{filter.id}"; // local vars use the characters id + the var id. many characters can have their own copy of a local
                                             Flag lvar = scriptManager.GetFlag(Script.Flag.Designation.Local, localId); // look for flag
-                                            if(lvar == null) { return "False"; } // if we don't find the flag for a local var it doesn't exist
+                                            if(lvar == null) { return "True"; } // if we don't find the flag for a local var it doesn't exist
                                             // local vars are set to their maxvalue when uninitialized. check if its maxvalue and return true if it is, false if not
                                             return $"GetEventFlagValue({lvar.id}, {lvar.Bits()}) == {lvar.MaxValue()}";
                                         }
@@ -280,7 +446,7 @@ namespace JortPob
                                         {
                                             // static check, characters in elden ring can't really travel around so it's fine for now. may need to change at some point tho
                                             if(npcContent.cell.name == null) { return "True"; }
-                                            if (filter.id.ToLower().StartsWith(npcContent.cell.name.ToLower())) { return "False"; }
+                                            if (npcContent.cell.name.ToLower().StartsWith(filter.id.ToLower())) { return "False"; }
                                             return "True";
                                         }
 
@@ -469,8 +635,6 @@ namespace JortPob
                                 if (jvar == null) { jvar = scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Byte, Script.Flag.Designation.Journal, call.parameters[0]); }
                                 string code = $"SetEventFlagValue({jvar.id}, {jvar.Bits()}, {int.Parse(call.parameters[1])})";
                                 lines.Add(code);
-                                // debug @TODO: delete me
-                                lines.Add($"ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Add, {int.Parse(call.parameters[1])})");
                                 break;
                             }
                         case PapyrusCall.Type.AddTopic:
@@ -614,7 +778,8 @@ namespace JortPob
                     None, Journal, ModPcFacRep, ModDisposition, AddItem, RemoveItem, SetFight, StartCombat, Goodbye, Choice, AddTopic, RemoveSpell, ModReputation, ShowMap,
                     StartScript, Set, Disable, AddSpell, SetDisposition, PcJoinFaction, PcClearExpelled, PcRaiseRank, ModMercantile, Enable, ClearForceSneak,
                     AiWander, StopCombat, PcExpell, AiFollow, SetPcCrimeLevel, PayFineThief, ModStrength, MessageBox, PositionCell, AiFollowCell, ModFight,
-                    ModFactionReaction, AiFollowCellPlayer, PayFine, GotoJail, ModFlee, SetAlarm, AiTravel, PlaceAtPc, ModAxe, ClearInfoActor, Cast, ForceGreeting, RaiseRank
+                    ModFactionReaction, AiFollowCellPlayer, PayFine, GotoJail, ModFlee, SetAlarm, AiTravel, PlaceAtPc, ModAxe, ClearInfoActor, Cast, ForceGreeting, RaiseRank,
+                    PlaySound, SetHealth, SetFatigue, Lock, SetMercantile, SetHello, StopScript
                 }
 
                 public readonly Type type;
@@ -650,6 +815,9 @@ namespace JortPob
 
                     // Fix a specific case where a single quote is used at random for no fucking reason
                     if (sanitize.Contains("land deed'")) { sanitize = sanitize.Replace("land deed'", "land deed\""); }
+
+                    // Fix a specific case in Tribunal.esm where some weirdo used a colon after the choice command for no reason
+                    if (sanitize.Contains("choice:")) { sanitize = sanitize.Replace("choice:", "choice"); }
 
                     // Handle targeted call
                     if (sanitize.Contains("->"))
@@ -762,6 +930,21 @@ namespace JortPob
                     value = 0;
                 }
 
+            }
+
+            /* Actually resolve a comparison operation from this filter with a given value */
+            public bool ResolveOperator(int leftValue)
+            {
+                switch (op)
+                {
+                    case Operator.Equal: return leftValue == value;
+                    case Operator.NotEqual: return leftValue != value;
+                    case Operator.GreaterEqual: return leftValue >= value;
+                    case Operator.Greater: return leftValue > value;
+                    case Operator.LessEqual: return leftValue <= value;
+                    case Operator.Less: return leftValue < value;
+                    default: return false;
+                }
             }
 
             /* Returns the esd version of the operator type as a string */

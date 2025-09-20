@@ -1726,6 +1726,12 @@
     <None Update="Resources\tools\ESDTool\ZstdNet.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\tools\MergeToMaster\merge_to_master.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\tools\Tes3Conv\tes3conv.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\tools\WemConversionWrapper\wem_conversion_wrapper.py">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

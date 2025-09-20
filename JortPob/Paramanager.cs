@@ -148,6 +148,7 @@ namespace JortPob
         {
             Lort.Log($"Binding {param.Count()} PARAMs...", Lort.Type.Main);
             Lort.NewTask($"Binding PARAMs", param.Count());
+            Lort.Log($"Total TalkParam rows: {param[Paramanager.ParamType.TalkParam].Rows.Count()} out of a max of {ushort.MaxValue}", Lort.Type.Debug);
 
             BND4 bnd = new();
             bnd.Compression = SoulsFormats.DCX.Type.DCX_ZSTD;
@@ -488,26 +489,28 @@ namespace JortPob
             {
                 foreach (NpcManager.TopicData.TalkData talk in topic.talks)
                 {
-                    int id = talk.talkRow;
+                    for (int i = 0; i < talk.talkRows.Count(); i++)
+                    {
+                        int id = talk.talkRows[i];
+                        string text = talk.splitText[i];
 
-                    // If exists skip, duplicates happen during gen of these params beacuse a single talkparam can be used by any number of npcs. Hundreds in some cases.
-                    if (talkParam[id] != null) { continue; }
+                        // If exists skip, duplicates happen during gen of these params beacuse a single talkparam can be used by any number of npcs. Hundreds in some cases.
+                        if (talkParam[id] != null) { continue; }
 
-                    // truncating the text in the row name because it can cause issues if it is too long
-                    FsParam.Row row = CloneRow(templateTalkRow, talk.dialogInfo.text.Substring(0, Math.Min(32, talk.dialogInfo.text.Length)), id); // 1400000 is a line from opening cutscene
+                        // truncating the text in the row name because it can cause issues if it is too long
+                        FsParam.Row row = CloneRow(templateTalkRow, text.Substring(0, Math.Min(32, text.Length)), id); // 1400000 is a line from opening cutscene
 
-                    msgId.SetValue(row, id * 10); // message id (male)
-                    voiceId.SetValue(row, id * 10); // message id (male)
+                        msgId.SetValue(row, id * 10); // message id (male)
+                        voiceId.SetValue(row, id * 10); // message id (male)
 
-                    msgId_female.SetValue(row, id * 10); // message id (female)
-                    voiceId_female.SetValue(row, id * 10); // message id (female)
+                        msgId_female.SetValue(row, id * 10); // message id (female)
+                        voiceId_female.SetValue(row, id * 10); // message id (female)
 
-                    textManager.AddTalk(id * 10, talk.dialogInfo.text);
-                    AddRow(talkParam, row);
+                        textManager.AddTalk(id * 10, text);
+                        AddRow(talkParam, row);
+                    }
                 }
             }
-
-            if(talkParam.Rows.Count() >= ushort.MaxValue) { throw new Exception("Ran out of talk param rows! Will fail to compile params!"); }
         }
 
         public void GenerateNpcParam(TextManager textManager, int id, NpcContent npc)

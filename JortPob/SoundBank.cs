@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Text.Json.Nodes;
 using static JortPob.SoundManager;
 
@@ -20,20 +21,34 @@ namespace JortPob
 
 
         // Returns the row id of the sound you add
-        public uint AddSound(string file, uint dialogInfo, string transcript)
+        public int AddSound(string file, int dialogInfo, string transcript)
         {
             uint[] ids = globals.GetEventBnkId();
 
-            Sound sound = new(dialogInfo, ids[0], ids[1], ids[2], transcript, file);
+            Sound sound = new(dialogInfo, ids[0], ids[1], ids[2], transcript, file, globals.NextSourceId());
             sounds.Add(sound);
 
-            return ids[0];
+            return (int)ids[0];
         }
 
-        public uint AddSound(SoundBank.Sound snd)
+        // Same as above but we set a specific rowId to use. For split text talks
+        public int AddSound(string file, int dialogInfo, string transcript, uint rowId)
+        {
+            byte[] playCallBytes = Encoding.ASCII.GetBytes($"Play_v{rowId.ToString("D8")}0".ToLower());
+            byte[] stopCallBytes = Encoding.ASCII.GetBytes($"Stop_v{rowId.ToString("D8")}0".ToLower());
+            uint playCallId = Utility.FNV1_32(playCallBytes);
+            uint stopCallId = Utility.FNV1_32(stopCallBytes);
+
+            Sound sound = new(dialogInfo, rowId, playCallId, stopCallId, transcript, file, globals.NextSourceId());
+            sounds.Add(sound);
+
+            return (int)rowId;
+        }
+
+        public int AddSound(SoundBank.Sound snd)
         {
             sounds.Add(snd);
-            return snd.row;
+            return (int)snd.row;
         }
 
         /* Generates and writes JSON, then calls bnk2json to build the bnk */
@@ -61,7 +76,7 @@ namespace JortPob
                 JsonNode soundStopCall = templateStopCall.DeepClone();
                 JsonNode soundData = templateData.DeepClone();
 
-                uint sourceId = globals.NextSourceId();
+                uint sourceId = sound.source;
                 soundData["id"] = globals.NextBnkId();
                 soundData["object"]["Sound"]["bank_source_data"]["media_information"]["source_id"] = sourceId;
 
@@ -129,10 +144,10 @@ namespace JortPob
 
         public class Sound
         {
-            public readonly uint dialogInfo; // id from dialoginfo we use for quicker searching when adding wems
-            public readonly uint row, play, stop;
+            public readonly int dialogInfo; // id from dialoginfo we use for quicker searching when adding wems
+            public readonly uint row, play, stop, source;   // source is wem id
             public readonly string transcript, file;
-            public Sound(uint dialogInfo, uint row, uint play, uint stop, string transcript, string file)
+            public Sound(int dialogInfo, uint row, uint play, uint stop, string transcript, string file, uint source)
             {
                 this.dialogInfo = dialogInfo;
                 this.row = row;
@@ -140,6 +155,7 @@ namespace JortPob
                 this.stop = stop;
                 this.transcript = transcript;
                 this.file = file;
+                this.source = source;
             }
         }
     }

@@ -9,50 +9,52 @@ namespace JortPob
     public class SoundManager
     {
         private int nextBankId;
-        private readonly Dictionary<(NpcContent.Race, NpcContent.Sex), SoundBankInfo> banksByDemographic;
+        private readonly List<SoundBankInfo> banks;
         private readonly SoundBankGlobals globals;
 
         public SoundManager()
         {
             nextBankId = 100;
-            banksByDemographic = new();
+            banks = new();
             globals = new();
         }
 
         /* Either returns an existing bank meeting the requirements, or makes a new one */
         public SoundBankInfo GetBank(NpcContent npc)
         {
-            ValueTuple<NpcContent.Race, NpcContent.Sex> key = (npc.race, npc.sex);
-            SoundBankInfo bnk;
-
-            if (banksByDemographic.TryGetValue((npc.race, npc.sex), out bnk))
+            foreach (SoundBankInfo bankInfo in banks)
             {
-                return bnk;
+                if (bankInfo.race == npc.race && bankInfo.sex == npc.sex && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
+                {
+                    return bankInfo;
+                }
             }
 
-            bnk = new SoundBankInfo(nextBankId++, npc.race, npc.sex, new SoundBank(globals));
-            banksByDemographic.Add(key, bnk);
-
+            SoundBankInfo bnk = new(nextBankId++, npc.race, npc.sex, new SoundBank(globals));
+            banks.Add(bnk);
             return bnk;
         }
 
-        public SoundBank.Sound FindSound(NpcContent npc, uint dialogInfo)
+        public SoundBank.Sound FindSound(NpcContent npc, int dialogInfo)
         {
-            if (banksByDemographic.TryGetValue((npc.race, npc.sex), out SoundBankInfo bnk))
+            foreach (SoundBankInfo bankInfo in banks)
             {
-                return bnk.bank.sounds.FirstOrDefault(snd => snd.dialogInfo == dialogInfo);
+                if (bankInfo.race != npc.race || bankInfo.sex != npc.sex) { continue; } // not a match
+                foreach (SoundBank.Sound snd in bankInfo.bank.sounds)
+                {
+                    if (snd.dialogInfo == dialogInfo) { return snd; }
+                }
             }
-
             return null; // no match found
         }
 
         /* Writes all soundbanks to given dir */
         public void Write(string dir)
         {
-            Lort.Log($"Writing {banksByDemographic.Count()} BNKs...", Lort.Type.Main);
-            Lort.NewTask("Writing BNKs", banksByDemographic.Count);
+            Lort.Log($"Writing {banks.Count()} BNKs...", Lort.Type.Main);
+            Lort.NewTask("Writing BNKs", banks.Count);
 
-            foreach (SoundBankInfo bankInfo in banksByDemographic.Values)
+            foreach (SoundBankInfo bankInfo in banks)
             {
                 bankInfo.bank.Write(dir, bankInfo.id);
                 Lort.TaskIterate();
@@ -158,7 +160,7 @@ namespace JortPob
             public readonly int id;         // vc###.bnk id
             public readonly NpcContent.Race race;    // race of npcs that use this bank
             public readonly NpcContent.Sex sex;
-            public int uses;                // how many esds use this same bank
+            public int uses;                // how many esds use this same bank, the max amount per bank is 100. 
 
             public readonly SoundBank bank;
 
