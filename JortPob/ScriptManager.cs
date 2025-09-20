@@ -22,7 +22,6 @@ namespace JortPob
 
         public ScriptCommon common;
         public List<Script> scripts; // map scripts
-
         public ScriptManager()
         {
             common = new();
@@ -69,24 +68,14 @@ namespace JortPob
 
         public Script.Flag GetFlag(Designation designation, string name)
         {
-            Script.Flag FindFlag(List<Script.Flag> flags, Designation designation, string name)
-            {
-                foreach (Script.Flag flag in flags)
-                {
-                    if(flag.designation == designation && flag.name.ToLower() == name.ToLower())
-                    {
-                        return flag;
-                    }
-                }
-                return null;
-            }
+            var lookupKey = Script.FormatFlagLookupKey(designation, name); 
 
-            Script.Flag f = FindFlag(common.flags, designation, name);
-            if(f != null) { return f; }
+            Flag f = common.FindFlagByLookupKey(lookupKey);
+            if (f != null) { return f; }
 
             foreach (Script script in scripts)
             {
-                f = FindFlag(script.flags, designation, name);
+                f = script.FindFlagByLookupKey(lookupKey);
                 if (f != null) { return f; }
             }
 
