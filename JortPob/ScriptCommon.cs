@@ -10,6 +10,8 @@ using static JortPob.Script;
 
 namespace JortPob
 {
+    using ScriptFlagLookupKey = (Script.Flag.Designation, string); 
+
     /* Handles CommonEvent and CommonFunc EMEVD. These are different from map scripts so I decided to give them a seperate class */
 
     public class ScriptCommon
@@ -27,6 +29,13 @@ namespace JortPob
         }
         public readonly Dictionary<Event, uint> events;
 
+        /**
+         * This is just used to speed up searches for flags. It is a 1:1 mapping, so duplicate designated/named
+         * flags will result in us just using the first one. This is okay (for now), because that is the same logic
+         * that GetFlag already uses.
+         */
+        private readonly Dictionary<ScriptFlagLookupKey, Flag> flagsByLookupKey;
+
         public ScriptCommon()
         {
             AUTO = new(Utility.ResourcePath(@"script\\er-common.emedf.json"), true, true);
@@ -35,6 +44,7 @@ namespace JortPob
             func = EMEVD.Read(Utility.ResourcePath(@"script\common_func.emevd.dcx"));
 
             flags = new();
+            flagsByLookupKey = new();
 
             flagUsedCounts = new()
             {
@@ -170,7 +180,13 @@ namespace JortPob
 
             Flag flag = new(category, type, designation, name, id, value);
             flags.Add(flag);
+            flagsByLookupKey.TryAdd(GetLookupKeyForFlag(flag), flag);
             return flag;
+        }
+
+        public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)
+        {
+            return flagsByLookupKey.GetValueOrDefault(key);
         }
 
         public void Write()

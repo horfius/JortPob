@@ -16,8 +16,11 @@ using static SoulsFormats.MSBAC4.Event;
 
 namespace JortPob
 {
+    using ScriptFlagLookupKey = (Script.Flag.Designation, string); 
+
     public class Script
     {
+
         public Events AUTO;
 
         public readonly int map, x, y, block;
@@ -32,6 +35,13 @@ namespace JortPob
         }
 
         public List<Flag> flags;
+
+        /**
+         * This is just used to speed up searches for flags. It is a 1:1 mapping, so duplicate designated/named
+         * flags will result in us just using the first one. This is okay (for now), because that is the same logic
+         * that GetFlag already uses elsewhere.
+         */
+        private readonly Dictionary<ScriptFlagLookupKey, Flag> flagsByLookupKey;
         private Dictionary<Flag.Category, uint> flagUsedCounts;
         private Dictionary<EntityType, uint> entityUsedCounts;
 
@@ -59,6 +69,7 @@ namespace JortPob
             emevd.Events.Add(init);
 
             flags = new();
+            flagsByLookupKey = new();
 
             flagUsedCounts = new()
             {
@@ -114,6 +125,17 @@ namespace JortPob
             { Flag.Category.Saved, new uint[] { 0, 4000, 7000, 8000, 9000 } },
             { Flag.Category.Temporary, new uint[] { 2000, 5000 } }
         };
+
+        public static ScriptFlagLookupKey GetLookupKeyForFlag(Flag flag)
+        {
+            return FormatFlagLookupKey(flag.designation, flag.name);
+        }
+
+        public static ScriptFlagLookupKey FormatFlagLookupKey(Flag.Designation designation, string name)
+        {
+            return (designation, name.ToLower());
+        }
+
         public Flag CreateFlag(Flag.Category category, Flag.Type type, Flag.Designation designation, string name, uint value = 0)
         {
             uint rawCount = flagUsedCounts[category];
@@ -135,6 +157,7 @@ namespace JortPob
 
             Flag flag = new(category, type, designation, name, id, value);
             flags.Add(flag);
+            flagsByLookupKey.TryAdd(GetLookupKeyForFlag(flag), flag);
             return flag;
         }
 
@@ -156,6 +179,11 @@ namespace JortPob
             if (rawCount >= 1000) { Lort.Log($" ## CRITICAL ## ENTITY ID OVERFLOWED IN m{map:D2}_{x:D2}_{y:D2}", Lort.Type.Debug); }
 
             return mapOffset + ((uint)type) + rawCount;
+        }
+
+        public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)
+        {
+            return flagsByLookupKey.GetValueOrDefault(key);
         }
 
         public void Write()

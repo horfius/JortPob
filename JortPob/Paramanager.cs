@@ -477,7 +477,14 @@ namespace JortPob
         public void GenerateTalkParam(TextManager textManager, List<NpcManager.TopicData> topicData)
         {
             FsParam talkParam = param[ParamType.TalkParam];
-            FsParam.Row templateTalkRow = talkParam[1400000]; // 1400000 is a line from opening cutscene
+            
+            /*
+             * Since FsParam[ID] is actually a linear search for a matching row, we build a Dictionary up-front
+             * to speed up checks. Because of this, however, we need to keep it up-to-date in the loop below.
+             */
+            Dictionary<int, FsParam.Row> rowsById = talkParam.Rows.ToDictionary(r => r.ID);
+
+            FsParam.Row templateTalkRow = rowsById[1400000]; // 1400000 is a line from opening cutscene
 
             FsParam.Column msgId = talkParam["msgId"];
             FsParam.Column voiceId = talkParam["voiceId"];
@@ -495,7 +502,7 @@ namespace JortPob
                         string text = talk.splitText[i];
 
                         // If exists skip, duplicates happen during gen of these params beacuse a single talkparam can be used by any number of npcs. Hundreds in some cases.
-                        if (talkParam[id] != null) { continue; }
+                        if (rowsById.ContainsKey(id)) { continue; }
 
                         // truncating the text in the row name because it can cause issues if it is too long
                         FsParam.Row row = CloneRow(templateTalkRow, text.Substring(0, Math.Min(32, text.Length)), id); // 1400000 is a line from opening cutscene
@@ -508,6 +515,7 @@ namespace JortPob
 
                         textManager.AddTalk(id * 10, text);
                         AddRow(talkParam, row);
+                        rowsById[id] = row; // this is where we keep the lookup up-to-date
                     }
                 }
             }

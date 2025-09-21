@@ -8,6 +8,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Text;
 using static JortPob.Dialog;
 using static JortPob.Faction;
 using static JortPob.NpcManager.TopicData;
@@ -579,18 +580,24 @@ namespace JortPob
             int shop1 = 100625;
             int shop2 = 100649;
 
-            string s = $"def t{id_s}_x44():\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        ClearPreviousMenuSelection()\r\n        ClearTalkActionState()\r\n        ClearTalkListData()\r\n        \"\"\"State 2\"\"\"\r\n";
+            StringBuilder s = new();
+
+            s.Append("def t")
+                .Append(id_s)
+                .Append(
+                    "_x44():\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        ClearPreviousMenuSelection()\r\n        ClearTalkActionState()\r\n        ClearTalkListData()\r\n        \"\"\"State 2\"\"\"\r\n"
+                );
 
             if (npcContent.faction != null)
             {
-                s += $"        # rankreq call: \"{npcContent.faction}\"\r\n";
-                s += $"        assert t{id_s}_x{Common.Const.ESD_STATE_HARDCODE_RANKREQUIREMENT}()";
+                s.Append($"        # rankreq call: \"{npcContent.faction}\"\r\n");
+                s.Append($"        assert t{id_s}_x{Common.Const.ESD_STATE_HARDCODE_RANKREQUIREMENT}()");
             }
 
             int listCount = 1; // starts at 1 idk
             if(hasShop)
             {
-                s += $"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n";
+                s.Append($"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
             for (int i = 0; i < topics.Count(); i++)
@@ -605,24 +612,31 @@ namespace JortPob
                     if(filter == "") { filters.Clear(); break; }
                     filters.Add(filter);
                 }
-                string combinedFilters = "";
+                StringBuilder combinedFilters = new();
                 for(int j = 0;j<filters.Count();j++)
                 {
                     string filter = filters[j];
-                    combinedFilters += $"({filter})";
-                    if(j<filters.Count()-1) { combinedFilters += " or "; }
+                    combinedFilters.Append($"({filter})");
+                    if (j < filters.Count() - 1)
+                    {
+                        combinedFilters.Append(" or ");
+                    }
                 }
-                if(combinedFilters != "") { combinedFilters = $" and ({combinedFilters})"; }
 
-                s += $"        # topic: \"{topic.dialog.id}\"\r\n        if GetEventFlag({topic.dialog.flag.id}){combinedFilters}:\r\n            AddTalkListData({i+listCount}, {topic.topicText}, -1)\r\n        else:\r\n            pass\r\n";
+                if (combinedFilters.Length > 0)
+                {
+                    combinedFilters.Insert(0, " and (").Append(')');
+                }
+
+                s.Append($"        # topic: \"{topic.dialog.id}\"\r\n        if GetEventFlag({topic.dialog.flag.id}){combinedFilters}:\r\n            AddTalkListData({i+listCount}, {topic.topicText}, -1)\r\n        else:\r\n            pass\r\n");
             }
 
-            s += $"        # action:20000009:\"Leave\"\r\n        AddTalkListData(99, 20000009, -1)\r\n        \"\"\"State 3\"\"\"\r\n        ShowShopMessage(TalkOptionsType.Regular)\r\n        \"\"\"State 4\"\"\"\r\n        assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        \"\"\"State 5\"\"\"\r\n";
+            s.Append($"        # action:20000009:\"Leave\"\r\n        AddTalkListData(99, 20000009, -1)\r\n        \"\"\"State 3\"\"\"\r\n        ShowShopMessage(TalkOptionsType.Regular)\r\n        \"\"\"State 4\"\"\"\r\n        assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        \"\"\"State 5\"\"\"\r\n");
 
             listCount = 1; // reset
             if (hasShop)
             {
-                s += $"        if GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 6\"\"\"\r\n            OpenRegularShop({shop1}, {shop2})\r\n            \"\"\"State 7\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 9\"\"\"\r\n            OpenSellShop(-1, -1)\r\n            \"\"\"State 8\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n";
+                s.Append($"        if GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 6\"\"\"\r\n            OpenRegularShop({shop1}, {shop2})\r\n            \"\"\"State 7\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 9\"\"\"\r\n            OpenSellShop(-1, -1)\r\n            \"\"\"State 8\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
             }
 
             string ifopA = hasShop ? "elif" : "if";
@@ -631,8 +645,8 @@ namespace JortPob
                 NpcManager.TopicData topic = topics[i];
                 if (topic.IsOnlyChoice()) { continue; } // skip these as they aren't valid or reachable
 
-                s += $"        {ifopA} GetTalkListEntryResult() == {i + listCount}:\r\n";
-                s += $"            # topic: \"{topic.dialog.id}\"\r\n";
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {i + listCount}:\r\n");
+                s.Append($"            # topic: \"{topic.dialog.id}\"\r\n");
 
                 string ifopB = "if";
                 foreach (NpcManager.TopicData.TalkData talk in topic.talks)
@@ -642,39 +656,39 @@ namespace JortPob
                     string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
                     if (filters == "") { filters = "True"; }
 
-                    s += $"            {ifopB} {filters}:\r\n";
-                    s += $"                # talk: \"{Common.Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
-                    s += $"                assert t{id_s}_x33(text2={talk.primaryTalkRow}, mode4=1)\r\n";
+                    s.Append($"            {ifopB} {filters}:\r\n");
+                    s.Append($"                # talk: \"{Common.Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n");
+                    s.Append($"                assert t{id_s}_x33(text2={talk.primaryTalkRow}, mode4=1)\r\n");
 
                     foreach (DialogRecord dialog in talk.dialogInfo.unlocks)
                     {
-                        s += $"                SetEventFlag({dialog.flag.id}, FlagState.On)\r\n";
+                        s.Append($"                SetEventFlag({dialog.flag.id}, FlagState.On)\r\n");
                     }
 
                     if (talk.dialogInfo.script != null)
                     {
                         if (talk.dialogInfo.script.calls.Count() > 0)
                         {
-                            s += talk.dialogInfo.script.GenerateEsdSnippet(scriptManager, npcContent, id, 16);
+                            s.Append(talk.dialogInfo.script.GenerateEsdSnippet(scriptManager, npcContent, id, 16));
                         }
                         if(talk.dialogInfo.script.choice != null)
                         {
                             string genState = GeneratedState_Choice(id, nxtGenStateId, talk, topic);
                             generatedStates.Add(genState);
-                            s += $"                assert t{id_s}_x{nxtGenStateId}()\r\n";
+                            s.Append($"                assert t{id_s}_x{nxtGenStateId}()\r\n");
                             nxtGenStateId++;
                         }
                     }
                     if (ifopB == "if") { ifopB = "elif"; }
                 }
 
-                s += $"            else:\r\n                pass\r\n";  // not needed?
+                s.Append($"            else:\r\n                pass\r\n");  // not needed?
                 if (ifopA == "if") { ifopA = "elif"; }
             }
 
-            s += $"        else:\r\n            return 0\r\n\r\n";
+            s.Append($"        else:\r\n            return 0\r\n\r\n");
 
-            return s;
+            return s.ToString();
         }
 
         private string GeneratedState_ModDisposition(uint id, int x)
