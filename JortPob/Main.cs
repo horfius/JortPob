@@ -216,6 +216,12 @@ namespace JortPob
                     enemy.NPCParamID = character.GetParam(npc); // creates and returns an npcparam
                     enemy.EntityID = npc.entity;
 
+                    if(enemy.TalkID == 0 && npc.papyrus != null)
+                    {
+                        Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
+                        PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
+                    }
+
                     msb.Parts.Enemies.Add(enemy);
                 }
 

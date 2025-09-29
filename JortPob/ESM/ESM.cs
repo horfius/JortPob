@@ -1,7 +1,4 @@
-﻿using HKLib.hk2018.hk;
-using HKLib.hk2018.hkaiCollisionAvoidance.Solver;
-using HKLib.hk2018.hke;
-using JortPob.Common;
+﻿using JortPob.Common;
 using JortPob.Worker;
 using SoulsFormats;
 using System;
@@ -36,6 +33,7 @@ namespace JortPob
         public List<DialogRecord> dialog;
         public List<Faction> factions;
         public List<Cell> exterior, interior;
+        public List<Papyrus> scripts;
 
         public ESM(ScriptManager scriptManager)
         {
@@ -208,6 +206,19 @@ namespace JortPob
                 scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
             }
 
+            /* Process papyrus scripts */
+            scripts = new();
+            List<JsonNode> scriptJsons = [.. GetAllRecordsByType(ESM.Type.Script)];
+            foreach(JsonNode jsonNode in scriptJsons)
+            {
+                try
+                {
+                    Papyrus papyrus = new(jsonNode);
+                    scripts.Add(papyrus);
+                }
+                catch { Lort.Log($" ## FAILED TO PARSE SCRIPT :: {jsonNode["id"].GetValue<string>()}", Lort.Type.Debug); }
+            }
+
             /* Post processing of local variables. */
             /* Local variables need to be created and initialized as a fixed "unset" value */
             /* We cannot simply instance local vars on the fly as some contexts that are looking for them need to know if they exists (filters for examlpe) */
@@ -218,9 +229,9 @@ namespace JortPob
                 {
                     if (info.script != null)
                     {
-                        foreach (DialogPapyrus.PapyrusCall call in info.script.calls)
+                        foreach (Papyrus.Call call in info.script.calls)
                         {
-                            if (call.type == DialogPapyrus.PapyrusCall.Type.Set)
+                            if (call.type == Papyrus.Call.Type.Set)
                             {
                                 if(!call.parameters[0].Contains(".")) { continue; } // if the variable name doesn't contain a '.' then it's a global not a local
                                 Script.Flag lvar = scriptManager.GetFlag(Flag.Designation.Local, call.parameters[0]);
@@ -339,6 +350,15 @@ namespace JortPob
             foreach (Faction faction in factions)
             {
                 if (faction.id == id) { return faction; }
+            }
+            return null;
+        }
+
+        public Papyrus GetPapyrus(string id)
+        {
+            foreach (Papyrus papyrus in scripts)
+            {
+                if (papyrus.id == id) { return papyrus; }
             }
             return null;
         }

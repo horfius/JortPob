@@ -568,7 +568,7 @@ namespace JortPob
 
         public class DialogPapyrus
         {
-            public readonly List<PapyrusCall> calls;
+            public readonly List<Papyrus.Call> calls;
             public readonly PapyrusChoice choice;    // usually null unless the papyrus script had a choice call. choice is always the last call in a script and there can only be 1
 
             public DialogPapyrus(string script)
@@ -578,9 +578,9 @@ namespace JortPob
                 choice = null;
                 foreach (string line in lines)
                 {
-                    PapyrusCall call = new(line);
-                    if (call.type == PapyrusCall.Type.None) { continue; } // discard empty calls
-                    if(call.type == PapyrusCall.Type.Choice)  // choice calls are special and are stored differently
+                    Papyrus.Call call = new(line);
+                    if (call.type == Papyrus.Call.Type.None) { continue; } // discard empty calls
+                    if(call.type == Papyrus.Call.Type.Choice)  // choice calls are special and are stored differently
                     {
                         choice = new PapyrusChoice(call);
                         continue;
@@ -616,11 +616,11 @@ namespace JortPob
 
                 List<string> lines = new();
 
-                foreach (PapyrusCall call in calls)
+                foreach (Papyrus.Call call in calls)
                 {
                     switch (call.type)
                     {
-                        case PapyrusCall.Type.Set:
+                        case Papyrus.Call.Type.Set:
                             {
                                 // This var can be either global or local so check for both. since locals are preprocessed if we dont find either we make a global
                                 Flag var = scriptManager.GetFlag(Script.Flag.Designation.Global, call.parameters[0]);
@@ -633,7 +633,7 @@ namespace JortPob
 
                                 break;
                             }
-                        case PapyrusCall.Type.Journal:
+                        case Papyrus.Call.Type.Journal:
                             {
                                 Flag jvar = scriptManager.GetFlag(Script.Flag.Designation.Journal, call.parameters[0]); // look for flag, if not found make one
                                 if (jvar == null) { jvar = scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Byte, Script.Flag.Designation.Journal, call.parameters[0]); }
@@ -641,21 +641,21 @@ namespace JortPob
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.AddTopic:
+                        case Papyrus.Call.Type.AddTopic:
                             {
                                 Flag tvar = scriptManager.GetFlag(Script.Flag.Designation.TopicEnabled, call.parameters[0]);
                                 string code = $"SetEventFlag({tvar.id}, FlagState.On)";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.PcJoinFaction:
+                        case Papyrus.Call.Type.PcJoinFaction:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionJoined, npcContent.faction);
                                 string code = $"SetEventFlag({fvar.id}, FlagState.On);";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.ModPcFacRep:
+                        case Papyrus.Call.Type.ModPcFacRep:
                             {
                                 int rep = int.Parse(call.parameters[0]);
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionReputation, call.parameters[1]);
@@ -663,7 +663,7 @@ namespace JortPob
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.PcRaiseRank:
+                        case Papyrus.Call.Type.PcRaiseRank:
                             {
                                 Script.Flag jvar = scriptManager.GetFlag(Script.Flag.Designation.FactionJoined, npcContent.faction);
                                 Script.Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, npcContent.faction);
@@ -673,26 +673,26 @@ namespace JortPob
                                 lines.Add(raiseRankCode);
                                 break;
                             }
-                        case PapyrusCall.Type.PcExpell:
+                        case Papyrus.Call.Type.PcExpell:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionExpelled, npcContent.faction);
                                 string code = $"SetEventFlag({fvar.id}, FlagState.On);";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.PcClearExpelled:
+                        case Papyrus.Call.Type.PcClearExpelled:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionExpelled, npcContent.faction);
                                 string code = $"SetEventFlag({fvar.id}, FlagState.Off);";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.MessageBox:
+                        case Papyrus.Call.Type.MessageBox:
                             {
                                 scriptManager.common.GetOrRegisterMessage(paramanager, "Message", call.parameters[0]);
                                 break;
                             }
-                        case PapyrusCall.Type.RemoveItem:
+                        case Papyrus.Call.Type.RemoveItem:
                             {
                                 // Gold specifically handled as souls so its diffo from other item checks
                                 if (call.target == "player" && call.parameters[0] == "gold_001")
@@ -704,7 +704,7 @@ namespace JortPob
                                 // Any other item
                                 break; // not yet supported
                             }
-                        case PapyrusCall.Type.AddItem:
+                        case Papyrus.Call.Type.AddItem:
                             {
                                 // Gold specifically handled as souls so its diffo from other item checks
                                 if (call.target == "player" && call.parameters[0] == "gold_001")
@@ -716,35 +716,35 @@ namespace JortPob
                                 // Any other item
                                 break; // not yet supported
                             }
-                        case PapyrusCall.Type.ModDisposition:
+                        case Papyrus.Call.Type.ModDisposition:
                             {
                                 Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
                                 string code = $"assert t{esdId:D9}_x{Const.ESD_STATE_HARDCODE_MODDISPOSITION}(dispositionflag={dvar.id}, value={call.parameters[0]})";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.SetDisposition:
+                        case Papyrus.Call.Type.SetDisposition:
                             {
                                 Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
                                 string code = $"SetEventFlagValue({dvar.id}, {dvar.Bits()}, {call.parameters[0]})";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.ModReputation:
+                        case Papyrus.Call.Type.ModReputation:
                             {
                                 Script.Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.Reputation, "Reputation");
                                 string code = $"SetEventFlagValue({rvar.id}, {rvar.Bits()}, ( GetEventFlagValue({rvar.id}, {rvar.Bits()}) + {call.parameters[0]} ))";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.SetPcCrimeLevel:
+                        case Papyrus.Call.Type.SetPcCrimeLevel:
                             {
                                 Script.Flag cvar = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
                                 string code = $"SetEventFlagValue({cvar.id}, {cvar.Bits()}, {call.parameters[0]})";
                                 lines.Add(code);
                                 break;
                             }
-                        case PapyrusCall.Type.PayFine:
+                        case Papyrus.Call.Type.PayFine:
                             {
                                 Script.Flag aflag = scriptManager.GetFlag(Script.Flag.Designation.CrimeAbsolved, "CrimeAbsolved");
                                 Script.Flag crimeLevel = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
@@ -754,7 +754,7 @@ namespace JortPob
                                 lines.Add(fineCode);
                                 break;
                             }
-                        case PapyrusCall.Type.GoToJail:
+                        case Papyrus.Call.Type.GoToJail:
                             {
                                 Script.Flag aflag = scriptManager.GetFlag(Script.Flag.Designation.CrimeAbsolved, "CrimeAbsolved");
                                 Script.Flag crimeLevel = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
@@ -764,7 +764,7 @@ namespace JortPob
                                 lines.Add(fineCode);
                                 break;
                             }
-                        case PapyrusCall.Type.StartCombat:
+                        case Papyrus.Call.Type.StartCombat:
                             {
                                 if (call.parameters[0].Trim() == "player")
                                 {
@@ -779,7 +779,7 @@ namespace JortPob
                                 // @TODO: startcombat with anything else than player is not supported yet
                                 break;
                             }
-                        case PapyrusCall.Type.Goodbye:
+                        case Papyrus.Call.Type.Goodbye:
                             {
                                 // End conversation promptly
                                 string code = $"return 0";
@@ -809,107 +809,6 @@ namespace JortPob
                 return $"{space}{string.Join($"\r\n{space}", lines)}\r\n";
             }
 
-            public class PapyrusCall
-            {
-                public enum Type
-                {
-                    None, Journal, ModPcFacRep, ModDisposition, AddItem, RemoveItem, SetFight, StartCombat, Goodbye, Choice, AddTopic, RemoveSpell, ModReputation, ShowMap,
-                    StartScript, Set, Disable, AddSpell, SetDisposition, PcJoinFaction, PcClearExpelled, PcRaiseRank, ModMercantile, Enable, ClearForceSneak,
-                    AiWander, StopCombat, PcExpell, AiFollow, SetPcCrimeLevel, PayFineThief, ModStrength, MessageBox, PositionCell, AiFollowCell, ModFight,
-                    ModFactionReaction, AiFollowCellPlayer, PayFine, GoToJail, ModFlee, SetAlarm, AiTravel, PlaceAtPc, ModAxe, ClearInfoActor, Cast, ForceGreeting, RaiseRank,
-                    PlaySound, SetHealth, SetFatigue, Lock, SetMercantile, SetHello, StopScript
-                }
-
-                public readonly Type type;
-                public readonly string target;         // can be null, this is set if a papyrus call is on an object like "player->additem cbt 1"
-                public readonly string[] parameters;
-
-                public PapyrusCall(string line)
-                {
-                    string sanitize = line.Trim().ToLower();
-                    if (sanitize.StartsWith(";") || sanitize == "") { type = Type.None; target = null; parameters = new string[0]; return; } // line does nothing
-
-                    // Remove trailing comments
-                    if (sanitize.Contains(";"))
-                    {
-                        sanitize = sanitize.Split(";")[0].Trim();
-                    }
-
-                    // Remove any multi spaces
-                    while (sanitize.Contains("  "))
-                    {
-                        sanitize = sanitize.Replace("  ", " ");
-                    }
-
-                    // Remove any commas as they are not actually needed for papyrus syntax and are used somewhat randomly lol
-                    // @TODO: this is fine except on choice calls which have strings with dialog text in them. the dialogs can have commas but we are just erasing them rn. should fix, low prio
-                    sanitize = sanitize.Replace(",", "");
-
-                    // Fix a specific single case where a stupid -> has a space in it
-                    if (sanitize.Contains("-> ")) { sanitize = sanitize.Replace("-> ", "->"); }
-
-                    // Fix a specific single case of weird syntax
-                    if (sanitize.Contains("\"1 ")) { sanitize = sanitize.Replace("\"1 ", "\" 1 "); }
-
-                    // Fix a specific case where a single quote is used at random for no fucking reason
-                    if (sanitize.Contains("land deed'")) { sanitize = sanitize.Replace("land deed'", "land deed\""); }
-
-                    // Fix a specific case in Tribunal.esm where some weirdo used a colon after the choice command for no reason
-                    if (sanitize.Contains("choice:")) { sanitize = sanitize.Replace("choice:", "choice"); }
-
-                    // Handle targeted call
-                    if (sanitize.Contains("->"))
-                    {
-                        // Special split because targets can be in quotes and have spaces in them
-                        string[] split = sanitize.Split("->");
-                        List<string> ps = Regex.Matches(split[1], @"[\""].+?[\""]|[^ ]+")
-                            .Cast<Match>()
-                            .Select(m => m.Value)
-                            .ToList();
-
-                        type = (Type)Enum.Parse(typeof(Type), ps[0], true);
-                        target = split[0].Replace("\"", "");
-                        ps.RemoveAt(0);
-                        parameters = ps.ToArray();
-                    }
-                    // Handle normal call
-                    else
-                    {
-                        List<string> split = sanitize.Split(" ").ToList();
-
-                        type = (Type)Enum.Parse(typeof(Type), split[0], true);
-                        target = null;
-                        split.RemoveAt(0);
-
-                        /* Handle special case where you have a call like this :: Set "Manilian Scerius".slaveStatus to 2 */
-                        /* Seems to be fairly rare that we have syntax like this but it does happen. */
-                        /* Recombine the 2 halves of that "name" and remove the quotes */
-                        List<string> recomb = new();
-                        for (int i = 0; i < split.Count(); i++)
-                        {
-                            string s = split[i];
-                            if (s.StartsWith("\""))
-                            {
-                                if (s.Split("\"").Length - 1 == 2) { recomb.Add(s.Replace("\"", "")); }
-                                else
-                                {
-                                    string itrNxt = split[++i];
-                                    while(!itrNxt.Contains("\""))
-                                    {
-                                        itrNxt += $" {split[++i]}";
-                                    }
-                                    recomb.Add(($"{s} {itrNxt}").Replace("\"", ""));
-                                }
-                                continue;
-                            }
-
-                            recomb.Add(s);
-                        }
-
-                        parameters = recomb.ToArray();
-                    }
-                }
-            }
 
             /* Very specially handled call */
             /* This papyrus function is always singular and last in a dialog script so i can safely store as it's own thing */
@@ -917,7 +816,7 @@ namespace JortPob
             {
                 public readonly List<Tuple<int, string>> choices;
 
-                public PapyrusChoice(PapyrusCall call)
+                public PapyrusChoice(Papyrus.Call call)
                 {
                     choices = new();
 

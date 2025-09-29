@@ -1,6 +1,4 @@
-﻿using HKLib.hk2018.hkaiCollisionAvoidance;
-using HKX2;
-using JortPob.Common;
+﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -13,9 +11,6 @@ using System.Text;
 using static JortPob.Dialog;
 using static JortPob.Faction;
 using static JortPob.NpcManager.TopicData;
-using static SoulsFormats.DRB.Shape;
-using static SoulsFormats.MSB3.Region;
-using static SoulsFormats.MSBS.Event;
 
 namespace JortPob
 {
