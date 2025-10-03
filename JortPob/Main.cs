@@ -145,6 +145,14 @@ namespace JortPob
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
+                    if (content.papyrus != null)
+                    {
+                        content.entity = script.CreateEntity(EntityType.Asset, content.id);
+                        asset.EntityID = content.entity;
+                        Papyrus papyrusScript = esm.GetPapyrus(content.papyrus);
+                        if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, content); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                    }
+
                     /* Asset tileload config */
                     if (tile.GetType() == typeof(HugeTile) || tile.GetType() == typeof(BigTile))
                     {
@@ -212,15 +220,17 @@ namespace JortPob
                     enemy.Position = npc.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                     enemy.Rotation = npc.rotation;
 
+                    // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                    if (npc.papyrus != null)
+                    {
+                        Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
+                        if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, npc); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                        //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
+                    }
+
                     enemy.TalkID = character.GetESD(tile.IdList(), npc); // creates and returns a character esd
                     enemy.NPCParamID = character.GetParam(npc); // creates and returns an npcparam
                     enemy.EntityID = npc.entity;
-
-                    if(enemy.TalkID == 0 && npc.papyrus != null)
-                    {
-                        Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
-                        PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
-                    }
 
                     msb.Parts.Enemies.Add(enemy);
                 }
@@ -350,6 +360,14 @@ namespace JortPob
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
+                        if (content.papyrus != null)
+                        {
+                            content.entity = script.CreateEntity(EntityType.Asset, content.id);
+                            asset.EntityID = content.entity;
+                            Papyrus papyrusScript = esm.GetPapyrus(content.papyrus);
+                            if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, content); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                        }
+
                         asset.Unk1.DisplayGroups[0] = 0;
                         asset.UnkPartNames[1] = rootCollision.Name;
                         asset.UnkPartNames[3] = rootCollision.Name;
@@ -417,12 +435,20 @@ namespace JortPob
                         lightManager.CreateLight(light);
                     }
 
-                    /* TEST NPCs */ // make some c0000 npcs where humanoid npcs would spawn as a test
+                    /* Create humanoid NPCs (c0000) */
                     foreach (NpcContent npc in chunk.npcs)
                     {
                         MSBE.Part.Enemy enemy = MakePart.Npc();
                         enemy.Position = npc.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                         enemy.Rotation = npc.rotation;
+
+                        // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                        if (npc.papyrus != null)
+                        {
+                            Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
+                            if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, npc); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                                                                                                                                   //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
+                        }
 
                         enemy.TalkID = character.GetESD(group.IdList(), npc); // creates and returns a character esd
                         enemy.NPCParamID = character.GetParam(npc); // creates and returns an npcparam
@@ -635,6 +661,7 @@ namespace JortPob
             param.GenerateActionButtonParam(1500, "Enter");
             param.GenerateActionButtonParam(1501, "Exit");
             param.GenerateActionButtonParam(6010, "Pickpocket");
+            param.GenerateActionButtonParam(6020, "Examine");
             param.SetAllMapLocation();
             param.GenerateCustomCharacterCreation();
             param.KillMapHeightParams();    // murder kill

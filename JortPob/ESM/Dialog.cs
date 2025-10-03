@@ -437,8 +437,7 @@ namespace JortPob
                                             string localId = $"{npcContent.id}.{filter.id}"; // local vars use the characters id + the var id. many characters can have their own copy of a local
                                             Flag lvar = scriptManager.GetFlag(Script.Flag.Designation.Local, localId); // look for flag
                                             if(lvar == null) { return "True"; } // if we don't find the flag for a local var it doesn't exist
-                                            // local vars are set to their maxvalue when uninitialized. check if its maxvalue and return true if it is, false if not
-                                            return $"GetEventFlagValue({lvar.id}, {lvar.Bits()}) == {lvar.MaxValue()}";
+                                            return $"False";
                                         }
 
                                     default: return null;
@@ -512,8 +511,7 @@ namespace JortPob
                                             string localId = $"{npcContent.id}.{filter.id}"; // local vars use the characters id + the var id. many characters can have their own copy of a local
                                             Flag lvar = scriptManager.GetFlag(Script.Flag.Designation.Local, localId); // look for flag, if not found it dosent exist so return false
                                             if (lvar == null) { return "False"; }
-                                            // local vars are set to their maxvalue when uninitialized. so when doing comparisons we check the value to see if it is maxvalue first, then do our actual check if that passes. for a short maxvalue is 65536 since eventvalue are unsigned
-                                            return $"(GetEventFlagValue({lvar.id}, {lvar.Bits()}) {filter.OperatorSymbol()} {filter.value} and GetEventFlagValue({lvar.id}, {lvar.Bits()}) != {lvar.MaxValue()})";
+                                            return $"GetEventFlagValue({lvar.id}, {lvar.Bits()}) {filter.OperatorSymbol()} {filter.value}";
                                         }
 
                                     default: return null;
@@ -600,7 +598,7 @@ namespace JortPob
                     for (int i = startIndex; i < parameters.Length; i++)
                     {
                         string p = parameters[i];
-                        if (Utility.StringIsNumeric(p)) { parsed += p; }
+                        if (Utility.StringIsInteger(p)) { parsed += p; }
                         else if (Utility.StringIsOperator(p)) { parsed += p; }
                         else  // its (probably) a variable
                         {

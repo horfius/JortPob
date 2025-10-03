@@ -15,7 +15,7 @@ namespace JortPob
         public readonly ESM.Type type;
 
         public uint entity;  // entity id, usually 0
-        public string papyrus; // papyrus script id if it has one (usually null)
+        public readonly string papyrus; // papyrus script id if it has one (usually null)
         public Vector3 relative;
         public Int2 load; // if a piece of content needs tile load data this is where it's stored
 
@@ -32,6 +32,8 @@ namespace JortPob
 
             type = record.type;
             entity = 0;
+
+            papyrus = record.json["script"] != null && record.json["script"].GetValue<string>().Trim() != "" ? record.json["script"].GetValue<string>() : null;
 
             float x = float.Parse(json["translation"][0].ToString());
             float z = float.Parse(json["translation"][1].ToString());
@@ -113,8 +115,6 @@ namespace JortPob
 
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            papyrus = record.json["script"] != null ? record.json["script"].GetValue<string>() : null;
-
             name = record.json["name"].ToString();
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
             job = record.json["class"].ToString();

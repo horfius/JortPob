@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JortPob.Common;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -8,6 +9,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static HKLib.hk2018.hkSerialize.CompatTypeParentInfo;
 
 namespace JortPob
 {
@@ -117,6 +119,71 @@ namespace JortPob
             }
         }
 
+        /* Looks through a papyrus script and checks if it has a call of the given type */
+        public bool HasCall(Call.Type type)
+        {
+            bool RecursiveCheck(Scope scope)
+            {
+                foreach(Call call in scope.calls)
+                {
+                    if (call is Conditional)
+                    {
+                        Conditional conditional = (Conditional)call;
+                        if (conditional.left.type == type) { return true; }
+                        if (conditional.right.type == type) { return true; }
+                        if (RecursiveCheck(conditional.pass)) { return true; }
+                        if (RecursiveCheck(conditional.fail)) { return true; }
+                    }
+                    else
+                    {
+                        if(call.type == type) { return true; }
+                    }
+                }
+                return false;
+            }
+
+            return RecursiveCheck(scope);
+        }
+
+        /* Looks through a papyrus script and check if it has any literals with negative integers in them */
+        public bool HasSignedInt()
+        {
+            bool CheckCall(Call call)
+            {
+                if (call.type == Call.Type.Set || call.type == Call.Type.Literal)
+                {
+                    foreach (string parameter in call.parameters)
+                    {
+                        int val = 0;
+                        int.TryParse(parameter, out val);
+                        if (val < 0) { return true; }
+                    }
+                }
+                return false;
+            }
+
+            bool RecursiveCheck(Scope scope)
+            {
+                foreach (Call call in scope.calls)
+                {
+                    if (call is Conditional)
+                    {
+                        Conditional conditional = (Conditional)call;
+                        if (CheckCall(conditional.left)) { return true; }
+                        if (CheckCall(conditional.right)) { return true; }
+                        if (RecursiveCheck(conditional.pass)) { return true; }
+                        if (RecursiveCheck(conditional.fail)) { return true; }
+                    }
+                    else
+                    {
+                        if (CheckCall(call)) { return true; }
+                    }
+                }
+                return false;
+            }
+
+            return RecursiveCheck(scope);
+        }
 
         public class Scope
         {
@@ -136,6 +203,9 @@ namespace JortPob
         [DebuggerDisplay("Call :: {type}")]
         public class Call
         {
+            /* Any calls in this list cannot be implemented from EMEVD. If a script contains one of these calls we instead compile it to ESD */
+            public static Type[] EMEVD_BLACKLIST = new Type[] { };
+
             public enum Type
             {
                 /* Default */
@@ -160,13 +230,19 @@ namespace JortPob
                 Disable, Enable,
                 Activate, Playgroup, Say, GetTarget, GetItemCount, Lock, Unlock, GetSpell, SayDone, GetRace, ModRegion, GetDetected, ForceSneak, ClearForceSneak,
                 ChangeWeather, GetPos, RotateWorld, DontSaveObject, HasSoulGem, WakeUpPc, Resurrect, PlayBink, SetAtStart, RemoveSoulGem, Fall,
-                MoveWorld, Position, StreamMusic, GetDisposition, Move, LoopGroup, FadeOut, FadeIn,
+                MoveWorld, Position, StreamMusic, GetDisposition, Move, LoopGroup, FadeOut, FadeIn, GetFlee,
                 GetDistance, Drop, GetDisabled, OnDeath, SetFlee, GetBlightDisease, OnActivate, HurtStandingActor,
                 GetPcRank, SetPos, GetAttacked, GetCommonDisease, GetEffect, SetFight, ShowMap, AddSpell, RemoveSpell, RaiseRank, StopCombat,
                 ModFactionReaction, ModFlee, SetAlarm, PlaceAtPc, ClearInfoActor, Cast, ForceGreeting, SetHello, GetJournalIndex, PayFineThief,
                 AiWander, AiFollow, AiFollowCell, AiEscort, GetAiPackageDone, GetCurrentAiPackage, AiTravel, AiFollowCellPlayer, PositionCell, ModFight,
+                GetPcCell, MenuMode, OnPcSoulGemUse, GetLOS, GetLineOfSight, GetDeadCount, CellChanged, OnPcHitMe, OnPcEquip, OnPcAdd, GetStandingPc,
+                OnKnockout, GetSpellEffects, GetSoundPlaying, ScriptRunning, GetCurrentWeather, OnMurder, GetPcSleep, PcVampire, PcExpelled, GetLocked,
+                GetButtonPressed,
+                Random,
+                Xbox,
+                GameHour, Day, Month,
 
-                GetHealth, GetMagicka, GetFatigue, GetSecurity,
+                GetHealth, GetMagicka, GetFatigue,
 
                 SetHealth, SetMagicka, SetFatigue,
                 ModHealth, ModMagicka, ModFatigue, ModCurrentHealth, ModCurrentMagicka, ModCurrentFatigue,
@@ -175,6 +251,7 @@ namespace JortPob
                 SetStrength, SetIntelligence, SetWillpower, SetAgility, SetSpeed, SetEndurance, SetPersonality, SetLuck,
                 ModStrength, ModIntelligence, ModWillpower, ModAgility, ModSpeed, ModEndurance, ModPersonality, ModLuck,
 
+                GetSecurity, GetMarksman,
                 SetAthletics, SetMarksman, SetLongBlade, SetAlchemy, SetBlock, SetMercantile, SetEnchant, SetDestruction, SetAlteration, SetIllusion, SetConjuration, SetMysticism, SetRestoration, SetSpear, SetAxe, SetBluntWeapon, SetArmorer, SetHeavyArmor, SetMediumArmor,
                 ModRestoration, ModAthletics, ModLongBlade, ModHeavyArmor, ModMediumArmor, ModBlock, ModSpear, ModAxe, ModBluntWeapon, ModArmorer, ModMarksman, ModMercantile,
 
@@ -187,8 +264,9 @@ namespace JortPob
                 /* Papyrus calls we (probably) cannot implement and will discard */
                 Rotate, SetAngle, GetAngle,
 
-                /* Variable declarations */
+                /* Variable declarations, vars, and literals */
                 Short, Float,
+                Literal, Variable,  // only used by if conditions
 
                 /* Conditionals and Scopes */
                 Begin, End, If, Else, ElseIf, EndIf,
@@ -220,6 +298,28 @@ namespace JortPob
                     sanitize = sanitize.Split(";")[0].Trim();
                 }
 
+                // Add spaces between operators. This is notably an issue when conditionals have a missing space like 'if var >=3`  that missing space makes parsing messy so we fix this here
+                if (sanitize.StartsWith("if") || sanitize.StartsWith("elseif"))
+                {
+                    List<char> operator_list = new() { '=', '>', '<', '!' }; // this issue seems to exclusively affect if conditions so limiting it to those
+                    for (int i = 0; i < sanitize.Length - 1; i++)
+                    {
+                        char c = sanitize[i];
+                        char next = sanitize[i + 1];
+
+                        if (c == '-' && next == '>') { i++; continue; } // skip this particular operator combo
+
+                        bool a = operator_list.Contains(c);
+                        bool b = operator_list.Contains(next);
+
+                        // If c is an op and b is not an op and b is not whitespace, add whitespace
+                        if(a && !b && !char.IsWhiteSpace(next)) { sanitize = sanitize.Insert(i + 1, " "); }
+                        // Opposite of that
+                        else if(!a && b && !char.IsWhiteSpace(c)) { sanitize = sanitize.Insert(i + 1, " "); }
+                    }
+                }
+
+
                 // Remove any multi spaces
                 while (sanitize.Contains("  "))
                 {
@@ -242,8 +342,26 @@ namespace JortPob
                 // Fix a specific case in Tribunal.esm where some weirdo used a colon after the choice command for no reason
                 if (sanitize.Contains("choice:")) { sanitize = sanitize.Replace("choice:", "choice"); }
 
+                // Handle literal
+                if (Utility.StringIsFloat(sanitize))  // doing stringisfloat because a literal can be an int or a float and this covers both cases
+                {
+                    type = Type.Literal;
+                    parameters = new string[] { sanitize };
+                }
+                //  Handle If
+                else if(sanitize.StartsWith("if"))
+                {
+                    type = Type.If;
+                    parameters = Utility.StringAwareSplit(sanitize[2..].Trim());
+                }
+                //  Handle ElseIf
+                else if (sanitize.StartsWith("elseif"))
+                {
+                    type = Type.ElseIf;
+                    parameters = Utility.StringAwareSplit(sanitize[6..].Trim());
+                }
                 // Handle targeted call
-                if (sanitize.Contains("->"))
+                else if (sanitize.Contains("->"))
                 {
                     // Special split because targets can be in quotes and have spaces in them
                     string[] split = sanitize.Split("->");
@@ -257,41 +375,27 @@ namespace JortPob
                     ps.RemoveAt(0);
                     parameters = ps.ToArray();
                 }
+                // Handle variable
+                else if (!Enum.TryParse(typeof(Type), sanitize.Split(" ")[0], true, out object? callTest))
+                {
+                    type = Type.Variable;
+                    parameters = new string[] { sanitize.Split(" ")[0] };
+                }
                 // Handle normal call
                 else
                 {
-                    List<string> split = sanitize.Split(" ").ToList();
+                    List<string> cut = sanitize.Split(" ").ToList();
 
-                    type = (Type)Enum.Parse(typeof(Type), split[0], true);
+                    type = (Type)Enum.Parse(typeof(Type), cut[0], true);
                     target = null;
-                    split.RemoveAt(0);
+                    cut.RemoveAt(0);
+                    string s = string.Join(" ", cut);
 
                     /* Handle special case where you have a call like this :: Set "Manilian Scerius".slaveStatus to 2 */
                     /* Seems to be fairly rare that we have syntax like this but it does happen. */
                     /* Recombine the 2 halves of that "name" and remove the quotes */
-                    List<string> recomb = new();
-                    for (int i = 0; i < split.Count(); i++)
-                    {
-                        string s = split[i];
-                        if (s.StartsWith("\""))
-                        {
-                            if (s.Split("\"").Length - 1 == 2) { recomb.Add(s.Replace("\"", "")); }
-                            else
-                            {
-                                string itrNxt = split[++i];
-                                while (!itrNxt.Contains("\""))
-                                {
-                                    itrNxt += $" {split[++i]}";
-                                }
-                                recomb.Add(($"{s} {itrNxt}").Replace("\"", ""));
-                            }
-                            continue;
-                        }
-
-                        recomb.Add(s);
-                    }
-
-                    parameters = recomb.ToArray();
+                    string[] spl = Utility.StringAwareSplit(s);
+                    parameters = spl;
                 }
             }
         }
@@ -309,13 +413,50 @@ namespace JortPob
         [DebuggerDisplay("Conditional :: IF")]
         public class Conditional : Call
         {
-            public readonly Scope pass;
-            public readonly Scope fail;
+            public readonly string op;
+            public readonly Call left, right; // left and right of the op
+            public readonly Scope pass, fail;
 
             public Conditional(string line) : base(line.Replace("(", " ").Replace(")", " "))
             {
+                string l = "", r = "";
+                for(int i=0;i<parameters.Length;i++)
+                {
+                    string p = parameters[i];
+                    if(p == "==" || p == "!=" || p == ">" || p == "<" || p == ">=" || p == "<=" || p == "=") { op = p; }
+                    else if(op == null) { l += $"{p} "; }
+                    else { r += $"{p} "; }
+                }
+                if (op == null) { throw new Exception($"Failed to parse conditional :: {RAW}"); } // oop all bugs
+
+                left = new(l.Trim());
+                right = new(r.Trim());
+
                 pass = new();
                 fail = new();
+            }
+
+            /* Convert operator symbol of this conditional to an index for EMEVD functions to use */
+            public string OperatorIndex()
+            {
+                switch(op)
+                {
+                    case "==":
+                    case "=":
+                        return "0";
+                    case "!=":
+                        return "1";
+                    case ">":
+                        return "2";
+                    case "<":
+                        return "3";
+                    case ">=":
+                        return "4";
+                    case "<=":
+                        return "5";
+
+                    default: Lort.Log($"## PAPYRUS OPERATOR UNK ## ' {op} '", Lort.Type.Debug); return "0";
+                }
             }
         }
 

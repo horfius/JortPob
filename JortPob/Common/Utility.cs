@@ -128,15 +128,49 @@ namespace JortPob.Common
 
             return recombined;
         }
+
+        public static string[] StringAwareSplit(string text)
+        {
+            if(text.Trim() == "") { return new string[0]; } // empty string = emptry array
+
+            List<string> split = text.Split(" ").ToList();
+            List<string> recomb = new();
+            for (int i = 0; i < split.Count(); i++)
+            {
+                string s = split[i];
+                if (s.StartsWith("\""))
+                {
+                    if (s.Split("\"").Length - 1 == 2) { recomb.Add(s.Replace("\"", "")); }
+                    else
+                    {
+                        string itrNxt = split[++i];
+                        while (!itrNxt.Contains("\""))
+                        {
+                            itrNxt += $" {split[++i]}";
+                        }
+                        recomb.Add(($"{s} {itrNxt}").Replace("\"", ""));
+                    }
+                    continue;
+                }
+
+                recomb.Add(s);
+            }
+            return recomb.ToArray();
+        }
       
         public static string SanitizeTextForComment(string text)
         {
             return text.Replace("\r", "").Replace("\n", "");
         }
 
-        public static bool StringIsNumeric(string text)
+        public static bool StringIsInteger(string text)
         {
             return int.TryParse(text, out _);
+        }
+
+        public static bool StringIsFloat(string text)
+        {
+            return float.TryParse(text, out _);
         }
 
         public static bool StringIsOperator(string text)

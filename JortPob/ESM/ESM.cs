@@ -214,32 +214,11 @@ namespace JortPob
                 try
                 {
                     Papyrus papyrus = new(jsonNode);
+                    if (papyrus.HasCall(Papyrus.Call.Type.Float)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS FLOAT", Lort.Type.Debug); continue; }  // discard scripts with float vars in it for sanity
+                    if (papyrus.HasSignedInt()) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS SIGNED INT", Lort.Type.Debug); continue; } // discard scripts with negative numbers
                     scripts.Add(papyrus);
                 }
                 catch { Lort.Log($" ## FAILED TO PARSE SCRIPT :: {jsonNode["id"].GetValue<string>()}", Lort.Type.Debug); }
-            }
-
-            /* Post processing of local variables. */
-            /* Local variables need to be created and initialized as a fixed "unset" value */
-            /* We cannot simply instance local vars on the fly as some contexts that are looking for them need to know if they exists (filters for examlpe) */
-            /* So we do a quick scan through all papyrus dialog snippets and papyrus scripts (@TODO that part) to find them and create them now */
-            foreach (DialogRecord topic in dialog)
-            {
-                foreach (DialogInfoRecord info in topic.infos)
-                {
-                    if (info.script != null)
-                    {
-                        foreach (Papyrus.Call call in info.script.calls)
-                        {
-                            if (call.type == Papyrus.Call.Type.Set)
-                            {
-                                if(!call.parameters[0].Contains(".")) { continue; } // if the variable name doesn't contain a '.' then it's a global not a local
-                                Script.Flag lvar = scriptManager.GetFlag(Flag.Designation.Local, call.parameters[0]);
-                                if(lvar == null) { scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Flag.Designation.Local, call.parameters[0], (uint)Utility.Pow(2, (uint)Flag.Type.Short) - 1); }
-                            }
-                        }
-                    }
-                }
             }
 
             /* Load faction info from esm */

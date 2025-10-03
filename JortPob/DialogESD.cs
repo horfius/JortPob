@@ -75,6 +75,12 @@ namespace JortPob
                 tauntSuccess, tauntFail,
                 bribeSuccess, bribeFail
             ));
+
+            if (npcContent.faction != null)
+            {
+                generatedStates.Add(GeneratedState_RankReq(id, Common.Const.ESD_STATE_HARDCODE_RANKREQUIREMENT));
+            }
+
             generatedStates.Add(GeneratedState_HandleCrime(id, Common.Const.ESD_STATE_HARDCODE_HANDLECRIME));
             generatedStates.Add(GeneratedState_CombatDialogSelection(id, Common.Const.ESD_STATE_HARDCODE_COMBATDIALOGSELECT, attack));
             generatedStates.Add(GeneratedState_CombatTalk(id, Common.Const.ESD_STATE_HARDCODE_COMBATTALK));
@@ -83,11 +89,6 @@ namespace JortPob
             generatedStates.Add(GeneratedState_DoThiefTalk(id, Common.Const.ESD_STATE_HARDCODE_DOTHIEFTALK, thief));
             generatedStates.Add(GeneratedState_IdleTalk(id, Common.Const.ESD_STATE_HARDCODE_IDLETALK, idle, hello));
             generatedStates.Add(GeneratedState_Pickpocket(id, Common.Const.ESD_STATE_HARDCODE_PICKPOCKET));
-
-            if (npcContent.faction != null)
-            {
-                generatedStates.Add(GeneratedState_RankReq(id, Common.Const.ESD_STATE_HARDCODE_RANKREQUIREMENT));
-            }
 
             defs.Add($"# dialog esd : {npcContent.id}\r\n");
 
@@ -1195,8 +1196,7 @@ namespace JortPob
 
             Script.Flag repFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionReputation, npcContent.faction);
             Script.Flag rankFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, npcContent.faction);
-            Script.Flag returnValue = scriptManager.GetFlag(Script.Flag.Designation.ReturnValueRankReq, npcContent.entity.ToString()); // find return val flag or create new one
-            if (returnValue == null) { returnValue = areaScript.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Nibble, Script.Flag.Designation.ReturnValueRankReq, npcContent.entity.ToString()); }
+            Script.Flag returnValue = areaScript.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Nibble, Script.Flag.Designation.ReturnValueRankReq, npcContent.entity.ToString());
             Faction faction = esm.GetFaction(npcContent.faction);
 
             // First rank

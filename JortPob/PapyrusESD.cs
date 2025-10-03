@@ -35,7 +35,7 @@ namespace JortPob
             for (int i = 0; i < papyrus.scope.calls.Count(); i++)
             {
                 Papyrus.Call call = papyrus.scope.calls[i];
-                s += HandlePapyrus(call);
+                s += HandlePapyrus(call, 2);
             }
 
             s += $"    Quit()\r\n";
@@ -43,46 +43,81 @@ namespace JortPob
             esd = s;
         }
 
-        private string HandlePapyrus(Papyrus.Call call)
+        private string HandlePapyrus(Papyrus.Call call, int indent)
         {
             switch (call)
             {
                 case Papyrus.ConditionalBranch celif:
-                    return HandleElif(celif);
+                    return HandleElif(celif, indent);
                 case Papyrus.Conditional cif:
-                    return HandleIf(cif);
+                    return HandleIf(cif, indent);
                 case Papyrus.Main cm:
                     return " ## INVALID BEGIN CALL ##";
                 default:
-                    return HandleCall(call);
+                    return HandleCall(call, indent);
             }
         }
 
-        private string HandleElif(Papyrus.ConditionalBranch call)
+        private string HandleElif(Papyrus.ConditionalBranch call, int indent)
         {
-            return $"if False:\r\n{HandleScope(call.pass)}else:\r\n{HandleScope(call.fail)}";
+            return $"{Indent(indent)}if False:\r\n{HandleScope(call.pass, indent+1)}{Indent(indent)}else:\r\n{HandleScope(call.fail, indent+1)}";
         }
 
-        private string HandleIf(Papyrus.Conditional call)
+        private string HandleIf(Papyrus.Conditional call, int indent)
         {
-            return $"if False:\r\n{HandleScope(call.pass)}else:\r\n{HandleScope(call.fail)}";
+            return $"{Indent(indent)}if False:\r\n{HandleScope(call.pass, indent+1)}{Indent(indent)}else:\r\n{HandleScope(call.fail, indent+1)}";
         }
 
-        private string HandleScope(Papyrus.Scope scope)
+        private string HandleScope(Papyrus.Scope scope, int indent)
         {
-            if(scope.calls.Count() <= 0) { return "pass\r\n"; } // empty scope becomes a 'pass' for now @TODO: temp
+            if(scope.calls.Count() <= 0) { return $"{Indent(indent)}pass\r\n"; } // empty scope becomes a 'pass' for now @TODO: temp
 
             string s = "";
             foreach(Papyrus.Call call in scope.calls)
             {
-                s += HandlePapyrus(call);
+                s += $"{HandlePapyrus(call, indent)}";
             }
             return s;
         }
 
-        private string HandleCall(Papyrus.Call call)
+        private string HandleCall(Papyrus.Call call, int indent)
         {
-            return $"{call.type}\r\n";
+            string s;
+
+            switch(call.type)
+            {
+                case Call.Type.Journal:
+                    Script.Flag jvar = scriptManager.GetFlag(Script.Flag.Designation.Journal, call.parameters[0]); // look for flag, if not found make one
+                    if (jvar == null) { jvar = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, call.parameters[0]); }
+                    s = $"SetEventFlagValue({jvar.id}, {jvar.Bits()}, {int.Parse(call.parameters[1])})";
+                    break;
+
+                case Call.Type.AddTopic:
+                    Script.Flag tvar = scriptManager.GetFlag(Script.Flag.Designation.TopicEnabled, call.parameters[0]);
+                    s = $"SetEventFlag({tvar.id}, FlagState.On)";
+                    break;
+
+                case Call.Type.Return:
+                    s = $"continue";
+                    break;
+
+                case Call.Type.Activate:
+                    s = $"pass";
+                    break;
+
+                default:
+                    s = "pass";
+                    break;
+            }
+
+            return $"{Indent(indent)}## {(call.target!=null?$"{call.target}->":"")}{call.type} {string.Join(" ", call.parameters)}\r\n{Indent(indent)}{s}\r\n";
+        }
+
+        private string Indent(int indent)
+        {
+            string s = "";
+            for (int i = 0; i < indent*4; i++) { s += " "; }
+            return s;
         }
     }
 }

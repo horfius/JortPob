@@ -171,7 +171,7 @@ namespace JortPob
                 crimeEvent.Instructions.Add(AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {cvar.id}, OFF);"));
 
                 emevd.Events.Add(crimeEvent);
-                init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {crimeEvent.ID});"));
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {crimeEvent.ID}, 0);"));
             }
         }
 
@@ -185,7 +185,7 @@ namespace JortPob
 
         public static ScriptFlagLookupKey GetLookupKeyForFlag(Flag flag)
         {
-            return FormatFlagLookupKey(flag.designation, flag.name);
+            return FormatFlagLookupKey(flag.designation, flag.name.ToLower());
         }
 
         public static ScriptFlagLookupKey FormatFlagLookupKey(Flag.Designation designation, string name)
@@ -269,10 +269,11 @@ namespace JortPob
                 Dead, DeadCount, Disabled, Hostile, CrimeEvent, FriendHitCounter, Pickpocketed, ThiefCrime,      // hostile flag exists for friendly npcs, if you piss em off they stab you
                 TopicEnabled, TalkedToPc, Disposition, PlayerRace,
                 FactionJoined, FactionReputation, FactionRank, FactionExpelled,    // faction stuff
-                GuardIsGreeting, PlayerIsTalking, PlayerIsSneaking,
+                GuardIsGreeting, PlayerIsTalking, PlayerIsSneaking, PlayerRuneCount,
                 ReturnValueRankReq,                              // these are temp values used by ESD to store variables
                 CrimeAbsolved,            // temp value, setting it to 1 triggers a common emevd event that clears all crime and hostility flags
                 HostileQuip, Hello,    // temp value that is flagged when a guard is gretting the player, if the player has a bounty and trys to leave dialog without paying they get dunked on
+                OnActivate, CellChanged, GetButtonPressedBit, GetButtonPressedValue, // used by papyrus to emulate mw script behaviours
                 Message    // Flag to trigger a popmessage or notification
             }
 
