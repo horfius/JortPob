@@ -147,7 +147,8 @@ namespace JortPob
                         if (call.right.type == Call.Type.Literal)
                         {
                             // notably, this call in payrus sometimes targets the player. it is already a PC check so it's always the player but like... idk double player is just as good
-                            Script.Flag fflag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, call.left.parameters[0]);
+                            // additionally: some faction names have spaces in them, like "imperial cult" which means we need to join all parameters because they dont always use quotes around the calls
+                            Script.Flag fflag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, string.Join(" ",  call.left.parameters));
                             lines.Add(ResetConditionGroups());
                             lines.Add($"IfEventValue(OR_01, {fflag.id}, {fflag.Bits()}, {call.OperatorIndex()}, {call.right.parameters[0]});");
                             lines.Add($"SkipIfConditionGroupStateUncompiled({pass.Count()}, FAIL, OR_01);");
@@ -313,6 +314,7 @@ namespace JortPob
                     case Call.Type.Enable:
                         {
                             Script.Flag evar = scriptManager.GetFlag(Script.Flag.Designation.Disabled, content.entity.ToString());
+                            if (evar == null) { break; } // currently, disabilng/enabling assets is unsupported and so the flag doesnt exist. meaning we need to pass here. fixme later
                             lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {evar.id}, OFF);");
                             lines.Add($"ChangeCharacterEnableState({content.entity.ToString()}, 0);");
                             break;
@@ -444,7 +446,7 @@ namespace JortPob
             /* STUFF ACTUALLY HAPPENS BELOW THIS POINT */
 
             /* Setup some stuff */
-            Script.Flag evtFlag = script.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"{content.id}->{papyrus.id}");
+            Script.Flag evtFlag = script.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"{content.id}->{papyrus.id}->{content.entity}");
             EMEVD.Event evt = new();
             evt.ID = evtFlag.id;
 

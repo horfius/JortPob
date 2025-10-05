@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static HKLib.hk2018.hkSerialize.CompatTypeParentInfo;
 using static JortPob.Papyrus;
+using static SoulsFormats.DRB.Shape;
 
 namespace JortPob
 {
@@ -351,6 +352,12 @@ namespace JortPob
                     sanitize = sanitize.Split(";")[0].Trim();
                 }
 
+                // Remove parens. Papyrus doesn't really use them for anything. As far as i can tell they don't use it for order of operations or multi expression conditionals
+                if(sanitize.Contains("(") || sanitize.Contains(")"))
+                {
+                    sanitize = sanitize.Replace("(", "").Replace(")", "");
+                }
+
                 // Add spaces between operators. This is notably an issue when conditionals have a missing space like 'if var >=3`  that missing space makes parsing messy so we fix this here
                 if (sanitize.StartsWith("if") || sanitize.StartsWith("elseif"))
                 {
@@ -371,7 +378,6 @@ namespace JortPob
                         else if(!a && b && !char.IsWhiteSpace(c)) { sanitize = sanitize.Insert(i + 1, " "); }
                     }
                 }
-
 
                 // Remove any multi spaces
                 while (sanitize.Contains("  "))
@@ -432,7 +438,7 @@ namespace JortPob
                 else if (!Enum.TryParse(typeof(Type), sanitize.Split(" ")[0], true, out object? callTest))
                 {
                     type = Type.Variable;
-                    parameters = new string[] { sanitize.Split(" ")[0] };
+                    parameters = Utility.StringAwareSplit(sanitize);
                 }
                 // Handle normal call
                 else
@@ -447,8 +453,13 @@ namespace JortPob
                     /* Handle special case where you have a call like this :: Set "Manilian Scerius".slaveStatus to 2 */
                     /* Seems to be fairly rare that we have syntax like this but it does happen. */
                     /* Recombine the 2 halves of that "name" and remove the quotes */
-                    string[] spl = Utility.StringAwareSplit(s);
-                    parameters = spl;
+                    parameters = Utility.StringAwareSplit(s);
+                }
+
+                // remove quotes around parameters, this is to fix some weird situations where mw devs wrote scripts that have random unnescary quotes around vars/literals
+                for(int i=0;i<parameters.Length;i++)
+                {
+                    parameters[i] = parameters[i].Replace("\"", "").Trim();
                 }
             }
         }
@@ -470,14 +481,16 @@ namespace JortPob
             public readonly Call left, right; // left and right of the op
             public readonly Scope pass, fail;
 
-            public Conditional(string line) : base(line.Replace("(", " ").Replace(")", " "))
+            public Conditional(string line) : base(line)
             {
                 string l = "", r = "";
-                for(int i=0;i<parameters.Length;i++)
+                for (int i=0;i< parameters.Count();i++)
                 {
                     string p = parameters[i];
                     if(p == "==" || p == "!=" || p == ">" || p == "<" || p == ">=" || p == "<=" || p == "=") { op = p; }
+                    else if(op == null && p.Contains(" ")) { l += $"\"{p}\" "; }
                     else if(op == null) { l += $"{p} "; }
+                    else if(p.Contains(" ")) { r += $"\"{p}\" "; }
                     else { r += $"{p} "; }
                 }
                 if (op == null) { throw new Exception($"Failed to parse conditional :: {RAW}"); } // oop all bugs
