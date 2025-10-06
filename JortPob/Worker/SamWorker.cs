@@ -15,14 +15,12 @@ namespace JortPob.Worker
         private readonly List<SoundManager.SAMData> datas;
         private readonly int start;
         private readonly int end;
-        private readonly SAM sam;
 
         public SamWorker(List<SoundManager.SAMData> datas, int start, int end)
         {
             this.datas = datas;
             this.start = start;
             this.end = end;
-            sam = new();
 
             _thread = new Thread(Run);
             _thread.Start();
@@ -35,11 +33,9 @@ namespace JortPob.Worker
             for(int i = start;i<Math.Min(datas.Count(), end);i++)
             {
                 SoundManager.SAMData dat = datas[i];
-                sam.Generate(dat.dialog, dat.info, dat.line, dat.hashName, dat.npc);
+                SAM.Generate(dat.dialog, dat.info, dat.line, dat.hashName, dat.npc);
                 Lort.TaskIterate(); // Progress bar update
             }
-
-            sam.Dispose();
 
             IsDone = true;
             ExitCode = 0;

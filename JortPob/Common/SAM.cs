@@ -12,14 +12,7 @@ namespace JortPob.Common
 {
     public class SAM
     {
-        //private readonly SpeechSynthesizer synthesizer;
-
-        public SAM()
-        {
-            //synthesizer = new SpeechSynthesizer();
-        }
-
-        public string Generate(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
+        public static string Generate(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
             // Get the exact location this file will be in
             string lineDir = $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\";
@@ -97,11 +90,6 @@ namespace JortPob.Common
 
             // Return wem path
             return wemPath;
-        }
-
-        public void Dispose()
-        {
-            //synthesizer.Dispose();
         }
     }
 }

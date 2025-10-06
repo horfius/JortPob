@@ -204,7 +204,7 @@ namespace JortPob
         /* Stores a mapping of texthashes to prevent duplicates. */
         public Flag GetOrRegisterMessage(Paramanager paramanager, string title, string text)
         {
-            int textHash = (title+text).GetStableHash();
+            int textHash = (title+text).GetHashCode();
             if (messages.ContainsKey(textHash)) { return messages[textHash]; }
 
             Flag messageFlag = CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.Message, text);
@@ -219,7 +219,7 @@ namespace JortPob
         /* Stores a mapping of texthashes to prevent duplicates. */
         public Flag GetOrRegisterNotification(Paramanager paramanager, string text)
         {
-            int textHash = text.GetStableHash();
+            int textHash = text.GetHashCode();
             if (messages.ContainsKey(textHash)) { return messages[textHash]; }
 
             Flag messageFlag = CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.Message, text);
