@@ -1,9 +1,0 @@
-{
-  "commands": [],
-  "functions": [],
-  "enums": [],
-  "condition_arg": {
-    "name": "condition",
-    "type": "bool"
-  }
-}

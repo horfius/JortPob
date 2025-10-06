@@ -10,7 +10,6 @@
   <ItemGroup>
     <PackageReference Include="DirectXTexNet" Version="1.0.7" />
     <PackageReference Include="gfoidl.Base64" Version="2.0.0" />
-    <PackageReference Include="IronPython" Version="3.4.2" />
     <PackageReference Include="SharpAssimp" Version="6.0.5" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.5" />
     <PackageReference Include="System.Speech" Version="9.0.9" />
@@ -27,6 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="ESDLang">
+      <HintPath>DLL\ESDLang.dll</HintPath>
+    </Reference>
+    <Reference Include="esdtool">
+      <HintPath>DLL\esdtool.dll</HintPath>
+    </Reference>
     <Reference Include="HKLib">
       <HintPath>DLL\HKLib.dll</HintPath>
     </Reference>
@@ -38,6 +43,28 @@
     </Reference>
     <Reference Include="HkxUpgradeLib">
       <HintPath>DLL\HkxUpgradeLib.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython">
+      <HintPath>DLL\IronPython.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython.Modules">
+      <HintPath>DLL\IronPython.Modules.dll</HintPath>
+      <Private></Private>
+    </Reference>
+    <Reference Include="IronPython.SQLite">
+      <HintPath>DLL\IronPython.SQLite.dll</HintPath>
+    </Reference>
+    <Reference Include="IronPython.Wpf">
+      <HintPath>DLL\IronPython.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Dynamic">
+      <HintPath>DLL\Microsoft.Dynamic.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>DLL\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting.Metadata">
+      <HintPath>DLL\Microsoft.Scripting.Metadata.dll</HintPath>
     </Reference>
     <Reference Include="SoulsAssetPipeline">
       <HintPath>DLL\SoulsAssetPipeline.dll</HintPath>
@@ -59,12 +86,6 @@
     </Reference>
 
     <!-- Compiled tool references -->
-    <Reference Include="ESDLang">
-      <HintPath>Resources\tools\ESDTool\ESDLang.dll</HintPath>
-    </Reference>
-    <Reference Include="ESDLang.Script">
-      <HintPath>Resources\tools\ESDTool\esdtool.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
   <Target Name="CopyESDLangDocs" AfterTargets="AfterBuild">
@@ -88,7 +109,7 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="DLL\SoulsIds.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="libzstd.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
