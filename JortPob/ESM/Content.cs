@@ -109,6 +109,8 @@ namespace JortPob
         public readonly int hello, fight, flee, alarm;
         public readonly bool hostile, dead;
 
+        public readonly bool essential; // player gets called dumb if they kill this dood
+
         public readonly bool services; // @TODO: STUB! NEED TO ACTUALLY PARSE AND USE THE INDIVIDUAL SERVICE TYPES
 
         public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
@@ -121,6 +123,8 @@ namespace JortPob
             faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
 
             sex = record.json["npc_flags"].ToString().ToLower().Contains("female") ? Sex.Female : Sex.Male;
+
+            essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
 
             level = int.Parse(record.json["data"]["level"].ToString());
             disposition = int.Parse(record.json["data"]["disposition"].ToString());

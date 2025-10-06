@@ -26,7 +26,7 @@ namespace JortPob
 
         public enum Event
         {
-            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello
+            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello, Essential
         }
         public readonly Dictionary<Event, uint> events;
         public readonly Dictionary<int, Flag> messages;  // hash of message text as key, value is flag that when set to true triggers a message to display
@@ -197,6 +197,29 @@ namespace JortPob
 
             func.Events.Add(messageEvent);
             events.Add(Event.Message, messageEventFlag.id);
+
+            /* Create an event for displaying a message when the player kills an essential npc */
+            Flag essentialEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:Essential");
+            EMEVD.Event essentialEvent = new(essentialEventFlag.id);
+
+            pc = 0;
+
+            string[] essentialEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {NextParameterName()});",    // dead flag starts off
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",    // dead flag changes to on. meaning dood is dead
+                $"ShowTutorialPopup({NextParameterName()}, true, true);",                          // let the player know he's fucked
+            };
+
+            for (int i = 0; i < essentialEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(essentialEventRaw[i], i);
+                essentialEvent.Parameters.AddRange(newPs);
+                essentialEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(essentialEvent);
+            events.Add(Event.Essential, essentialEventFlag.id);
         }
 
         /* Register a tutorial popup message with given text */

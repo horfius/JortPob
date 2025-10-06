@@ -348,7 +348,7 @@ namespace JortPob
                 {
                     Script.Flag countFlag = GetTypeCountFlag(npc.id);
                     npc.entity = script.CreateEntity(Script.EntityType.Enemy, $"NPC::{npc.id}");
-                    script.RegisterNpc(npc, countFlag);
+                    script.RegisterNpc(param, npc, countFlag);
                 }
             }
 
