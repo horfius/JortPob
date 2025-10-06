@@ -1,5 +1,7 @@
-﻿using JortPob.Common;
+﻿using IronPython.Hosting;
+using JortPob.Common;
 using JortPob.Worker;
+using Microsoft.Scripting.Hosting;
 using PortJob;
 using SoulsFormats;
 using System;

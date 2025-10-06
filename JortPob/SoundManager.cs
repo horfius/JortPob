@@ -76,7 +76,7 @@ namespace JortPob
         {
             SAMData dat = new(dialog, info, line, hashName, npc);
             samQueue.Add(dat);
-            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}.wem";
+            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem";
         }
 
         /* Writes all soundbanks to given dir */

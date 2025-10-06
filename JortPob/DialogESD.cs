@@ -1033,6 +1033,7 @@ namespace JortPob
 
                 string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
+                if (topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
                 s += $"    {ifop}{filters}:\r\n";
                 s += $"        # attack talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
@@ -1045,7 +1046,7 @@ namespace JortPob
 
         private string GeneratedState_DoHitTalk(uint id, int x, NpcManager.TopicData topic)
         {
-            string s = $"def t{id:D9}_x{x:D2}():\r\n    ## pick an attack line and talk it\r\n    ShuffleRNGSeed(100)\r\n    SetRNGSeed()\r\n";
+            string s = $"def t{id:D9}_x{x:D2}():\r\n    ## pick a hit line and talk it\r\n    ShuffleRNGSeed(100)\r\n    SetRNGSeed()\r\n";
 
             string ifop = "if";
             for (int i = 0; i < topic.talks.Count(); i++)
@@ -1054,9 +1055,10 @@ namespace JortPob
 
                 string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
+                if(topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
                 s += $"    {ifop}{filters}:\r\n";
-                s += $"        # attack talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
+                s += $"        # hit talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
                 s += $"        assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_COMBATTALK:D2}(combatText={talk.primaryTalkRow})\r\n";
                 ifop = "elif";
             }
@@ -1075,6 +1077,7 @@ namespace JortPob
 
                 string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
+
 
                 s += $"    {ifop}{filters}:\r\n";
                 s += $"        # thief talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
