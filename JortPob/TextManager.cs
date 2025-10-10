@@ -165,6 +165,46 @@ namespace JortPob
             return id;
         }
 
+        public void AddWeapon(int id, string name, string description)
+        {
+            FMG fmgName = item[TextType.WeaponName];
+            FMG fmgDescription = item[TextType.WeaponCaption];
+            fmgName.Entries.Add(new(id, name));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+
+        public void AddArmor(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.ProtectorName];
+            FMG fmgSummary = item[TextType.ProtectorInfo];
+            FMG fmgDescription = item[TextType.ProtectorCaption];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+
+        public void AddGoods(int id, string name, string summary, string description, string effect)
+        {
+            FMG fmgName = item[TextType.GoodsName];
+            FMG fmgSummary = item[TextType.GoodsInfo];
+            FMG fmgDescription = item[TextType.GoodsCaption];
+            FMG fmgEffect = item[TextType.GoodsInfo2];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+            fmgEffect.Entries.Add(new(id, effect));
+        }
+
+        public void AddAccessory(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.AccessoryName];
+            FMG fmgSummary = item[TextType.AccessoryInfo];
+            FMG fmgDescription = item[TextType.AccessoryCaption];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+
         public void Write(string dir)
         {
 

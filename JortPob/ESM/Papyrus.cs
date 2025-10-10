@@ -239,6 +239,32 @@ namespace JortPob
             return RecursiveCheck(scope);
         }
 
+        /* Looks through a papyrus script and returns every call of the given type in a list */
+        public List<Call> GetCalls(Call.Type type)
+        {
+            List<Call> ret = new();
+            void RecursiveCheck(Scope scope)
+            {
+                foreach (Call call in scope.calls)
+                {
+                    if (call is Conditional)
+                    {
+                        Conditional conditional = (Conditional)call;
+                        if (conditional.left.type == type) { ret.Add(conditional.left); }
+                        if (conditional.right.type == type) { ret.Add(conditional.right); }
+                        RecursiveCheck(conditional.pass);
+                        RecursiveCheck(conditional.fail);
+                    }
+                    else
+                    {
+                        if (call.type == type) { ret.Add(call); }
+                    }
+                }
+            }
+            RecursiveCheck(scope);
+            return ret;
+        }
+
         public class Scope
         {
             public readonly List<Call> calls;
@@ -290,7 +316,7 @@ namespace JortPob
                 ModFactionReaction, ModFlee, SetAlarm, PlaceAtPc, ClearInfoActor, Cast, ForceGreeting, SetHello, GetJournalIndex, PayFineThief,
                 AiWander, AiFollow, AiFollowCell, AiEscort, GetAiPackageDone, GetCurrentAiPackage, AiTravel, AiFollowCellPlayer, PositionCell, ModFight,
                 GetPcCell, MenuMode, OnPcSoulGemUse, GetLOS, GetLineOfSight, GetDeadCount, CellChanged, OnPcHitMe, OnPcEquip, OnPcAdd, GetStandingPc,
-                OnKnockout, GetSpellEffects, GetSoundPlaying, ScriptRunning, GetCurrentWeather, OnMurder, GetPcSleep, PcVampire, PcExpelled, GetLocked,
+                OnKnockout, GetSpellEffects, GetSoundPlaying, ScriptRunning, GetCurrentWeather, OnMurder, GetPcSleep, PcVampire, PcExpelled, GetLocked, GetPcCrimeLevel,
                 GetButtonPressed,
                 Random,
                 Xbox,

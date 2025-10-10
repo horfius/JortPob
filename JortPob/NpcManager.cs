@@ -20,6 +20,7 @@ namespace JortPob
         private SoundManager sound;
         private Paramanager param;
         private TextManager text;
+        private ItemManager item;
         private ScriptManager scriptManager;
 
         private readonly Dictionary<string, int> topicText; // topic text id map
@@ -28,12 +29,13 @@ namespace JortPob
 
         private int nextNpcParamId;  // increment by 10
 
-        public NpcManager(ESM esm, SoundManager sound, Paramanager param, TextManager text, ScriptManager scriptManager)
+        public NpcManager(ESM esm, SoundManager sound, Paramanager param, TextManager text, ItemManager item, ScriptManager scriptManager)
         {
             this.esm = esm;
             this.sound = sound;
             this.param = param;
             this.text = text;
+            this.item = item;
             this.scriptManager = scriptManager;
 
             esds = new();
@@ -43,13 +45,13 @@ namespace JortPob
             nextNpcParamId = 544900010;
         }
 
-        public int GetParam(NpcContent content)
+        public int GetParam(ItemManager itemManager, Script script, NpcContent content)
         {
             // First check if we already generated one for this npc record. If we did return that one. Some npcs like guards and dreamers have multiple placements
             if(npcParamMap.ContainsKey(content.id)) { return npcParamMap[content.id]; }
 
             int id = nextNpcParamId += 10;
-            param.GenerateNpcParam(id, content);
+            param.GenerateNpcParam(itemManager, script, content, id);
             npcParamMap.Add(content.id, id);
             return id;
         }
@@ -91,6 +93,7 @@ namespace JortPob
                     /* If this dialog is too long for a single subtitle we split it into pieces */
                     List<string> lines = Utility.CivilizedSplit(info.text);
                     List<int> talkRows = new();
+                    int baseRow = -1;
                     for (int i=0;i<lines.Count();i++)
                     {
                         string line = lines[i];
@@ -110,9 +113,16 @@ namespace JortPob
                         else { wemFile = Const.DEFAULT_DIALOG_WEM; }
 
                         // If this is not the first line in a talkparam group we must generate with sequential ids!
-                        if (talkRows.Count() > 0) { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line, nxtid)); }
+                        if (baseRow >= 0)
+                        {
+                            talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line, (uint)(baseRow + i)));
+                        }
                         // Make a new sound and talkparam row because no suitable match was found!
-                        else { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line)); }
+                        else
+                        {
+                            baseRow = bankInfo.bank.AddSound(wemFile, info.id + i, line);
+                            talkRows.Add(baseRow);
+                        }
                     }
                     // The parmanager function will automatically skip duplicates when addign talkparam rows so we don't need to do anything here. the esd gen needs those dupes so ye
                     topicData.talks.Add(new(info, talkRows, lines));
@@ -129,7 +139,7 @@ namespace JortPob
             areaScript.RegisterNpcHostility(content);  // setup hostility flag/event
             areaScript.RegisterNpcHello(content);      // setup hello flags and turntoplayer script
 
-            DialogESD dialogEsd = new(esm, scriptManager, param, text, areaScript, (uint)esdId, content, data);
+            DialogESD dialogEsd = new(esm, scriptManager, param, text, item, areaScript, (uint)esdId, content, data);
             string pyPath = $"{Const.CACHE_PATH}esd\\t{esdId}.py";
             string esdPath = $"{Const.CACHE_PATH}esd\\t{esdId}.esd";
             dialogEsd.Write(pyPath);

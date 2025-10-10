@@ -1,4 +1,5 @@
 ﻿using JortPob.Common;
+using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace JortPob
@@ -19,6 +21,7 @@ namespace JortPob
 
         private static List<PlayerClass> CHARACTER_CREATION_CLASS;
         private static List<PlayerRace> CHARACTER_CREATION_RACE;
+        private static List<ItemRemap> ITEM_REMAPS;
 
         public static bool CheckDoNotPlace(string id)
         {
@@ -38,6 +41,15 @@ namespace JortPob
         public static List<PlayerRace> GetCharacterCreationRaces()
         {
             return CHARACTER_CREATION_RACE;
+        }
+
+        public static ItemRemap GetItemRemap(string id)
+        {
+            foreach (ItemRemap remap in ITEM_REMAPS)
+            {
+                if (remap.id == id) { return remap; }
+            }
+            return null;
         }
 
         /* load all the override jsons into this class */
@@ -60,6 +72,9 @@ namespace JortPob
 
             /* Load character creation race overrides */
             CHARACTER_CREATION_RACE = JsonSerializer.Deserialize<List<PlayerRace>>(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_race.json")), new JsonSerializerOptions { IncludeFields = true });
+
+            /* Load item remapping list */
+            ITEM_REMAPS = JsonSerializer.Deserialize<List<ItemRemap>>(File.ReadAllText(Utility.ResourcePath(@"overrides\item_remap.json")), new JsonSerializerOptions { IncludeFields = true, Converters = { new JsonStringEnumConverter() } });
         }
 
         /* Classes for serializing */
@@ -76,6 +91,15 @@ namespace JortPob
             public byte id;  // this id matches the values of the NpcContent.Race enums
 
             public PlayerRace() { }
+        }
+
+        public class ItemRemap
+        {
+            public string id, comment;
+            public ItemManager.Type type;
+            public int row;
+
+            public ItemRemap() { }
         }
     }
 }

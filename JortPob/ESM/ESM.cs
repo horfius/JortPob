@@ -23,7 +23,7 @@ namespace JortPob
         public enum Type
         {
             Header, GameSetting, GlobalVariable, Class, Faction, Race, Sound, Skill, MagicEffect, Script, Region, Birthsign, LandscapeTexture, Spell, Static, Door,
-            MiscItem, Weapon, Container, Creature, Bodypart, Light, Enchantment, Npc, Armor, Clothing, RepairTool, Activator, Apparatus, Lockpick, Probe, Ingredient,
+            MiscItem, Weapon, Container, Creature, Bodypart, Light, Enchantment, Npc, Armor, Clothing, RepairItem, Activator, Apparatus, Lockpick, Probe, Ingredient,
             Book, Alchemy, LeveledItem, LeveledCreature, Cell, Landscape, PathGrid, SoundGen, Dialogue, DialogueInfo
         }
 
@@ -133,8 +133,20 @@ namespace JortPob
                 else
                 {
                         recordsByType[type].Add(record["id"].ToString(), record);
-                    }
                 }
+            }
+
+            /* Load and set defaults for all global variables listed in the ESM */
+            List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
+            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
+            foreach (JsonNode jsonNode in globalVarJson)
+            {
+                string id = jsonNode["id"].GetValue<string>();
+                string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
+                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); globalVarFloats.Add(id.ToLower()); continue; }
+                int value = jsonNode["value"]["data"].GetValue<int>();
+                scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
+            }
 
             /* Handle dialog stuff now */
             dialog = new();
@@ -195,18 +207,6 @@ namespace JortPob
             interior = cells[1];
             landscapesByCoordinate = new();
 
-            /* Load and set defaults for all global variables listed in the ESM */
-            List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
-            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
-            foreach (JsonNode jsonNode in globalVarJson)
-            {
-                string id = jsonNode["id"].GetValue<string>();
-                string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
-                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); globalVarFloats.Add(id.ToLower()); continue; }
-                int value = jsonNode["value"]["data"].GetValue<int>();
-                scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
-            }
-
             /* Process papyrus scripts */
             scripts = new();
             List<JsonNode> scriptJsons = [.. GetAllRecordsByType(ESM.Type.Script)];
@@ -237,7 +237,7 @@ namespace JortPob
         // more const values we should move somewhere. @TODO
         public readonly Type[] VALID_CONTENT_TYPES = {
             Type.Static, Type.Container, Type.Light, Type.Sound, Type.Skill, Type.Region, Type.Door, Type.MiscItem, Type.Weapon,  Type.Creature, Type.Bodypart, Type.Npc,
-            Type.Armor, Type.Clothing, Type.RepairTool, Type.Activator, Type.Apparatus, Type.Lockpick, Type.Probe, Type.Ingredient, Type.Book, Type.Alchemy, Type.LeveledItem,
+            Type.Armor, Type.Clothing, Type.RepairItem, Type.Activator, Type.Apparatus, Type.Lockpick, Type.Probe, Type.Ingredient, Type.Book, Type.Alchemy, Type.LeveledItem,
             Type.LeveledCreature, Type.PathGrid, Type.SoundGen
         };
 

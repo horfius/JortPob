@@ -246,6 +246,9 @@ namespace JortPob.Model
                 flver.Meshes.Add(flverMesh);
             }
 
+            /* Calculate bounding boxes */
+            BoundingBoxSolver.FLVER(flver);
+
             /* Add Dummy Polys */
             short nextRef = 500; // idk why we start at 500, i'm copying old code from DS3 portjob here
             nodes.Insert(0, new("root", Vector3.Zero));    // always add a dummy at root for potential use by fxr later
@@ -275,9 +278,32 @@ namespace JortPob.Model
                 flver.Dummies.Add(dmy);
                 if (!modelInfo.dummies.ContainsKey(name)) { modelInfo.dummies.Add(name, refid); }
             }
-
-            /* Calculate bounding boxes */
-            BoundingBoxSolver.FLVER(flver);
+            // Next add a center dummy poly with the  ids 90 and 100. These are default used for item treasure points and interaction points so every model should just have them
+            Vector3 center = Vector3.Lerp(flver.Nodes[0].BoundingBoxMin, flver.Nodes[0].BoundingBoxMax, .5f);
+            {
+                FLVER.Dummy dmy = new();
+                dmy.Position = center;
+                dmy.Forward = new(0, 0, 1);
+                dmy.Upward = new(0, 1, 0);
+                dmy.Color = System.Drawing.Color.White;
+                dmy.ReferenceID = 90;
+                dmy.ParentBoneIndex = 0;
+                dmy.AttachBoneIndex = -1;
+                dmy.UseUpwardVector = true;
+                flver.Dummies.Add(dmy);
+            }
+            {
+                FLVER.Dummy dmy = new();
+                dmy.Position = center;
+                dmy.Forward = new(0, 0, 1);
+                dmy.Upward = new(0, 1, 0);
+                dmy.Color = System.Drawing.Color.White;
+                dmy.ReferenceID = 100;
+                dmy.ParentBoneIndex = 0;
+                dmy.AttachBoneIndex = -1;
+                dmy.UseUpwardVector = true;
+                flver.Dummies.Add(dmy);
+            }
 
             /* Optimize flver */
             flver = FLVERUtil.Optimize(flver);

@@ -10,6 +10,7 @@ using System.Security;
 using System.Text;
 using static JortPob.Dialog;
 using static JortPob.Faction;
+using static JortPob.NpcContent;
 using static JortPob.NpcManager.TopicData;
 
 namespace JortPob
@@ -21,6 +22,7 @@ namespace JortPob
         private readonly ScriptManager scriptManager;
         private readonly Paramanager paramanager;
         private readonly TextManager textManager;
+        private readonly ItemManager itemManager;
         private readonly Script areaScript;
         private readonly NpcContent npcContent;
 
@@ -28,9 +30,10 @@ namespace JortPob
         private readonly List<string> generatedStates;
         private int nxtGenStateId;
 
-        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, Script areaScript, uint id, NpcContent npcContent, List<NpcManager.TopicData> topicData)
+        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, ItemManager itemManager, Script areaScript, uint id, NpcContent npcContent, List<NpcManager.TopicData> topicData)
         {
             this.esm = esm;
+            this.itemManager = itemManager;
             this.scriptManager = scriptManager;
             this.paramanager = paramanager;
             this.textManager = textManager;
@@ -75,6 +78,11 @@ namespace JortPob
                 tauntSuccess, tauntFail,
                 bribeSuccess, bribeFail
             ));
+
+            if (npcContent.travel.Count() > 0)
+            {
+                generatedStates.Add(GeneratedState_TravelMenu(id, Common.Const.ESD_STATE_HARDCODE_TRAVELMENU));
+            }
 
             if (npcContent.faction != null)
             {
@@ -495,8 +503,9 @@ namespace JortPob
             for (int i = 0; i < greeting.talks.Count(); i++)
             {
                 NpcManager.TopicData.TalkData talkData = greeting.talks[i];
+                if (talkData.IsChoice()) { continue; }
 
-                string filters = $" {talkData.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talkData.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 string greetLine = "";
                 if (filters == " " || !(i < greeting.talks.Count() - 1)) { ifop = "else"; filters = ""; }
                 if (greeting.talks.Count() == 1) { ifop = "if"; filters = " True"; }
@@ -514,18 +523,18 @@ namespace JortPob
                 {
                     if (talkData.dialogInfo.script.calls.Count() > 0)
                     {
-                        greetLine += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, scriptManager, npcContent, id, 8);
+                        greetLine += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 8);
                     }
                     if (talkData.dialogInfo.script.choice != null)
                     {
-                        string genState = GeneratedState_Choice(id, nxtGenStateId, talkData, greeting);
+                        int genChoiceStateId = nxtGenStateId++;
+                        string genState = GeneratedState_Choice(id, genChoiceStateId, talkData, greeting);
                         generatedStates.Add(genState);
-                        greetLine += $"        call = t{id_s}_x{nxtGenStateId}()\r\n";
+                        greetLine += $"        call = t{id_s}_x{genChoiceStateId}()\r\n";
                         greetLine += $"        if call.Get() == 0:\r\n";
                         greetLine += $"            return 0\r\n";
                         greetLine += $"        elif call.Done():\r\n";
                         greetLine += $"            pass\r\n";
-                        nxtGenStateId++;
                     }
                         
                 }
@@ -682,7 +691,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                 if (filters == "") { filters = "True"; }
 
                 s += $"    {ifop} {filters}:\r\n";
@@ -733,6 +742,13 @@ namespace JortPob
                 s.Append($"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
+            // Add travel option
+            if (npcContent.travel.Count() > 0)
+            {
+                int travelMenuTopicId = textManager.GetTopic("Travel");
+                s.Append($"        # action:{travelMenuTopicId}:\"Travel\"\r\n        AddTalkListData({listCount++}, {travelMenuTopicId}, -1)\r\n");
+            }
+
             // Add persuasion option
             int persuasionMenuTopicId = textManager.GetTopic("Persuade");
             s.Append($"        # action:{persuasionMenuTopicId}:\"Persuasion\"\r\n        AddTalkListData({listCount++}, {persuasionMenuTopicId}, -1)\r\n");
@@ -745,7 +761,7 @@ namespace JortPob
                 List<string> filters = new();
                 foreach(NpcManager.TopicData.TalkData talk in topic.talks)
                 {
-                    string filter = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filter = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if(filter == "") { filters.Clear(); break; }
                     filters.Add(filter);
                 }
@@ -773,6 +789,13 @@ namespace JortPob
                 ifopA = "elif";
             }
 
+            // travel options
+            if (npcContent.travel.Count() > 0)
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            # travel menu\r\n            assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_TRAVELMENU:D2}()\r\n");
+                ifopA = "elif";
+            }
+
             // persuasion options
             s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            # persuade menu\r\n            assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_PERSUADEMENU:D2}()\r\n");
             ifopA = "elif";
@@ -790,7 +813,7 @@ namespace JortPob
                 {
                     if (talk.IsChoice()) { continue; } // choice dialogs are unreachable from this context, discard
 
-                    string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if (filters == "") { filters = "True"; }
 
                     s.Append($"            {ifopB} {filters}:\r\n");
@@ -806,14 +829,14 @@ namespace JortPob
                     {
                         if (talk.dialogInfo.script.calls.Count() > 0)
                         {
-                            s.Append(talk.dialogInfo.script.GenerateEsdSnippet(paramanager,scriptManager, npcContent, id, 16));
+                            s.Append(talk.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 16));
                         }
                         if(talk.dialogInfo.script.choice != null)
                         {
-                            string genState = GeneratedState_Choice(id, nxtGenStateId, talk, topic);
+                            int genChoiceStateId = nxtGenStateId++;
+                            string genState = GeneratedState_Choice(id, genChoiceStateId, talk, topic);
                             generatedStates.Add(genState);
-                            s.Append($"                assert t{id_s}_x{nxtGenStateId}()\r\n");
-                            nxtGenStateId++;
+                            s.Append($"                assert t{id_s}_x{genChoiceStateId}()\r\n");
                         }
                     }
                     if (ifopB == "if") { ifopB = "elif"; }
@@ -852,7 +875,7 @@ namespace JortPob
                 {
                     NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                    string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if (filters == "") { filters = "True"; }
 
                     sb.Append($"                {ifop} {filters}:\r\n");
@@ -944,6 +967,76 @@ namespace JortPob
             return s;
         }
 
+        private string GeneratedState_TravelMenu(uint id, int x)
+        {
+            StringBuilder s = new();
+
+            string a = $""""
+                        def t{id:D9}_x{x:D2}():
+                            while True:
+                                ClearPreviousMenuSelection()
+                                ClearTalkActionState()
+                                ClearTalkListData()
+                                ShuffleRNGSeed(100)
+                                SetRNGSeed()
+
+                        """";
+            s.Append(a);
+
+            int i = 1;
+            foreach (NpcContent.Travel travel in npcContent.travel)
+            {
+                string b = $""""
+                                    # action:##:"{travel.name}"
+                                    if ComparePlayerStat(PlayerStat.RunesCollected, CompareType.Greater, {travel.cost}):
+                                        AddTalkListData({i++}, {textManager.GetTopic(travel.name)}, -1)
+                                    else:
+                                        pass
+
+                            """";
+                s.Append(b);
+            }
+
+            string c = $""""
+                                # action:##:"Cancel"
+                                AddTalkListData(99, {textManager.GetTopic("Back")}, -1)
+
+                                ShowShopMessage(TalkOptionsType.Regular)
+                                assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))
+
+                        """";
+            s.Append(c);
+
+            i = 1;
+            string ifop = "if";
+            foreach (NpcContent.Travel travel in npcContent.travel)
+            {
+                Script.Flag warpFlag = scriptManager.common.GetOrRegisterTravelWarp(travel);
+
+                string d = $""""
+                                    {ifop} GetTalkListEntryResult() == {i++}:
+                                        ## Travel :: {travel.name}
+                                        ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Subtract, {travel.cost})
+                                        assert GetCurrentStateElapsedTime() > 0.25
+                                        SetEventFlag({warpFlag.id}, FlagState.On)
+                                        assert GetCurrentStateElapsedTime() > 1
+                                        return 0
+
+                            """";
+                ifop = "elif";
+                s.Append(d);
+            }
+
+            string e = $""""
+                                else:
+                                    ## "Cancel"
+                                    return 0
+                       
+                        """";
+            s.Append(e);
+            return s.ToString();
+        }
+
         /* Handles assault, resist arrest, and murder */
         private string GeneratedState_HandleCrime(uint id, int x)
         {
@@ -1023,7 +1116,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
                 if (topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
@@ -1045,7 +1138,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
                 if(topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
@@ -1067,7 +1160,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
 
 
@@ -1088,7 +1181,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = idle.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < idle.talks.Count() - 1)) { filters = ""; ifop = "else"; i = idle.talks.Count(); }
 
                 idleCode += $"            {ifop}{filters}:\r\n";
@@ -1104,7 +1197,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = hello.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < hello.talks.Count() - 1)) { filters = ""; ifop = "else"; i = hello.talks.Count(); }
 
                 helloCode += $"            {ifop}{filters}:\r\n";
@@ -1151,6 +1244,7 @@ namespace JortPob
 
                                assert GetCurrentStateElapsedTime() > 0.25
                            return 0
+
                        """";
             return s;
         }
@@ -1178,6 +1272,7 @@ namespace JortPob
                                SetEventFlag({crimeFlag.id}, FlagState.On)
 
                            return 0
+
                        """";
             return s;
         }
@@ -1258,7 +1353,10 @@ namespace JortPob
                     int choiceTextId = textManager.AddChoice(choiceText);
 
                     createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
-                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}:\r\n            assert t{id_s}_x33(text2={talkData.primaryTalkRow}, mode4=1)\r\n";
+
+                    string optFilters = talkData.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
+                    if(optFilters != "") { optFilters = $" and ({optFilters})"; }
+                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}{optFilters}:\r\n            # choice: \"{Common.Utility.SanitizeTextForComment(talkData.dialogInfo.text)}\"\r\n            assert t{id_s}_x33(text2={talkData.primaryTalkRow}, mode4=1)\r\n";
 
                     foreach (DialogRecord dialog in talkData.dialogInfo.unlocks)
                     {
@@ -1267,12 +1365,20 @@ namespace JortPob
 
                     if (talkData.dialogInfo.script != null)
                     {
-                        executeList += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager,scriptManager, npcContent, id, 12);
+                        if (talkData.dialogInfo.script.calls.Count() > 0)
+                        {
+                            executeList += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 12);
+                        }
+                        if (talkData.dialogInfo.script.choice != null) // rare situation where a choice option goes into another choice option
+                        {
+                            int genChoiceStateId = nxtGenStateId++;
+                            string genState = GeneratedState_Choice(id, genChoiceStateId, talkData, topic); 
+                            generatedStates.Add(genState);
+                            executeList += $"            assert t{id_s}_x{genChoiceStateId}()\r\n";
+                        }
                     }
 
                     if (ifop == "if") { ifop = "elif"; }
-
-                    break;
                 }
             }
 
@@ -1287,7 +1393,7 @@ namespace JortPob
             s += createList;
             s += $"        \"\"\"State 3\"\"\"\r\n        ShowShopMessage(TalkOptionsType.Regular)\r\n        \"\"\"State 4\"\"\"\r\n        assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        \"\"\"State 5\"\"\"\r\n";
             s += executeList;
-            s += "        else:\r\n            ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Add, 1)\r\n            return 0\r\n";
+            s += "        else:\r\n            return 0\r\n";
             s += $"        \"\"\"State 10,11\"\"\"\r\n        return 1\r\n\r\n";
 
             return s;

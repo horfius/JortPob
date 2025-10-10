@@ -97,8 +97,10 @@ namespace JortPob
             public readonly List<EmitterContent> emitters;
             public readonly List<CreatureContent> creatures;
             public readonly List<NpcContent> npcs;
+            public readonly List<ContainerContent> containers;
+            public readonly List<ItemContent> items;
 
-            public readonly List<Layout.WarpDestination> warps; // end points for load doors in other cells
+            public readonly List<Layout.WarpDestination> warps; // end points for load doors in other cells. also used by travel npcs
 
             public Chunk(InteriorGroup group, Cell cell, Vector3 root)
             {
@@ -115,6 +117,8 @@ namespace JortPob
                 lights = new();
                 creatures = new();
                 npcs = new();
+                containers = new();
+                items = new();
 
                 warps = new();
 
@@ -145,6 +149,10 @@ namespace JortPob
                         emitters.Add(e); break;
                     case LightContent l:
                         lights.Add(l); break;
+                    case ContainerContent o:
+                        containers.Add(o); break;
+                    case ItemContent i:
+                        items.Add(i); break;
                     case NpcContent n:
                         npcs.Add(n); break;
                     case CreatureContent c:

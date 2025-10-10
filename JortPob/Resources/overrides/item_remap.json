@@ -1,0 +1,86 @@
+[
+  {
+    "id": "iron longsword",
+    "type": "Weapon",
+    "row": 2000000,
+    "comment": "Remapping 'iron longsword'' to the Elden Ring Longsword."
+  },
+  {
+    "id": "miner's pick",
+    "type": "Weapon",
+    "row": 12140000,
+    "comment": "Pickaxe"
+  },
+  {
+    "id": "long bow",
+    "type": "Weapon",
+    "row": 41000000,
+    "comment": "Longbow"
+  },
+  {
+    "id": "ring_keley",
+    "type": "Accessory",
+    "row": 1000,
+    "comment": "Fargoth's Ring to Crimson Amber Medalion"
+  },
+  {
+    "id": "nuccius_ring",
+    "type": "Accessory",
+    "row": 1020,
+    "comment": "Vondius's cursed ring to Viridian Amber Medalion"
+  },
+  {
+    "id": "steel_helm",
+    "type": "Armor",
+    "row": 1500000,
+    "comment": "Knight Armor Helm"
+  },
+  {
+    "id": "steel_cuirass",
+    "type": "Armor",
+    "row": 1500100,
+    "comment": "Knight Armor Torso"
+  },
+  {
+    "id": "steel_gauntlet_left",
+    "type": "Armor",
+    "row": 1500200,
+    "comment": "Knight Armor Gloves"
+  },
+  {
+    "id": "steel_greaves",
+    "type": "Armor",
+    "row": 1500300,
+    "comment": "Knight Armor Legs"
+  },
+  {
+    "id": "gold_001",
+    "type": "Goods",
+    "row": 2900,
+    "comment": "Single gold coin to Rune [1]"
+  },
+  {
+    "id": "gold_005",
+    "type": "Goods",
+    "row": 2901,
+    "comment": "Stack of 5 gold coins to Rune [2]"
+  },
+  {
+    "id": "gold_010",
+    "type": "Goods",
+    "row": 2902,
+    "comment": "Stack of 10 gold coins to Rune [3]"
+  },
+  {
+    "id": "gold_025",
+    "type": "Goods",
+    "row": 2903,
+    "comment": "Pile of 25 gold coins to Rune [4]"
+  },
+  {
+    "id": "gold_100",
+    "type": "Goods",
+    "row": 2904,
+    "comment": "Pile of 100 gold coins to Rune [5]"
+  }
+]

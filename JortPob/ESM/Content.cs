@@ -1,5 +1,7 @@
-﻿using JortPob.Common;
+﻿using HKLib.hk2018.hk;
+using JortPob.Common;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
@@ -115,6 +117,20 @@ namespace JortPob
 
         public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
 
+        public List<(string id, int quantity)> inventory;
+
+        public List<Travel> travel;  // travel destinations for silt strider people, mage guild teles, etc...
+
+        public class Travel : DoorContent.Warp
+        {
+            public string name;
+            public int cost;
+            public Travel(JsonNode json) : base(json)
+            {
+                cost = 100;
+            }
+        }
+
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             name = record.json["name"].ToString();
@@ -143,6 +159,24 @@ namespace JortPob
             services = record.json["ai_data"]["services"].ToString().Trim() != "";
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach(JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));
+            }
+
+            travel = new();
+            JsonArray travelJson = record.json["travel_destinations"].AsArray();
+            if (travelJson.Count > 0)
+            {
+                foreach (JsonNode t in travelJson)
+                {
+                    travel.Add(new Travel(t));
+                }
+            }
         }
 
         /* Return true if this npc is a generic guard that can arrest the player for crimes */
@@ -247,6 +281,43 @@ namespace JortPob
             {
                 warp = new(json["destination"]);
             }
+        }
+    }
+
+    /* static mesh of a container in the world that can **CAN** (but not always) be lootable */
+    public class ContainerContent : Content
+    {
+        public List<(string id, int quantity)> inventory;
+
+        public Script.Flag flag; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
+
+        public ContainerContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        {
+            mesh = record.json["mesh"].ToString().ToLower();
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach (JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));
+            }
+        }
+    }
+
+    /* static mesh of an item placed in the world that can **CAN** (but not always) be pickupable */
+    public class ItemContent : Content
+    {
+        public readonly string ownerNpc; // npc record id of the owenr of this item, can be null
+        public readonly string ownerFaction; // faction id that owns this item, player can take it if they are in that faction. can be null
+
+        public Script.Flag flag; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
+
+        public ItemContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        {
+            mesh = record.json["mesh"].ToString().ToLower();
+            if (json["owner"] != null ) { ownerNpc = json["owner"].GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
         }
     }
 

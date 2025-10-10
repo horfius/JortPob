@@ -66,6 +66,9 @@
     <Reference Include="Microsoft.Scripting.Metadata">
       <HintPath>DLL\Microsoft.Scripting.Metadata.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>DLL\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="SoulsAssetPipeline">
       <HintPath>DLL\SoulsAssetPipeline.dll</HintPath>
     </Reference>
@@ -916,6 +919,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\overrides\character_creation_race.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\overrides\item_remap.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\overrides\do_not_place.json">

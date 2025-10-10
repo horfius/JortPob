@@ -1,4 +1,5 @@
-﻿using JortPob.Common;
+﻿using ESDLang.Script;
+using JortPob.Common;
 using SoulsFormats;
 using SoulsIds;
 using System;
@@ -6,7 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static JortPob.NpcContent;
 using static JortPob.Script;
+using static JortPob.Script.Flag;
 
 namespace JortPob
 {
@@ -26,7 +29,7 @@ namespace JortPob
 
         public enum Event
         {
-            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello, Essential
+            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello, Essential, DeadBody, ItemAsset, TravelWarp, RemoveItem
         }
         public readonly Dictionary<Event, uint> events;
         public readonly Dictionary<int, Flag> messages;  // hash of message text as key, value is flag that when set to true triggers a message to display
@@ -220,6 +223,97 @@ namespace JortPob
 
             func.Events.Add(essentialEvent);
             events.Add(Event.Essential, essentialEventFlag.id);
+
+            /* Create an event for intitializing dead bodys. To be specific, any NPC in morrowind that has the "dead" flag and is just a lootable body */
+            Flag deadBodyEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:DeadBody");
+            EMEVD.Event deadBodyEvent = new(deadBodyEventFlag.id);
+
+            pc = 0;
+
+            string[] deadBodyEventRaw = new string[]
+            {
+                $"ForceAnimationPlayback({NextParameterName()}, 90100, false, false, false, 0, 1);",    // laying on ground dead animation (0 is Equals)
+                $"ChangeCharacterCollisionState({NextParameterName()}, Disabled);",    // no-collide
+                $"SetCharacterTeamType({NextParameterName()}, 26);",               // friendly npc team = 26
+            };
+
+            for (int i = 0; i < deadBodyEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(deadBodyEventRaw[i], i);
+                deadBodyEvent.Parameters.AddRange(newPs);
+                deadBodyEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(deadBodyEvent);
+            events.Add(Event.DeadBody, deadBodyEventFlag.id);
+
+            /* Create an event for making itemcontent assets placed on the map dissapear when the item is actually taken by the player */
+            Flag itemAssetEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:ItemAsset");
+            EMEVD.Event itemAssetEvent = new(itemAssetEventFlag.id);
+
+            pc = 0;
+
+            string[] itemAssetEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",
+                $"ChangeAssetEnableState({NextParameterName()}, 0);"
+            };
+
+            for (int i = 0; i < itemAssetEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(itemAssetEventRaw[i], i);
+                itemAssetEvent.Parameters.AddRange(newPs);
+                itemAssetEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(itemAssetEvent);
+            events.Add(Event.ItemAsset, itemAssetEventFlag.id);
+
+            /* Create an event for travel npc warps */
+            Flag travelWarpEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:TravelWarp");
+            EMEVD.Event travelWarpEvent = new(travelWarpEventFlag.id);
+
+            pc = 0;
+
+            string[] travelWarpEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",
+                $"WarpPlayer({NextParameterName()}, {NextParameterName()}, {NextParameterName()}, {NextParameterName()}, {NextParameterName()}, -1);"
+            };
+
+            for (int i = 0; i < travelWarpEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(travelWarpEventRaw[i], i);
+                travelWarpEvent.Parameters.AddRange(newPs);
+                travelWarpEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(travelWarpEvent);
+            events.Add(Event.TravelWarp, travelWarpEventFlag.id);
+
+            /* Create an event for removing an item from the player (you cant do this from ESD so a trigger event like this is fine */
+            Flag removeItemEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:RemoveItem");
+            EMEVD.Event removeItemEvent = new(removeItemEventFlag.id);
+
+            pc = 0;
+
+            string[] removeItemEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",
+                $"RemoveItemFromPlayer({NextParameterName()}, {NextParameterName()}, {NextParameterName()});",
+                $"SetEventFlag(TargetEventFlagType.EventFlag, {NextParameterName()}, OFF);",
+                $"EndUnconditionally(EventEndType.Restart);",    // restart so it's ready to go again if needed
+            };
+
+            for (int i = 0; i < removeItemEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(removeItemEventRaw[i], i);
+                removeItemEvent.Parameters.AddRange(newPs);
+                removeItemEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(removeItemEvent);
+            events.Add(Event.RemoveItem, removeItemEventFlag.id);
         }
 
         /* Register a tutorial popup message with given text */
@@ -250,6 +344,40 @@ namespace JortPob
             init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.Message]}, {messageFlag.id}, {param}, {messageFlag.id});"));
             messages.Add(textHash, messageFlag);
             return messageFlag;
+        }
+
+        /* Create an event for travel npcs to warp the player to a specific location. Returns the flag that when set to ON will trigger this event */
+        public Flag GetOrRegisterTravelWarp(NpcContent.Travel travel)
+        {
+            string flagName = $"{travel.name}:{(int)travel.position.X},{(int)travel.position.X}";
+            Flag warpToFlag = GetFlag(Designation.TravelWarp, flagName);
+            if (warpToFlag == null) { warpToFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.TravelWarp, flagName); }
+            else { return warpToFlag; }
+
+            init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.TravelWarp]}, {warpToFlag.id}, {travel.map}, {travel.x}, {travel.y}, {travel.block}, {travel.entity});"));
+            return warpToFlag;
+        }
+
+        /* Create an event for removing an item from the player */
+        public Flag GetOrRegisterRemoveItem(ItemManager.ItemInfo itemInfo, int quantity)
+        {
+            string flagName = $"{itemInfo.type}:{itemInfo.row}:{quantity}";
+            Flag removeItemFlag = GetFlag(Designation.RemoveItem, flagName);
+            if (removeItemFlag == null) { removeItemFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.RemoveItem, flagName); }
+            else { return removeItemFlag; }
+
+            init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.RemoveItem]}, {removeItemFlag.id}, {(int)itemInfo.type}, {(int)itemInfo.row}, {quantity}, {removeItemFlag.id});"));
+            return removeItemFlag;
+        }
+
+        private Script.Flag GetFlag(Designation designation, string name)
+        {
+            var lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
+
+            Flag f = FindFlagByLookupKey(lookupKey);
+            if (f != null) { return f; }
+
+            return null;
         }
 
         /* There are some bugs with this system. It defo wastes some flag space. We have lots tho. Maybe fix later */

@@ -105,6 +105,11 @@ namespace JortPob
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParam}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
         }
 
+        public void RegisterItemAsset(Script.Flag itemPickedUpFlag, ItemContent item)
+        {
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.ItemAsset]}, {itemPickedUpFlag.id}, {item.entity});"));
+        }
+
         public void RegisterNpcHostility(NpcContent npc)
         {
             CreateFlag(Flag.Category.Temporary, Flag.Type.Nibble, Flag.Designation.FriendHitCounter, npc.entity.ToString()); // setup friendly hit counter
@@ -120,6 +125,12 @@ namespace JortPob
             /* Hello event: npc turns to player when player enters a certain radius and the esd sets a flag and says a hello line */
             Flag helloFlag = CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.Hello, npc.entity.ToString());
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.Hello]}, {helloFlag.id}, {npc.entity}, {helloFlag.id});"));
+        }
+
+        /* Dead body */
+        public void RegisterDeadNpc(NpcContent npc)
+        {
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.DeadBody]}, {npc.entity}, {npc.entity}, {npc.entity});"));
         }
 
         public void RegisterNpc(Paramanager paramanager, NpcContent npc, Flag count)
@@ -270,6 +281,7 @@ namespace JortPob
             public enum Designation
             {
                 Event,                                          // Flag is an event ID
+                Item,                                           // ItemLot awarded flag
                 Global, Local, Reputation, Journal, CrimeLevel,          // CrimeLevel is gold owed to guards, the Crime below is a per npc variable for if you comitted a crime against them
                 Dead, DeadCount, Disabled, Hostile, CrimeEvent, FriendHitCounter, Pickpocketed, ThiefCrime,      // hostile flag exists for friendly npcs, if you piss em off they stab you
                 TopicEnabled, TalkedToPc, Disposition, PlayerRace,
@@ -279,7 +291,9 @@ namespace JortPob
                 CrimeAbsolved,            // temp value, setting it to 1 triggers a common emevd event that clears all crime and hostility flags
                 HostileQuip, Hello,    // temp value that is flagged when a guard is gretting the player, if the player has a bounty and trys to leave dialog without paying they get dunked on
                 OnActivate, CellChanged, GetButtonPressedBit, GetButtonPressedValue, // used by papyrus to emulate mw script behaviours
-                Message    // Flag to trigger a popmessage or notification
+                Message,    // Flag to trigger a popmessage or notification
+                TravelWarp, // Flag to trigger warping the player from travel npcs
+                RemoveItem  // Flag to trigger removing an item from the player
             }
 
             public readonly Category category;
