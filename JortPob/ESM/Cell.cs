@@ -35,7 +35,7 @@ namespace JortPob
         {
             /* Cell Data */
             name = json["name"].ToString() == "" ? null : json["name"].ToString();
-            region = json["region"] != null ? json["region"].ToString() : "null";
+            region = json["region"] != null ? json["region"].ToString() : null;
 
             flags = new();
             string[] fs = json["data"]["flags"].GetValue<string>().ToLower().Split("|");

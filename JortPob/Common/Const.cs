@@ -50,7 +50,8 @@ namespace JortPob.Common
         };
 
         /* Calculated... ESM lowest cell is [-20,-20]~ on the grid. MSB lowest value is [+33,+40]~. Offset so they overlap */
-        public static readonly Vector3 LAYOUT_COORDINATE_OFFSET = new((20*CELL_SIZE)+(35*TILE_SIZE), 0, (20*CELL_SIZE)+(38*TILE_SIZE));
+        /* Updated for bloodmoon: bloodmoons furthest cell to the left is -28, 28 so we need to shift a bit more to make that fit */
+        public static readonly Vector3 LAYOUT_COORDINATE_OFFSET = new((21*CELL_SIZE)+(35*TILE_SIZE), 0, (12*CELL_SIZE)+(38*TILE_SIZE));
 
         public static int CHUNK_PARTITION_SIZE = 6;
 
@@ -98,7 +99,7 @@ namespace JortPob.Common
         public static readonly int CRIME_GOLD_ASSAULT = 250;
         public static readonly int CRIME_GOLD_RESIST = 100;
         public static readonly int CRIME_GOLD_MURDER = 1000;
-        public static readonly int TRAVEL_DEFAULT_COST = 100;
+        public static readonly int TRAVEL_DEFAULT_COST = 100; // interior travel like mage guild teleporters just use a set value
         public static readonly int TRAVEL_DISTANCE_COST = 10; // distance in cells multiplied by this value
         #endregion
 
@@ -117,12 +118,13 @@ namespace JortPob.Common
 
         #region Debug
         /* when building for release everything in this group should be FALSE or NULL */
+        public static readonly bool DEBUG_DONT_WRITE_BLANK_MSBS = false; // if true we don't overwrite base game overworld tiles with blanks. probably no reason to set this to true but it's here
         public static readonly bool DEBUG_DISCARD_ANIMATED_DOORS = true; // disables all doors that are NOT load doors
         public static readonly bool DEBUG_ENABLE_FMG_PARAM_SORTING = true;
         public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = true; // slow as shit, skipping this saves about a minute per build
         public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
-        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -10, -15, 20, 0 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
+        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = null; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }
         // balmora area (small) = new int[] {-4, -3, -2, -1}
@@ -139,7 +141,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] {"Seyda Neen", "Balmora", "Arkngthand" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] { "Seyda Neen", "Balmora", "Andrano Ancestral Tomb", "Arkngthand", "Vivec" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

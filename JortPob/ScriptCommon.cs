@@ -29,7 +29,7 @@ namespace JortPob
 
         public enum Event
         {
-            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello, Essential, DeadBody, ItemAsset, TravelWarp, RemoveItem
+            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello, Essential, DeadBody, ItemAsset, OwnedItemAsset, OwnedContainer, TravelWarp, RemoveItem
         }
         public readonly Dictionary<Event, uint> events;
         public readonly Dictionary<int, Flag> messages;  // hash of message text as key, value is flag that when set to true triggers a message to display
@@ -269,6 +269,63 @@ namespace JortPob
             func.Events.Add(itemAssetEvent);
             events.Add(Event.ItemAsset, itemAssetEventFlag.id);
 
+            /* Same as above but also triggers a crime on the player when the item is taken */
+            Flag ownedItemAssetEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:OwnedItemAsset");
+            EMEVD.Event ownedItemAssetEvent = new(ownedItemAssetEventFlag.id);
+
+            pc = 0;
+
+            string[] ownedItemAssetEventRaw = new string[]
+            {
+                $"SkipIfEventFlag(2, OFF, TargetEventFlagType.EventFlag, {NextParameterName()});",  // if item is already taken
+                $"ChangeAssetEnableState({NextParameterName()}, 0);",                              // hide asset
+                $"EndUnconditionally(EventEndType.End);",                                      // end event early to preven crime retriggering
+
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",    // wait till item picked up
+                $"ChangeAssetEnableState({NextParameterName()}, 0);",                               // hide asset
+                $"SkipIfEventFlag(3, ON, TargetEventFlagType.EventFlag, {NextParameterName()});", // skip if the owner is dead
+                $"SetEventFlag(TargetEventFlagType.EventFlag, {NextParameterName()}, ON);", // flag this crime as thievery
+                $"SetEventFlag(TargetEventFlagType.EventFlag, {NextParameterName()}, ON);", // flag crime comitted
+                $"EventValueOperation({NextParameterName()}, {NextParameterName()}, {NextParameterName()}, 0, 1, 0);", // add to bounty (last 0 is ADD operation type)
+            };
+
+            for (int i = 0; i < ownedItemAssetEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(ownedItemAssetEventRaw[i], i);
+                ownedItemAssetEvent.Parameters.AddRange(newPs);
+                ownedItemAssetEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(ownedItemAssetEvent);
+            events.Add(Event.OwnedItemAsset, ownedItemAssetEventFlag.id);
+
+            /* Same as above but for containers instead of items */
+            Flag ownedContainerEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:OwnedContainer");
+            EMEVD.Event ownedContainerEvent = new(ownedContainerEventFlag.id);
+
+            pc = 0;
+
+            string[] ownedContainerEventRaw = new string[]
+            {
+                $"SkipIfEventFlag(1, OFF, TargetEventFlagType.EventFlag, {NextParameterName()});",  // if continer is already looted 
+                $"EndUnconditionally(EventEndType.End);",                                      // end event early to prevent crime retriggering
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",    // wait till container is looted
+                $"SkipIfEventFlag(3, ON, TargetEventFlagType.EventFlag, {NextParameterName()});", // skip if the owner is dead
+                $"SetEventFlag(TargetEventFlagType.EventFlag, {NextParameterName()}, ON);", // flag this crime as thievery
+                $"SetEventFlag(TargetEventFlagType.EventFlag, {NextParameterName()}, ON);", // flag crime comitted
+                $"EventValueOperation({NextParameterName()}, {NextParameterName()}, {NextParameterName()}, 0, 1, 0);", // add to bounty (last 0 is ADD operation type)
+            };
+
+            for (int i = 0; i < ownedContainerEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(ownedContainerEventRaw[i], i);
+                ownedContainerEvent.Parameters.AddRange(newPs);
+                ownedContainerEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(ownedContainerEvent);
+            events.Add(Event.OwnedContainer, ownedContainerEventFlag.id);
+
             /* Create an event for travel npc warps */
             Flag travelWarpEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:TravelWarp");
             EMEVD.Event travelWarpEvent = new(travelWarpEventFlag.id);
@@ -351,9 +408,9 @@ namespace JortPob
         {
             string flagName = $"{travel.name}:{(int)travel.position.X},{(int)travel.position.X}";
             Flag warpToFlag = GetFlag(Designation.TravelWarp, flagName);
-            if (warpToFlag == null) { warpToFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.TravelWarp, flagName); }
-            else { return warpToFlag; }
+            if (warpToFlag != null) { return warpToFlag; }
 
+            warpToFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.TravelWarp, flagName);
             init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.TravelWarp]}, {warpToFlag.id}, {travel.map}, {travel.x}, {travel.y}, {travel.block}, {travel.entity});"));
             return warpToFlag;
         }
@@ -363,21 +420,18 @@ namespace JortPob
         {
             string flagName = $"{itemInfo.type}:{itemInfo.row}:{quantity}";
             Flag removeItemFlag = GetFlag(Designation.RemoveItem, flagName);
-            if (removeItemFlag == null) { removeItemFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.RemoveItem, flagName); }
-            else { return removeItemFlag; }
+            if (removeItemFlag == null) { return removeItemFlag; }
 
+            removeItemFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.RemoveItem, flagName);
             init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.RemoveItem]}, {removeItemFlag.id}, {(int)itemInfo.type}, {(int)itemInfo.row}, {quantity}, {removeItemFlag.id});"));
             return removeItemFlag;
         }
 
-        private Script.Flag GetFlag(Designation designation, string name)
+        public Script.Flag GetFlag(Designation designation, string name)
         {
             var lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
 
-            Flag f = FindFlagByLookupKey(lookupKey);
-            if (f != null) { return f; }
-
-            return null;
+            return FindFlagByLookupKey(lookupKey);
         }
 
         /* There are some bugs with this system. It defo wastes some flag space. We have lots tho. Maybe fix later */

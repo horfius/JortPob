@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -112,8 +113,7 @@ namespace JortPob
             /* Repair Item */
             void HandleItemsByRecord(ESM.Type recordType)
             {
-                List<JsonNode> miscItemJson = [.. esm.GetAllRecordsByType(recordType)];
-                foreach (JsonNode json in miscItemJson)
+                foreach (JsonNode json in esm.GetAllRecordsByType(recordType))
                 {
                     string id = json["id"].GetValue<string>().ToLower();
                     int value = json["data"]["value"].GetValue<int>();
@@ -544,6 +544,7 @@ namespace JortPob
         }
 
         /* Stores info on an item */
+        [DebuggerDisplay("Item :: {id} :: {type}->{row}")]
         public class ItemInfo
         {
             public readonly Type type;  // param type

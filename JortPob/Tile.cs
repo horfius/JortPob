@@ -1,12 +1,14 @@
 ﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 
 namespace JortPob
 {
     /* A Tile is what we call a single square on the Elden Ring cell grid. It's basically the Elden Ring version of a "cell" */
+    [DebuggerDisplay("Tile m{map}_{coordinate.x}_{coordinate.y}_{block} :: [{cells.Count}] Cells")]
     public class Tile : BaseTile
     {
         public HugeTile huge;
@@ -41,10 +43,13 @@ namespace JortPob
             Dictionary<string, int> regions = new();
             foreach(Cell cell in cells)
             {
+                if (cell.region == null) { continue; }
                 string r = cell.region.Trim().ToLower();
                 if (regions.ContainsKey(r)) { regions[r]++; }
                 else { regions.Add(r, 1); }
             }
+
+            if (regions.Count() <= 0) { return "Default Region"; } // no regions set so guh
 
             string most = regions.Keys.First();
             foreach(KeyValuePair<string, int> kvp in regions)

@@ -596,8 +596,11 @@ namespace JortPob
         /* Greeting -> Dialog parent state */
         private string State_x37(uint id)
         {
+            Script.Flag npcHelloFlag = scriptManager.GetFlag(Script.Flag.Designation.Hello, npcContent.entity.ToString());
+
             string id_s = id.ToString("D9");
             string s = $"def t{id:D9}_x37():\r\n    \"\"\"State 0,1\"\"\"\r\n";
+            s += $"    SetEventFlag({npcHelloFlag.id}, FlagState.On)";  // set hello flag when the player hits a to talk to a npc, this locks the npc out of using a "hello" line until you walk away and come back
             if(npcContent.IsGuard())
             {
                 Script.Flag guardTalkingFlag = scriptManager.GetFlag(Script.Flag.Designation.GuardIsGreeting, "GuardIsGreeting");
@@ -1199,6 +1202,7 @@ namespace JortPob
 
                 string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < hello.talks.Count() - 1)) { filters = ""; ifop = "else"; i = hello.talks.Count(); }
+                if (hello.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
                 helloCode += $"            {ifop}{filters}:\r\n";
                 helloCode += $"                # hello talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
@@ -1329,6 +1333,7 @@ namespace JortPob
             string executeList = "";
 
             string ifop = "if";
+            List<int> addedChoices = new(); // to prevent adding duplicate choices to the same id. does not cause issues ingame, just a code cleanliness thing. multiple results on same id is fine, this just does the choice part
             foreach (Tuple<int, string> tuple in choice.choices)
             {
                 int choiceId = tuple.Item1;
@@ -1350,9 +1355,11 @@ namespace JortPob
                     }
                     if (!match) { continue; }
 
-                    int choiceTextId = textManager.AddChoice(choiceText);
-
-                    createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
+                    if (!addedChoices.Contains(choiceId))
+                    {
+                        int choiceTextId = textManager.AddChoice(choiceText);
+                        createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
+                    }
 
                     string optFilters = talkData.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if(optFilters != "") { optFilters = $" and ({optFilters})"; }
@@ -1378,6 +1385,7 @@ namespace JortPob
                         }
                     }
 
+                    addedChoices.Add(choiceId);
                     if (ifop == "if") { ifop = "elif"; }
                 }
             }

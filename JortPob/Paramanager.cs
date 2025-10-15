@@ -410,7 +410,6 @@ namespace JortPob
             {
                 this.name = name;
                 this.match = match;
-                for (int i = 0; i < match.Count(); i++) { match[i] = match[i].Trim().ToLower(); }
                 this.MapInfoParamId = MapInfoParamId;
                 this.MapRegionParamId = MapRegionParamId;
                 this.rem = rem;
@@ -418,15 +417,33 @@ namespace JortPob
         }
 
         // @TODO: maybe move weatherdata to layout or its own class since its used by multiple toher thingsthingso
+        public static WeatherData GetWeatherData(string region)
+        {
+            if(region == null)
+            {
+
+            }
+
+            foreach(WeatherData wd in EXTERIOR_WEATHER_DATA_LIST)
+            {
+                foreach(string m in wd.match)
+                {
+                    if (m.ToLower().Trim() == region.ToLower().Trim()) { return wd; }
+                }
+            }
+            return null;
+        }
 
         public static List<WeatherData> EXTERIOR_WEATHER_DATA_LIST = new()
-        {
-            new WeatherData("Limgrave", new(){ "West Gash Region", "Ascadian Isles Region", "Grazelands Region" }, 60423600, 99999901, EnvManager.Rem.Forest), // 0
+        {       // default region is the result when an area has literally no region value set. just a big fat null
+            new WeatherData("Limgrave", new(){ "Default Region", "West Gash Region", "Ascadian Isles Region", "Grazelands Region" }, 60423600, 99999901, EnvManager.Rem.Forest), // 0
             new WeatherData("Liurnia", new(){ "Bitter Coast Region", "Sheogorad", "Azura's Coast Region" }, 60374200, 60365000, EnvManager.Rem.Forest), // 10
             new WeatherData("Altus", new(){ }, 60395000, 60395000, EnvManager.Rem.Forest), // 20
             new WeatherData("Gelmir", new(){ "Ashlands Region", "Molag Mar Region" }, 60355200, 60355200, EnvManager.Rem.Mountain), // 21
             new WeatherData("Caelid", new(){ }, 60473700, 60473700, EnvManager.Rem.Mountain), // 30
             new WeatherData("Caelid Desert", new(){ "Red Mountain Region" }, 60533800, 60533800, EnvManager.Rem.Mountain), // 31
+            new WeatherData("Mountaintop of Giants", new() { "Brodir Grove Region", "Felsaad Coast Region", "Hirstaang Forest Region", "Isinfier Plains Region", "Thirsk Region" }, 60505700, 60505700, EnvManager.Rem.Snowfield),
+            new WeatherData("Consecrated Snowfield", new() { "Moesring Mountains Region" }, 60495500, 60495500, EnvManager.Rem.Snowfield)
         };
 
         public static List<WeatherData> INTERIOR_WEATHER_DATA_LIST = new()
@@ -447,14 +464,7 @@ namespace JortPob
                 if (tile.IsEmpty()) { continue; } // skip empty tiles
 
                 string region = tile.GetRegion();
-                WeatherData weatherData = null;
-                foreach (WeatherData w in EXTERIOR_WEATHER_DATA_LIST)
-                {
-                    if (w.match.Contains(region))
-                    {
-                        weatherData = w; break;
-                    }
-                }
+                WeatherData weatherData = GetWeatherData(region);
 
                 int id = int.Parse($"60{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}00");
 
@@ -787,7 +797,7 @@ namespace JortPob
                     lotItemCategory = 5;
                     break;
                 default:
-                    throw new Exception(); // will break param! should NEVER happen!
+                    throw new Exception("Item had invalid type! This should NEVER happen!");
             }
 
             row["getItemFlagId"].Value.SetValue((uint)0);
@@ -806,7 +816,7 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, not repeatable, map treasure, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
             Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"TreasureItem::{itemInfo.type}:{itemInfo.row}");
-            itemContent.flag = itemLotFlag;
+            itemContent.treasure = itemLotFlag;
 
             int lotItemCategory;
             switch (itemInfo.type)
@@ -827,7 +837,7 @@ namespace JortPob
                     lotItemCategory = 5;
                     break;
                 default:
-                    throw new Exception(); // will break param! should NEVER happen!
+                    throw new Exception("Item had invalid type! This should NEVER happen!");
             }
 
             row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
@@ -835,7 +845,7 @@ namespace JortPob
             row["lotItemId01"].Value.SetValue(itemInfo.row);
             row["lotItemNum01"].Value.SetValue((byte)1);
 
-            script.RegisterItemAsset(itemLotFlag, itemContent);
+            script.RegisterItemAsset(itemContent);
 
             AddRow(itemLotParam, row);
             nextMapItemLotId += 10;
@@ -855,6 +865,7 @@ namespace JortPob
                 if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
 
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"DeadBody::{npc.id}:{0}");
+                if (i == 0) { npc.treasure = itemLotFlag; }
                 FsParam.Row row = CloneRow(itemLotParam[1042360010], $"deadbody, not repeatable, {npc.id}:{item.id}:{i}", baseRow+i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
 
@@ -877,7 +888,7 @@ namespace JortPob
                         lotItemCategory = 5;
                         break;
                     default:
-                        throw new Exception(); // will break param! should NEVER happen!
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
                 }
 
                 row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
@@ -906,7 +917,7 @@ namespace JortPob
                 if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
 
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"Container::{container.id}:{0}");
-                if(i==0) { container.flag = itemLotFlag; } 
+                if(i==0) { container.treasure = itemLotFlag; } 
                 FsParam.Row row = CloneRow(itemLotParam[1042360010], $"container, not repeatable, {container.id}:{i}", baseRow + i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
 
@@ -929,7 +940,7 @@ namespace JortPob
                         lotItemCategory = 5;
                         break;
                     default:
-                        throw new Exception(); // will break param! should NEVER happen!
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
                 }
 
                 row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
@@ -940,6 +951,8 @@ namespace JortPob
                 i++;
                 AddRow(itemLotParam, row);
             }
+
+            script.RegisterContainerAsset(container);
 
             nextMapItemLotId += 10;
             return baseRow;
@@ -981,7 +994,7 @@ namespace JortPob
                         lotItemCategory = 5;
                         break;
                     default:
-                        throw new Exception(); // will break param! should NEVER happen!
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
                 }
 
                 row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);

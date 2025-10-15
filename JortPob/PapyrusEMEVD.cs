@@ -259,25 +259,26 @@ namespace JortPob
 
                             // Resolve those operations as best as we can
                             Script.Flag lflag = GetFlagByVariable(call.parameters[0]);
+                            if (lflag == null) { break; } // another safety break. there is a tribunal script that fails to declare a var "done" and trys to set it resulting in a null
                             foreach ((string op, Call call) operation in operations)
                             {
                                 switch (operation.call.type)
                                 {
                                     case Call.Type.Literal:
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, {int.Parse(operation.call.parameters[0])}, 0, 1, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, {int.Parse(operation.call.parameters[0])}, 0, 1, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.Variable:
                                         Script.Flag l2flag = GetFlagByVariable(operation.call.parameters[0]);
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {l2flag.id}, {l2flag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {l2flag.id}, {l2flag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.GetJournalIndex:
                                         Script.Flag jflag = scriptManager.GetFlag(Script.Flag.Designation.Journal, operation.call.parameters[0]); // find journal flag or create it if it does not exist
                                         if(jflag == null) { jflag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, operation.call.parameters[0]); }
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {jflag.id}, {jflag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {jflag.id}, {jflag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.GetButtonPressed:
                                         Script.Flag bflag = scriptManager.GetFlag(Script.Flag.Designation.GetButtonPressedValue, content.entity.ToString());
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {bflag.id}, {bflag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {bflag.id}, {bflag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         lines.Add($"EventValueOperation({bflag.id}, {bflag.Bits()}, {ushort.MaxValue}, 0, 1, 5);"); // reset value after reading it
                                         break;
                                     default: if (!UNSUPPORTED_SET_LIST.Contains(operation.call.type)) { Lort.Log($" ## WARNING ## Unsupported Papyrus->EMEVD set operation call {papyrus.id}->{call.type}->{operation.call.type}", Lort.Type.Debug); UNSUPPORTED_SET_LIST.Add(operation.call.type); }
@@ -291,7 +292,9 @@ namespace JortPob
                         {
                             Script.Flag jflag = scriptManager.GetFlag(Script.Flag.Designation.Journal, call.parameters[0]); // look for flag, if not found make one
                             if (jflag == null) { jflag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, call.parameters[0]); }
-                            lines.Add($"EventValueOperation({jflag.id}, {jflag.Bits()}, {int.Parse(call.parameters[1])}, 0, 1, 5)");  // 5 is the 'Assign' operation
+                            Script.Flag mflag = scriptManager.common.GetOrRegisterNotification(paramanager, "Your journal has been updated!");
+                            lines.Add($"EventValueOperation({jflag.id}, {jflag.Bits()}, {int.Parse(call.parameters[1])}, 0, 1, 5);");  // 5 is the 'Assign' operation
+                            lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {mflag.id}, ON);");
                             break;
                         }
 
@@ -496,8 +499,9 @@ namespace JortPob
             if (papyrus.HasCall(Call.Type.OnActivate))
             {
                 Script.Flag treasuerLootFlag = null;
-                if (content is ItemContent) { treasuerLootFlag = ((ItemContent)content).flag; }
-                else if (content is ContainerContent) { treasuerLootFlag = ((ContainerContent)content).flag; }
+                if (content is ItemContent) { treasuerLootFlag = ((ItemContent)content).treasure; }
+                else if (content is ContainerContent) { treasuerLootFlag = ((ContainerContent)content).treasure; }
+                else if (content is NpcContent) { treasuerLootFlag = ((NpcContent)content).treasure; }
 
                 /* If the object is an ItemContent or ContainerContent we can emulate OnActivate by simply waiting for the treasure flag to be set */
                 if (treasuerLootFlag != null)

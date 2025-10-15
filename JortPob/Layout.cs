@@ -179,13 +179,13 @@ namespace JortPob
                 if (terrain != null)
                 {
                     if (huge != null) { huge.AddTerrain(cell.center, terrain); }
-                    else { Lort.Log($" ## WARNING ## Terrain fell outside of reality {cell.coordinate} -- {cell.region}", Lort.Type.Debug); }
+                    else { Lort.Log($" ## WARNING ## Terrain fell outside of reality [{cell.coordinate.x}, {cell.coordinate.y}] -- {cell.region} :: B02", Lort.Type.Debug); }
                 }
-
-                huge.AddCell(cell);
 
                 if (huge != null)
                 {
+                    huge.AddCell(cell);
+
                     foreach (Content content in cell.contents)
                     {
                         Content c = EmitterConversionCheck(content); // checks if we need to convert an assetcontent into an emittercontent due to it having emitter nodes but no light data
@@ -193,8 +193,25 @@ namespace JortPob
                         huge.AddContent(cache, cell, c);
                     }
                 }
-                else { Lort.Log($" ## WARNING ## Cell fell outside of reality {cell.coordinate} -- {cell.name}", Lort.Type.Debug); }
+                else { Lort.Log($" ## WARNING ## Cell fell outside of reality [{cell.coordinate.x}, {cell.coordinate.y}] -- {cell.name} :: B02", Lort.Type.Debug); }
                 Lort.TaskIterate(); // Progress bar update
+            }
+
+            /* Render an ASCII image of the tiles for verification! */
+            Lort.Log("Drawing ASCII art of worldspace map...", Lort.Type.Debug);
+            for (int y = 28; y < 66; y++)
+            {
+                string line = "";
+                for (int x = 30; x < 64; x++)
+                {
+                    Tile tile = GetTile(new Int2(x, y));
+                    if (tile == null) { line += "-"; }
+                    else
+                    {
+                        line += tile.assets.Count > 0 ? "X" : "~";
+                    }
+                }
+                Lort.Log(line, Lort.Type.Debug);
             }
 
 
@@ -450,23 +467,6 @@ namespace JortPob
                     HandleNpcFlags(script, chunk.npcs);
                     HandleCreatureFlags(script, chunk.creatures);
                 }
-            }
-
-            /* Render an ASCII image of the tiles for verification! */
-            Lort.Log("Drawing ASCII art of worldspace map...", Lort.Type.Debug);
-            for (int y = 66; y >= 28; y--)
-            {
-                string line = "";
-                for (int x = 30; x < 64; x++)
-                {
-                    Tile tile = GetTile(new Int2(x, y));
-                    if(tile == null) { line += "-"; }
-                    else
-                    {
-                        line += tile.assets.Count > 0 ? "X" : "~";
-                    }
-                }
-                Lort.Log(line, Lort.Type.Debug);
             }
         }
 

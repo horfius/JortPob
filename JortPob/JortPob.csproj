@@ -162,6 +162,9 @@
     <None Update="Resources\env\forest_rem.dds">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\env\snowfield_rem.dds">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\env\tomb_rem.dds">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -990,7 +993,10 @@
     <None Update="Resources\test\l.hkxbhd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\test\m60_42_36_00.msb.dcx">
+    <None Update="Resources\test\m10_01_00_00.msb.dcx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\test\m18_00_00_00.msb.dcx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\test\test.compendium">

@@ -25,12 +25,12 @@ namespace JortPob
 
         public static bool CheckDoNotPlace(string id)
         {
-            return DO_NOT_PLACE.Contains(id);
+            return DO_NOT_PLACE.Contains(id.ToLower());
         }
 
         public static bool CheckStaticCollision(string id)
         {
-            return STATIC_COLLISION.Contains(id);
+            return STATIC_COLLISION.Contains(id.ToLower());
         }
 
         public static List<PlayerClass> GetCharacterCreationClasses()

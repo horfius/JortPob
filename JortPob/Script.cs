@@ -32,6 +32,7 @@ namespace JortPob
         public readonly EMEVD.Event init;
 
         public readonly List<NpcContent> npcs; // list of npcs that are registered in this areascript, used to do some script generation
+        public readonly List<Content> ownedContent; // list of all items/containers that have an npc owner. this is used to generate a thievery script after main gen finishes
 
         public readonly Dictionary<uint, string> entityIdMapping; // used for debuggin, just records a string (usually a record id) as a description for created entity ids
 
@@ -97,6 +98,7 @@ namespace JortPob
             };
 
             npcs = new();
+            ownedContent = new();
         }
 
         public void RegisterLoadDoor(DoorContent door)
@@ -105,9 +107,72 @@ namespace JortPob
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParam}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
         }
 
-        public void RegisterItemAsset(Script.Flag itemPickedUpFlag, ItemContent item)
+        public void RegisterItemAsset(ItemContent item)
         {
-            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.ItemAsset]}, {itemPickedUpFlag.id}, {item.entity});"));
+            NpcContent owner;
+            if(item.ownerNpc != null) { owner = GetAreaNpcById(item.ownerNpc); }
+            else { owner = null; }
+
+            // Unowned item free for the taking
+            if (owner == null)
+            {
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.ItemAsset]}, {item.treasure.id}, {item.entity});"));
+            }
+            // Item owned by an npc that counts as stealing if you take it
+            else
+            {
+                Flag ownerDead = GetFlag(Designation.Dead, owner.entity.ToString());
+                Flag crimeLevel = common.GetFlag(Designation.CrimeLevel, "CrimeLevel");
+                Flag crimeFlag = GetFlag(Designation.CrimeEvent, owner.entity.ToString());
+                Flag thiefFlag = GetFlag(Designation.ThiefCrime, owner.entity.ToString());
+
+                List<string> parameters = new()
+                {
+                    item.treasure.id.ToString(),
+                    item.entity.ToString(),
+                    item.treasure.id.ToString(),
+                    item.entity.ToString(),
+                    ownerDead.id.ToString(),
+                    crimeFlag.id.ToString(),
+                    thiefFlag.id.ToString(),
+                    crimeLevel.id.ToString(),
+                    crimeLevel.Bits().ToString(),
+                    item.value.ToString()
+                };
+
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.OwnedItemAsset]}, {string.Join(", ", parameters)});"));
+                ownedContent.Add(item);
+            }
+        }
+
+        public void RegisterContainerAsset(ContainerContent container)
+        {
+            NpcContent owner;
+            if (container.ownerNpc != null) { owner = GetAreaNpcById(container.ownerNpc); }
+            else { owner = null; }
+
+            if(owner != null)
+            {
+                Flag ownerDead = GetFlag(Designation.Dead, owner.entity.ToString());
+                Flag crimeLevel = common.GetFlag(Designation.CrimeLevel, "CrimeLevel");
+                Flag crimeFlag = GetFlag(Designation.CrimeEvent, owner.entity.ToString());
+                Flag thiefFlag = GetFlag(Designation.ThiefCrime, owner.entity.ToString());
+
+                List<string> parameters = new()
+                {
+                    container.treasure.id.ToString(),
+                    container.treasure.id.ToString(),
+                    ownerDead.id.ToString(),
+                    crimeFlag.id.ToString(),
+                    thiefFlag.id.ToString(),
+                    crimeLevel.id.ToString(),
+                    crimeLevel.Bits().ToString(),
+                    500.ToString() // @TODO: just setting a random value for this. we should calculate value of items in a container in the future and set that as the crimegold for stealing
+                };
+
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.OwnedContainer]}, {string.Join(", ", parameters)});"));
+                ownedContent.Add(container);
+            }
         }
 
         public void RegisterNpcHostility(NpcContent npc)
@@ -191,6 +256,41 @@ namespace JortPob
             }
         }
 
+        /* Generate thievery event */
+        /* Geneartes a big event that hides all owned item pickups UNLESS the player is sneaking. This is to make accidentally stealing stuff not a problem */
+        public void GenerateThieveryEvent()
+        {
+            EMEVD.Event thieveryEvent = new();
+            Flag thieveryEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"ThieveryEvent::{map:D2}_{x:D2}_{y:D2}_{block:D2}");
+            thieveryEvent.ID = thieveryEventFlag.id;
+
+            Flag playerIsSneakingFlag = common.GetFlag(Designation.PlayerIsSneaking, "PlayerIsSneaking");
+
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {playerIsSneakingFlag.id});")); // if not sneaking
+            foreach (Content content in ownedContent)
+            {
+                thieveryEvent.Instructions.Add(AUTO.ParseAdd($"SetAssetTreasureState({content.entity}, Disabled);"));
+            }
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {playerIsSneakingFlag.id});")); // if sneaking
+            foreach (Content content in ownedContent)
+            {
+                thieveryEvent.Instructions.Add(AUTO.ParseAdd($"SetAssetTreasureState({content.entity}, Enabled);"));
+            }
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"EndUnconditionally(EventEndType.Restart);"));
+
+            emevd.Events.Add(thieveryEvent);
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {thieveryEventFlag.id}, 0);"));
+        }
+
+        private NpcContent GetAreaNpcById(string id)
+        {
+            foreach(NpcContent npc in npcs)
+            {
+                if (npc.id == id) { return npc; }
+            }
+            return null;
+        }
+
         /* Create an EMEVD flag for this MSB */
         private static readonly Dictionary<Flag.Category, uint[]> FLAG_TYPE_OFFSETS = new()
         {
@@ -254,6 +354,13 @@ namespace JortPob
             uint newid = mapOffset + ((uint)type) + rawCount;
             entityIdMapping.Add(newid, name);
             return newid;
+        }
+
+        private Script.Flag GetFlag(Designation designation, string name)
+        {
+            var lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
+
+            return FindFlagByLookupKey(lookupKey);
         }
 
         public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)

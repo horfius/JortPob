@@ -85,7 +85,7 @@ namespace JortPob
 
                 playerFaction = NullEmpty(json["player_faction"].ToString());
                 disposition = int.Parse(json["data"]["disposition"].ToString());
-                playerRank = int.Parse(json["data"]["player_rank"].ToString());
+                playerRank = playerFaction!=null?int.Parse(json["data"]["player_rank"].ToString()):-1;  // minor MW bug fix. some dialogs have a mistake where they have a required rank set but no faction
 
                 filters = new();
                 foreach (JsonNode filterNode in json["filters"].AsArray())
@@ -285,7 +285,7 @@ namespace JortPob
                     conditions.Add($"GetEventFlag({flag.id}) == True");
                 }
 
-                if(playerRank > -1)
+                if (playerRank > -1)
                 {
                     Script.Flag flag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, playerFaction);
                     conditions.Add($"GetEventFlagValue({flag.id}, {flag.Bits()}) >= {playerRank + 1}"); // the +1 is because i made the first rank 1 and morrowind assumes 0
@@ -536,7 +536,7 @@ namespace JortPob
                                             else
                                             {
                                                 ItemManager.ItemInfo itemInfo = itemManager.GetItem(filter.id.ToLower());
-                                                if (itemInfo == null) { throw new Exception(); }
+                                                if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
                                                 return $"ComparePlayerInventoryNumber({(int)itemInfo.type}, {itemInfo.row}, {filter.OperatorString()}, {filter.value}, False)";
                                             }
                                         }
@@ -631,7 +631,7 @@ namespace JortPob
                     {
                         retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{npcContent.id}.{varName}");
                     }
-                    if (retFlag == null && varName.Contains(".")) // looks like it's actually a local var of a different object
+                    else if (varName.Contains(".")) // looks like it's actually a local var of a different object
                     {
                         retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, varName); // look for it, if we dont find it we create it
                         if (retFlag == null) { retFlag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Local, varName); }
@@ -650,6 +650,8 @@ namespace JortPob
                             {
                                 // This var can be either global or local so check for both
                                 Flag var = GetFlagByVariable(call.parameters[0]);
+                                if (var == null) { break; } // if we fail to find the variable just discard for now. this only really happens if a papyrus script is discarded and fails to setup a local var
+                                if (npcContent.id == "banor seran") { int x = 69; }
                                 string code = $"SetEventFlagValue({var.id}, {var.Bits()}, {ParseParameters(call.parameters, 2)})";
 
                                 lines.Add(code);
@@ -730,7 +732,7 @@ namespace JortPob
                                     else
                                     {
                                         ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
-                                        if (itemInfo == null) { throw new Exception(); }
+                                        if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
                                         Script.Flag removeItemFlag = scriptManager.common.GetOrRegisterRemoveItem(itemInfo, int.Parse(call.parameters[1]));
                                         string code = $"SetEventFlag({removeItemFlag.id}, FlagState.On)";
                                         lines.Add(code);
@@ -753,7 +755,7 @@ namespace JortPob
                                     else
                                     {
                                         ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
-                                        if (itemInfo == null) { throw new Exception(); }
+                                        if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
                                         int row = paramanager.GenerateAddItemLot(itemInfo);
                                         string code = $"AwardItemLot({row})";
                                         lines.Add(code);
@@ -940,7 +942,7 @@ namespace JortPob
                     case Operator.Greater: return "CompareType.Greater";             // for the comparetype operators the mismatch only applys to the Less and LessOrEqual ops
                     case Operator.Less: return "CompareType.LessOrEqual";
                     case Operator.LessEqual: return "CompareType.Less";
-                    default: throw new Exception();
+                    default: throw new Exception("Invalid operator type! This should not happen!");
                 }
             }
 
@@ -955,7 +957,7 @@ namespace JortPob
                     case Operator.Greater: return ">=";
                     case Operator.LessEqual: return "<=";
                     case Operator.Less: return "<";
-                    default: throw new Exception();
+                    default: throw new Exception("Invalid operator type! This should not happen!");
                 }
             }
         }

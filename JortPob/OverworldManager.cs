@@ -56,7 +56,7 @@ namespace JortPob
             {
                 // if we have the const debug flag set for building a specific cell or group of cells the esm 0,0 cell may not be loaded
                 // in that case here is the correct value under normal circumstances, its better to calc it for safety but its debug so w/e
-                center = new Vector3(15.360352f, 0f, 2831.3604f);
+                center = new Vector3(608.051758f, 0f, 2472.96f);
             }
 
             /* Add water */
@@ -92,9 +92,8 @@ namespace JortPob
             Lort.TaskIterate();
 
             //MSBE SOURCE = MSBE.Read(Utility.ResourcePath(@"msb\m60_00_00_99.msb.dcx"));
-            if (true) // literally the worst fucking thing ever
             {
-                Int2 min = new(-1, 1);
+                Int2 min = new(-2, 1);
                 Int2 max = new(3, 6);
                 int[] start = new int[] { 60, 10, 8, 2 }; // first msb at the min coord
                 float size = 1024f; float crossfade = 32f;
@@ -108,7 +107,7 @@ namespace JortPob
                         /* Grab tile */
                         int[] msbid = new int[] { start[0], start[1] + x, start[2] + y, start[3] };
                         HugeTile tile = layout.GetHugeTile(new Int2(msbid[1], msbid[2]));
-                        if (tile.IsEmpty()) { continue; } // skip empty
+                        if (tile == null || tile.IsEmpty()) { continue; } // skip empty or unreal
 
                         /* Create envmap texture file */
                         EnvManager.CreateEnvMaps(tile, id);

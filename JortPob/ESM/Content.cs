@@ -121,6 +121,8 @@ namespace JortPob
 
         public List<Travel> travel;  // travel destinations for silt strider people, mage guild teles, etc...
 
+        public Script.Flag treasure; // only used if this is a dead body npc and it has treasure. otherwise null. NEVER SET THIS FOR A LIVING NPC!!!
+
         public class Travel : DoorContent.Warp
         {
             public string name;
@@ -170,12 +172,9 @@ namespace JortPob
 
             travel = new();
             JsonArray travelJson = record.json["travel_destinations"].AsArray();
-            if (travelJson.Count > 0)
+            foreach (JsonNode t in travelJson)
             {
-                foreach (JsonNode t in travelJson)
-                {
-                    travel.Add(new Travel(t));
-                }
+                travel.Add(new Travel(t));
             }
         }
 
@@ -287,20 +286,25 @@ namespace JortPob
     /* static mesh of a container in the world that can **CAN** (but not always) be lootable */
     public class ContainerContent : Content
     {
+        public readonly string ownerNpc; // npc record id of the owenr of this container, can be null
+        public readonly string ownerFaction; // faction id that owns this container, player can take it if they are in that faction. can be null
+
         public List<(string id, int quantity)> inventory;
 
-        public Script.Flag flag; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
+        public Script.Flag treasure; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
 
         public ContainerContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             mesh = record.json["mesh"].ToString().ToLower();
+            if (json["owner"] != null) { ownerNpc = json["owner"].GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
 
             inventory = new();
             JsonArray invJson = record.json["inventory"].AsArray();
             foreach (JsonNode node in invJson)
             {
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));  // get item record id and quantity from json
             }
         }
     }
@@ -311,13 +315,16 @@ namespace JortPob
         public readonly string ownerNpc; // npc record id of the owenr of this item, can be null
         public readonly string ownerFaction; // faction id that owns this item, player can take it if they are in that faction. can be null
 
-        public Script.Flag flag; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
+        public readonly int value; // morrowind gp value for this item
+
+        public Script.Flag treasure; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
 
         public ItemContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             mesh = record.json["mesh"].ToString().ToLower();
             if (json["owner"] != null ) { ownerNpc = json["owner"].GetValue<string>(); }
             if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
+            value = record.json["data"]["value"].GetValue<int>();
         }
     }
 

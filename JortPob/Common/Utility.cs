@@ -1,4 +1,5 @@
 ﻿using HKLib.hk2018.hkaiCollisionAvoidance;
+using HKX2;
 using SoulsFormats;
 using SoulsIds;
 using System;
@@ -129,11 +130,24 @@ namespace JortPob.Common
             return recombined;
         }
 
-        public static string[] StringAwareSplit(string text)
+        public static string StringAwareLower(string s)
+        {
+            bool inQuote = false;
+            string text = s;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '"') { inQuote = !inQuote; }
+                else if (char.IsUpper(c) && !inQuote) { text = text.Remove(i, 1).Insert(i, $"{char.ToLower(c)}"); }
+            }
+            return text;
+        }
+
+        public static string[] StringAwareSplit(string text, char on)
         {
             if(text.Trim() == "") { return new string[0]; } // empty string = emptry array
 
-            List<string> split = text.Split(" ").ToList();
+            List<string> split = text.Split(on).ToList();
             List<string> recomb = new();
             for (int i = 0; i < split.Count(); i++)
             {
@@ -156,6 +170,19 @@ namespace JortPob.Common
                 recomb.Add(s);
             }
             return recomb.ToArray();
+        }
+
+        public static string StringAwareReplace(string s, char find, char replace)
+        {
+            bool inQuote = false;
+            string text = s;
+            for(int i=0;i<text.Length;i++)
+            {
+                char c = text[i];
+                if (c == '"') { inQuote = !inQuote; }
+                else if (c == find && !inQuote) { text = text.Remove(i, 1).Insert(i, $"{replace}"); }
+            }
+            return text;
         }
       
         public static string SanitizeTextForComment(string text)
