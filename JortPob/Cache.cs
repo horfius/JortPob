@@ -239,7 +239,8 @@ namespace JortPob
 
                 /* Add some pregen assets */
                 ModelInfo boxModelInfo = new("InteriorShadowBox", $"meshes\\interior_shadow_box.flver", 100);
-                ModelConverter.FBXtoFLVER(assimpContext, materialContext, boxModelInfo, false, Utility.ResourcePath(@"mesh\\box.fbx"), $"{Const.CACHE_PATH}{boxModelInfo.path}");
+                //ModelConverter.FBXtoFLVER(assimpContext, materialContext, boxModelInfo, false, Utility.ResourcePath(@"mesh\\box.fbx"), $"{Const.CACHE_PATH}{boxModelInfo.path}");
+                ModelConverter.NIFToFLVER(materialContext, boxModelInfo, false, Utility.ResourcePath(@"mesh\\box.nif"), $"{Const.CACHE_PATH}{boxModelInfo.path}");
                 FLVER2 boxFlver = FLVER2.Read($"{Const.CACHE_PATH}{boxModelInfo.path}"); // we need this box to be exactly 1 unit in each direction no matter what so we just edit it real quick
                 foreach (FLVER.Vertex v in boxFlver.Meshes[0].Vertices)
                 {

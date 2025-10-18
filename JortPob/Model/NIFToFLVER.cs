@@ -17,11 +17,11 @@ namespace JortPob.Model
             string modelPath,
             string outputPath)
         {
-            var loadResult = TES3.Interop.LoadScene(Utf8String.From(modelPath));
+            var loadResult = Interop.LoadScene(Utf8String.From(modelPath));
 
             if (loadResult.IsErr)
             {
-                Console.WriteLine("Error loading scene");
+                Lort.Log($"Failed to load Model {modelPath}", Lort.Type.Debug);
                 return null;
             }
 
@@ -89,7 +89,7 @@ namespace JortPob.Model
                         Vector3 pos = mesh.Vertices[vertexIndex].ToNumeric();
                         Vector3 norm = mesh.Normals[vertexIndex].ToNumeric();
                         Vector3 tang = new Vector3(1, 0, 0);
-                        Vector3 bitang  = new Vector3(0, 0, 1);
+                        Vector3 bitang = new Vector3(0, 0, 1);
 
                         // collapse the mesh transform onto the vert data
                         pos = Vector3.Transform(pos, ms * mr * mt);
@@ -147,6 +147,13 @@ namespace JortPob.Model
                 flver.Meshes.Add(flverMesh);
             }
 
+            //for (int emmitterIndex = 0; emmitterIndex < nif.Emitters.Count; emmitterIndex++)
+            //{
+            //    var emmiter = nif.Emitters[emmitterIndex];
+
+                
+            //}
+
             /* Add Dummy Polys */
             short nextRef = 500; // idk why we start at 500, i'm copying old code from DS3 portjob here
             List<Tuple<string, Vector3>> nodes = [
@@ -188,7 +195,7 @@ namespace JortPob.Model
             float size = Vector3.Distance(rootNode.BoundingBoxMin, rootNode.BoundingBoxMax);
             modelInfo.size = size;
 
-            /* Write flver */ 
+            /* Write flver */
             flver.Write(outputPath);
 
             /* Load overrides list for collision */
@@ -211,7 +218,7 @@ namespace JortPob.Model
                 {
                     if (matguess != Obj.CollisionMaterial.None) { return; }
 
-                    for (int i = 0; i < nif.VisualMeshes.Count; i++) 
+                    for (int i = 0; i < nif.VisualMeshes.Count; i++)
                     {
                         var tex = nif.VisualMeshes[i].Texture.String.ToLower();
                         foreach (string key in keys)
@@ -262,36 +269,7 @@ namespace JortPob.Model
             }
             return modelInfo;
         }
-
-        private static float CompareBoundingBoxes(Vector3 maxA, Vector3 minA, Vector3 maxB, Vector3 minB)
-        {
-            // Compute sizes
-            Vector3 sizeA = maxA - minA;
-            Vector3 sizeB = maxB - minB;
-
-            // Volume
-            float volumeA = sizeA.X * sizeA.Y * sizeA.Z;
-            float volumeB = sizeB.X * sizeB.Y * sizeB.Z;
-
-            Console.WriteLine($"A volume = {volumeA}");
-            Console.WriteLine($"B volume = {volumeB}");
-
-            if (volumeA > volumeB) Console.WriteLine("A is bigger");
-            else if (volumeA < volumeB) Console.WriteLine("B is bigger");
-            else Console.WriteLine("Equal volume");
-
-            // Per-axis comparison
-            Console.WriteLine($"Width comparison: {(sizeA.X > sizeB.X ? "A wider" : "B wider or equal")}");
-            Console.WriteLine($"Height comparison: {(sizeA.Y > sizeB.Y ? "A taller" : "B taller or equal")}");
-            Console.WriteLine($"Depth comparison: {(sizeA.Z > sizeB.Z ? "A deeper" : "B deeper or equal")}");
-
-            // Diagonal length
-            float diagA = sizeA.Length();
-            float diagB = sizeB.Length();
-            return diagA - diagB;
-        }
     }
-
     public static class Tes3Extensions
     {
         public static Vec3 Multiply(this Vec3 vec, float value)

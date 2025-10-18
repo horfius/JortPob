@@ -157,7 +157,7 @@ namespace JortPob
             {
                 FsParam param = kvp.Value;
               
-                if (Const.DEBUG_ENABLE_FMG_PARAM_SORTING)
+                if (!Const.DEBUG_SKIP_FMG_PARAM_SORTING)
                 {
                     Utility.SortFsParam(param);  // sort rows, debug flag to turn this off for speed. fmg sorting isn't required but in order to mimick FS standards it should be done in prod
                 }

@@ -292,6 +292,9 @@
     <None Update="Resources\mesh\box.fbx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\mesh\box.nif">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\misc\havok.mtl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
