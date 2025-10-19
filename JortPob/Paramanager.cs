@@ -8,6 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using WitchyFormats;
+using static JortPob.Override;
 
 namespace JortPob
 {
@@ -81,13 +82,20 @@ namespace JortPob
             WORLD_MAP_PLACE_NAME_PARAM_ST, WORLD_MAP_POINT_PARAM_ST, WWISE_VALUE_TO_STR_CONVERT_PARAM_ST
         }
 
+        public readonly TextManager textManager;
+
         public readonly Dictionary<ParamType, FsParam> param;
 
         public short terrainDrawParamID;
         private Dictionary<int, int> lodPartDrawParamIDs; // first int is the index of the array from Const.ASSET_LOD_VALUES, second int is the param row id
+        private int nextMessageParam;
 
-        public Paramanager()
+        public Paramanager(TextManager textManager)
         {
+            this.textManager = textManager;
+
+            nextMessageParam = 3000;
+
             SoulsFormats.BND4 paramBnd = SoulsFormats.SFUtil.DecryptERRegulation(Utility.ResourcePath(@"misc\regulation.bin"));
             string[] files = Directory.GetFiles(Utility.ResourcePath(@"misc\paramdefs"));
 
@@ -148,6 +156,7 @@ namespace JortPob
         {
             Lort.Log($"Binding {param.Count()} PARAMs...", Lort.Type.Main);
             Lort.NewTask($"Binding PARAMs", param.Count());
+            Lort.Log($"Total TalkParam rows: {param[Paramanager.ParamType.TalkParam].Rows.Count()} out of a max of {ushort.MaxValue}", Lort.Type.Debug);
 
             BND4 bnd = new();
             bnd.Compression = SoulsFormats.DCX.Type.DCX_ZSTD;
@@ -473,10 +482,17 @@ namespace JortPob
             }
         }
 
-        public void GenerateTalkParam(TextManager textManager, List<NpcManager.TopicData> topicData)
+        public void GenerateTalkParam(List<NpcManager.TopicData> topicData)
         {
             FsParam talkParam = param[ParamType.TalkParam];
-            FsParam.Row templateTalkRow = talkParam[1400000]; // 1400000 is a line from opening cutscene
+            
+            /*
+             * Since FsParam[ID] is actually a linear search for a matching row, we build a Dictionary up-front
+             * to speed up checks. Because of this, however, we need to keep it up-to-date in the loop below.
+             */
+            Dictionary<int, FsParam.Row> rowsById = talkParam.Rows.ToDictionary(r => r.ID);
+
+            FsParam.Row templateTalkRow = rowsById[1400000]; // 1400000 is a line from opening cutscene
 
             FsParam.Column msgId = talkParam["msgId"];
             FsParam.Column voiceId = talkParam["voiceId"];
@@ -488,27 +504,32 @@ namespace JortPob
             {
                 foreach (NpcManager.TopicData.TalkData talk in topic.talks)
                 {
-                    int id = talk.talkRow;
+                    for (int i = 0; i < talk.talkRows.Count(); i++)
+                    {
+                        int id = talk.talkRows[i];
+                        string text = talk.splitText[i];
 
-                    // If exists skip, duplicates happen during gen of these params beacuse a single talkparam can be used by any number of npcs. Hundreds in some cases.
-                    if (talkParam[id] != null) { continue; }
+                        // If exists skip, duplicates happen during gen of these params beacuse a single talkparam can be used by any number of npcs. Hundreds in some cases.
+                        if (rowsById.ContainsKey(id)) { continue; }
 
-                    // truncating the text in the row name because it can cause issues if it is too long
-                    FsParam.Row row = CloneRow(templateTalkRow, talk.dialogInfo.text.Substring(0, Math.Min(32, talk.dialogInfo.text.Length)), id); // 1400000 is a line from opening cutscene
+                        // truncating the text in the row name because it can cause issues if it is too long
+                        FsParam.Row row = CloneRow(templateTalkRow, text.Substring(0, Math.Min(32, text.Length)), id); // 1400000 is a line from opening cutscene
 
-                    msgId.SetValue(row, id * 10); // message id (male)
-                    voiceId.SetValue(row, id * 10); // message id (male)
+                        msgId.SetValue(row, id * 10); // message id (male)
+                        voiceId.SetValue(row, id * 10); // message id (male)
 
-                    msgId_female.SetValue(row, id * 10); // message id (female)
-                    voiceId_female.SetValue(row, id * 10); // message id (female)
+                        msgId_female.SetValue(row, id * 10); // message id (female)
+                        voiceId_female.SetValue(row, id * 10); // message id (female)
 
-                    textManager.AddTalk(id * 10, talk.dialogInfo.text);
-                    AddRow(talkParam, row);
+                        textManager.AddTalk(id * 10, text);
+                        AddRow(talkParam, row);
+                        rowsById[id] = row; // this is where we keep the lookup up-to-date
+                    }
                 }
             }
         }
 
-        public void GenerateNpcParam(TextManager textManager, int id, NpcContent npc)
+        public void GenerateNpcParam(int id, NpcContent npc)
         {
             FsParam npcParam = param[ParamType.NpcParam];
             FsParam.Row row = CloneRow(npcParam[523010000], npc.name, id); // 523010000 is white mask varre
@@ -520,10 +541,10 @@ namespace JortPob
             AddRow(npcParam, row);
         }
 
-        public void GenerateActionButtonParam(TextManager textManager, int id, string text)
+        public void GenerateActionButtonParam(int id, string text)
         {
             FsParam actionParam = param[ParamType.ActionButtonParam];
-            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is the prompt to pickup runes
+            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is pick up runes prompt
 
             int textId = textManager.AddActionButton(text);
 
@@ -536,7 +557,7 @@ namespace JortPob
         }
 
         /* Set all map placenames to "Morrowind" for now. Later we can edit the map mask and setup the regions properly */
-        public void SetAllMapLocation(TextManager textManager)
+        public void SetAllMapLocation()
         {
             int textId = textManager.AddLocation("Morrowind");
 
@@ -551,7 +572,7 @@ namespace JortPob
         }
 
         /* Generate or get an already generated worldmappoint to be used as a placename. Not for actual map icons! */
-        public int GenerateWorldMapPoint(TextManager textManager, BaseTile tile, Cell cell, Vector3 relative, int id)
+        public int GenerateWorldMapPoint(BaseTile tile, Cell cell, Vector3 relative, int id)
         {
             FsParam worldMapPointParam = param[ParamType.WorldMapPointParam];
             FsParam.Row row = CloneRow(worldMapPointParam[61423600], $"{cell.name} placename", id); // 61423600 is limgrave church of elleh placename
@@ -577,7 +598,7 @@ namespace JortPob
         }
 
         /* Same as above but for interiors */
-        public int GenerateWorldMapPoint(TextManager textManager, InteriorGroup group, Cell cell, Vector3 relative, int id)
+        public int GenerateWorldMapPoint(InteriorGroup group, Cell cell, Vector3 relative, int id)
         {
             FsParam worldMapPointParam = param[ParamType.WorldMapPointParam];
             FsParam.Row row = CloneRow(worldMapPointParam[61423600], $"{cell.name} placename", id); // 61423600 is limgrave church of elleh placename
@@ -602,21 +623,58 @@ namespace JortPob
             return id;
         }
 
+        public int GenerateMessage(string title, string text)
+        {
+            FsParam messageParam = param[ParamType.TutorialParam];
+            FsParam.Row row = CloneRow(messageParam[1010], text[..Math.Min(32, text.Length)], nextMessageParam); // 1010 is the tutorial row for using items
+            int textId = textManager.AddTutorial(title, text);
+
+            row["menuType"].Value.SetValue((byte)100);
+            row["triggerType"].Value.SetValue((byte)0);
+            row["repeatType"].Value.SetValue((byte)1);
+            row["imageId"].Value.SetValue((ushort)0);
+            row["unlockEventFlagId"].Value.SetValue((uint)0);
+            row["textId"].Value.SetValue(textId);
+
+            AddRow(messageParam, row);
+
+            nextMessageParam += 10;
+            return row.ID;
+        }
+
+        public int GenerateNotification(string text)
+        {
+            FsParam messageParam = param[ParamType.TutorialParam];
+            FsParam.Row row = CloneRow(messageParam[1010], text[..Math.Min(32, text.Length)], nextMessageParam); // 1010 is the tutorial row for using items
+            int textId = textManager.AddTutorial(string.Empty, text);
+
+            row["menuType"].Value.SetValue((byte)0);
+            row["triggerType"].Value.SetValue((byte)0);
+            row["repeatType"].Value.SetValue((byte)1);
+            row["imageId"].Value.SetValue((ushort)0);
+            row["unlockEventFlagId"].Value.SetValue((uint)0);
+            row["textId"].Value.SetValue(textId);
+
+            AddRow(messageParam, row);
+
+            nextMessageParam += 10;
+            return row.ID;
+        }
+
         /* Setup both the class and race params. These are refered to as BaseChrParam (origin) FaceParam (base template) */
         /* also edits CharMakeMenuListItemParam and CharMakeMenuTopParam for text on the char creation screen */
-        public void GenerateCustomCharacterCreation(TextManager textManager)
+        public void GenerateCustomCharacterCreation()
         {
             // Race stuff
+            List<Override.PlayerRace> playerRaces = Override.GetCharacterCreationRaces();
             int[] charMakeMenuListItemParam_Races = new int[] { 240, 241, 242, 243, 244, 245, 246, 247, 248, 249 };
             int charMakeMenuListItemParam_Race_Gender_Offset = 20; // add this to above value to get the female version
-
-            JsonNode jsonRaces = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_race.json")));
 
             FsParam charMakeMenuListItemParam = param[ParamType.CharMakeMenuListItemParam];
             FsParam faceParam = param[ParamType.FaceParam];
             for (int i = 0; i < charMakeMenuListItemParam_Races.Count(); i++)
             {
-                JsonNode jsonRace = jsonRaces.AsArray()[i];
+                Override.PlayerRace playerRace = playerRaces[i];
 
                 // Texy menu entry rows
                 int raceRowIdMale = charMakeMenuListItemParam_Races[i];
@@ -625,10 +683,10 @@ namespace JortPob
                 FsParam.Row charMakemMenuListMaleRow = charMakeMenuListItemParam[raceRowIdMale];
                 FsParam.Row charMakemMenuListFemaleRow = charMakeMenuListItemParam[raceRowIdFemale];
 
-                int charMakemMenuListRowText = textManager.AddMenuText(jsonRace["race"].ToString(), jsonRace["description"].ToString());
+                int charMakemMenuListRowText = textManager.AddMenuText(playerRace.name, playerRace.description);
 
-                charMakemMenuListMaleRow.Name = $"Male {jsonRace["race"].GetValue<string>()}";   // row names for helpful debugging
-                charMakemMenuListFemaleRow.Name = $"Female {jsonRace["race"].GetValue<string>()}";
+                charMakemMenuListMaleRow.Name = $"Male {playerRace.name}";   // row names for helpful debugging
+                charMakemMenuListFemaleRow.Name = $"Female {playerRace.name}";
 
                 charMakemMenuListMaleRow["captionId"].Value.SetValue(charMakemMenuListRowText);
                 charMakemMenuListFemaleRow["captionId"].Value.SetValue(charMakemMenuListRowText);
@@ -637,17 +695,15 @@ namespace JortPob
                 FsParam.Row faceMaleRow = faceParam[(int)(charMakemMenuListMaleRow["value"].Value.Value)];
                 FsParam.Row faceFemaleRow = faceParam[(int)(charMakemMenuListFemaleRow["value"].Value.Value)];
 
-                byte raceId = byte.Parse(jsonRace["id"].ToString());  // these values match the enums in the NpcContent class
+                faceMaleRow.Name = $"Male {playerRace.name}";   // row names for helpful debugging
+                faceFemaleRow.Name = $"Female {playerRace.name}";
 
-                faceMaleRow.Name = $"Male {jsonRace["race"].GetValue<string>()}";   // row names for helpful debugging
-                faceFemaleRow.Name = $"Female {jsonRace["race"].GetValue<string>()}";
-
-                faceMaleRow["burn_scar"].Value.SetValue(raceId);  // the burn scars value is used as a race indentifier. this is picked up by scripts and reset to 0 on first game load
-                faceFemaleRow["burn_scar"].Value.SetValue(raceId);
+                faceMaleRow["burn_scar"].Value.SetValue(playerRace.id);  // the burn scars value is used as a race indentifier. this is picked up by scripts and reset to 0 on first game load
+                faceFemaleRow["burn_scar"].Value.SetValue(playerRace.id);
             }
 
             // Class stuff
-            JsonNode jsonClasses = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_class.json")));
+            List<Override.PlayerClass> playerClasses = Override.GetCharacterCreationClasses();
             FsParam baseChrSelectMenuParam = param[ParamType.BaseChrSelectMenuParam];
             FsParam charInitParam = param[ParamType.CharaInitParam];
 
@@ -655,25 +711,25 @@ namespace JortPob
             int[] charMakeMenuListItemParam_Classes = new int[] { 100200, 100201, 100202, 100203, 100204, 100205, 100206, 100207, 100208, 100209 };
             for (int i = 0; i < baseChrSelectMenuParam_Classes.Count(); i++)
             {
-                JsonNode jsonClass = jsonClasses.AsArray()[i];
+                Override.PlayerClass playerClass = playerClasses[i];
                 FsParam.Row baseClassRow = baseChrSelectMenuParam[baseChrSelectMenuParam_Classes[i]];
 
                 // Base class rows
-                int classTextId = textManager.AddMenuText(jsonClass["class"].GetValue<string>(), jsonClass["description"].GetValue<string>());
-                baseClassRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
+                int classTextId = textManager.AddMenuText(playerClass.name, playerClass.description);
+                baseClassRow.Name = playerClass.name;   // row names for helpful debugging
                 baseClassRow["textId"].Value.SetValue(classTextId);
 
                 // Texty menu entry rows
                 FsParam.Row charMakeMenuListClassRow = charMakeMenuListItemParam[charMakeMenuListItemParam_Classes[i]];
-                charMakeMenuListClassRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
+                charMakeMenuListClassRow.Name = playerClass.name;   // row names for helpful debugging
                 charMakeMenuListClassRow["captionId"].Value.SetValue(classTextId);
 
                 // Char init rows
                 FsParam.Row classRow = charInitParam[(int)(uint)baseClassRow["chrInitParam"].Value.Value];
                 FsParam.Row originRow = charInitParam[(int)(uint)baseClassRow["originChrInitParam"].Value.Value];
 
-                classRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
-                originRow.Name = jsonClass["class"].GetValue<string>();
+                classRow.Name = playerClass.name;   // row names for helpful debugging
+                originRow.Name = playerClass.name;
             }
 
             // Minor text tweaks

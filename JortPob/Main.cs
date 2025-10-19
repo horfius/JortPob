@@ -1,6 +1,7 @@
-﻿using HKLib.hk2018.hk;
+﻿using IronPython.Hosting;
 using JortPob.Common;
 using JortPob.Worker;
+using Microsoft.Scripting.Hosting;
 using PortJob;
 using SoulsFormats;
 using System;
@@ -18,104 +19,111 @@ namespace JortPob
     {
         public static void Convert()
         {
-            /* Startup logging */
-            Lort.Initialize();
+            /* Init */
+            Lort.Initialize(); // startup logging
+            Override.Initialize(); // load all override jsons
 
             /* Loading stuff */
             ScriptManager scriptManager = new();                                                // Manages EMEVD scripts
-            ESM esm = new ESM($"{Const.MORROWIND_PATH}\\Data Files\\Morrowind.json", scriptManager);      // Morrowind ESM parse and partial serialization
+            ESM esm = new ESM(scriptManager);                                               // Morrowind ESM parse and partial serialization
             Cache cache = Cache.Load(esm);                                                  // Load existing cache (FAST!) or generate a new one (SLOW!)
-            Paramanager param = new();                                                        // Class for managing PARAM files
             TextManager text = new();                                                           // Manages FMG text files
+            Paramanager param = new(text);                                                        // Class for managing PARAM files
             Layout layout = new(cache, esm, param, text, scriptManager);                          // Subdivides all content data from ESM into a more elden ring friendly format
             SoundManager sound = new();                                                         // Manages vcbanks
             NpcManager character = new(esm, sound, param, text, scriptManager);                 // Manages dialog esd
 
+            // Helpers/shared values
+            List<Tuple<Vector3, TerrainInfo>> emptyTerrainList = [];
+
             /* Some quick setup stuff */
             scriptManager.SetupSpecialFlags(esm);
+
+            /* Create some needed text data that is ref'd later */
+            for (int i = 0; i < 100; i++) { text.AddTopic($"Disposition: {i}"); }
 
             /* Generate exterior msbs from layout */
             List<ResourcePool> msbs = new();
 
             Lort.Log($"Generating {layout.tiles.Count} exterior msbs...", Lort.Type.Main);
             Lort.NewTask("Generating MSB", layout.tiles.Count);
+
             foreach (BaseTile tile in layout.all)
             {
-                if (tile.IsEmpty()) { continue; }   // Skip empty tiles.
+                // Skip empty tiles.
+                if (tile.IsEmpty()) { continue; }
 
                 /* Generate msb from tile */
-                MSBE msb = new();
-                LightManager lightManager = new(tile.map, tile.coordinate, tile.block);
-                Script script = scriptManager.GetScript(tile);
-                ResourcePool pool = new(tile, msb, lightManager, script);
+                MSBE msb = new MSBE();
                 msb.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
 
-                /* Variuos Indices */
+                Script script = scriptManager.GetScript(tile);
+                bool isTileType = tile.GetType() == typeof(Tile);
+                List<Tuple<Vector3, TerrainInfo>> terrains = isTileType ? tile.terrain : emptyTerrainList;
+                LightManager lightManager = new(tile.map, tile.coordinate, tile.block);
+                ResourcePool pool = new(tile, msb, lightManager, script);
+
+                /* Various Indices */
                 int nextC = 0, nextMPR = 0;
 
                 /* Add terrain */
-                foreach (Tuple<Vector3, TerrainInfo> tuple in tile.terrain)
+                foreach ((Vector3 position, TerrainInfo terrainInfo) in terrains)
                 {
-                    Vector3 position = tuple.Item1;
-                    TerrainInfo terrainInfo = tuple.Item2;
-
-                    /* Terrain and terrain collision */  // Render goes in superoverworld for long view distance. Collision goes in tile for optimization
-                    // superoverowrld msb is  handled by its own class -> OverworldManager
-                    if (tile.GetType() == typeof(Tile))
+                    /* Terrain and terrain collision */
+                    // Render goes in superoverworld for long view distance. Collision goes in tile for optimization
+                    // superoverworld msb is  handled by its own class -> OverworldManager
+                    foreach (CollisionInfo collisionInfo in terrainInfo.collision)
                     {
-                        foreach (CollisionInfo collisionInfo in terrainInfo.collision)
-                        {
-                            string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
+                        string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
 
-                            MSBE.Part.Collision collision = MakePart.Collision();
+                        MSBE.Part.Collision collision = MakePart.Collision();
+                        collision.Name = $"h{collisionIndex}_0000";
+                        collision.ModelName = $"h{collisionIndex}";
+                        collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
+
+                        msb.Parts.Collisions.Add(collision);
+                        pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, collisionInfo));
+                    }
+
+                    /* Add water collision if terrain 'hasWater' */
+                    /* Water is done on a cell by cell basis, so I am simply tying it to the terrain data here */
+                    if (terrainInfo.hasWater)
+                    {
+                        LiquidInfo waterInfo = cache.GetWater();
+                        CollisionInfo waterCollisionInfo = waterInfo.GetCollision(terrainInfo.coordinate);
+
+                        /* Make collision for water splashing */
+                        string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
+                        MSBE.Part.Collision collision = MakePart.WaterCollision();
+                        collision.Name = $"h{collisionIndex}_0000";
+                        collision.ModelName = $"h{collisionIndex}";
+                        collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
+
+                        msb.Parts.Collisions.Add(collision);
+                        pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, waterCollisionInfo));
+                    }
+
+                    /* Add collision for cutouts. */
+                    if (terrainInfo.hasSwamp || terrainInfo.hasLava) // minor hack, no cell has both swamp and lava so we don't actually differentiate here
+                    {
+                        CutoutInfo cutoutInfo = cache.GetCutout(terrainInfo.coordinate);
+                        if (cutoutInfo != null)
+                        {
+                            /* Make collision for swamp or lava splashy splashing, surface collision */
+                            string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
+                            MSBE.Part.Collision collision = MakePart.WaterCollision(); // also works for lava and poison
                             collision.Name = $"h{collisionIndex}_0000";
                             collision.ModelName = $"h{collisionIndex}";
                             collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
-
                             msb.Parts.Collisions.Add(collision);
-                            pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, collisionInfo));
-                        }
+                            pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, cutoutInfo.collision));
 
-                        /* Add water collision if terrain 'hasWater' */
-                        /* Water is done on a cell by cell basis so I am simply tieing it to the terrain data here */
-                        if (terrainInfo.hasWater)
-                        {
-                            LiquidInfo waterInfo = cache.GetWater();
-                            CollisionInfo waterCollisionInfo = waterInfo.GetCollision(terrainInfo.coordinate);
-
-                            /* Make collision for water splashing */
-                            string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
-                            MSBE.Part.Collision collision = MakePart.WaterCollision();
-                            collision.Name = $"h{collisionIndex}_0000";
+                            /* Make collision for swamp or lava floor, caps the depth of pools so they arent super deep */
+                            collision = MakePart.Collision(); // also works for lava and poison
+                            collision.Name = $"h{collisionIndex}_0001";
                             collision.ModelName = $"h{collisionIndex}";
-                            collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
-
+                            collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2 + new Vector3(0f, terrainInfo.hasLava ? Const.LAVA_FLOOR_DEPTH : Const.SWAMP_FLOOR_DEPTH, 0f);
                             msb.Parts.Collisions.Add(collision);
-                            pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, waterCollisionInfo));
-                        }
-                        
-                        /* Add collision for cutouts. */
-                        if(terrainInfo.hasSwamp || terrainInfo.hasLava) // minor hack, no cell has both swamp and lava so we don't actually differentiate here
-                        {
-                            CutoutInfo cutoutInfo = cache.GetCutout(terrainInfo.coordinate);
-                            if(cutoutInfo != null)
-                            {
-                                /* Make collision for swamp or lava splashy splashing, surface collision */
-                                string collisionIndex = $"{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}{nextC++.ToString("D2")}";
-                                MSBE.Part.Collision collision = MakePart.WaterCollision(); // also works for lava and poison
-                                collision.Name = $"h{collisionIndex}_0000";
-                                collision.ModelName = $"h{collisionIndex}";
-                                collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
-                                msb.Parts.Collisions.Add(collision);
-                                pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, cutoutInfo.collision));
-
-                                /* Make collision for swamp or lava floor, caps the depth of pools so they arent super deep */
-                                collision = MakePart.Collision(); // also works for lava and poison
-                                collision.Name = $"h{collisionIndex}_0001";
-                                collision.ModelName = $"h{collisionIndex}";
-                                collision.Position = position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2 + new Vector3(0f, terrainInfo.hasLava ? Const.LAVA_FLOOR_DEPTH : Const.SWAMP_FLOOR_DEPTH, 0f);
-                                msb.Parts.Collisions.Add(collision);
-                            }
                         }
                     }
                 }
@@ -123,18 +131,7 @@ namespace JortPob
                 /* Add assets */
                 foreach (AssetContent content in tile.assets)
                 {
-                    /* Load overrides list for do not place @TODO: MAKE THIS A STATIC CLASS */
-                    JsonNode json = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\do_not_place.json")));
-                    bool CheckOverride(string name)
-                    {
-                        foreach (JsonNode node in json.AsArray())
-                        {
-                            if (node.ToString().ToLower() == name.ToLower()) { return true; }
-                        }
-                        return false;
-                    }
-
-                    if(CheckOverride(content.mesh)) { continue; } // SKIP!
+                    if (Override.CheckDoNotPlace(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
 
                     /* Grab ModelInfo */
                     ModelInfo modelInfo = cache.GetModel(content.mesh, content.scale);
@@ -143,7 +140,15 @@ namespace JortPob
                     MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
                     asset.Position = content.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                     asset.Rotation = content.rotation;
-                    asset.Scale = new Vector3(modelInfo.UseScale()?(content.scale*0.01f):1f);
+                    asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
+
+                    if (content.papyrus != null)
+                    {
+                        content.entity = script.CreateEntity(EntityType.Asset, content.id);
+                        asset.EntityID = content.entity;
+                        Papyrus papyrusScript = esm.GetPapyrus(content.papyrus);
+                        if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, content); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                    }
 
                     /* Asset tileload config */
                     if (tile.GetType() == typeof(HugeTile) || tile.GetType() == typeof(BigTile))
@@ -169,10 +174,7 @@ namespace JortPob
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
                     asset.EntityID = content.entity;
 
-                    if (content.warp != null)
-                    {
-                        script.RegisterLoadDoor(content);
-                    }
+                    if (content.warp != null) { script.RegisterLoadDoor(content); } // if the door is a load door we need to generate scripts for it
 
                     msb.Parts.Assets.Add(asset);
                 }
@@ -215,14 +217,22 @@ namespace JortPob
                     enemy.Position = npc.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                     enemy.Rotation = npc.rotation;
 
-                    enemy.TalkID = character.GetESD(tile.IdList(), npc);       // creates and returns a character esd
+                    // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                    if (npc.papyrus != null)
+                    {
+                        Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
+                        if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, npc); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                        //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
+                    }
+
+                    enemy.TalkID = character.GetESD(tile.IdList(), npc); // creates and returns a character esd
                     enemy.NPCParamID = character.GetParam(npc); // creates and returns an npcparam
                     enemy.EntityID = npc.entity;
 
                     msb.Parts.Enemies.Add(enemy);
                 }
 
-                /* TEST Creatures */  // make some goats where enemies would spawn just as a test
+                /* TEST Creatures */ // make some goats where enemies would spawn just as a test
                 foreach (CreatureContent creature in tile.creatures)
                 {
                     MSBE.Part.Enemy enemy = MakePart.Creature();
@@ -234,7 +244,7 @@ namespace JortPob
                 }
 
                 /* Handle area names */
-                if (tile.GetType() == typeof(Tile))
+                if (isTileType)
                 {
                     foreach (Cell cell in tile.cells)
                     {
@@ -254,7 +264,7 @@ namespace JortPob
                             mpr.Rotation = Vector3.Zero;
                             mpr.RegionID = nextMPR++;
                             mpr.MapStudioLayer = 4294967295;
-                            mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(text, tile, cell, relative, paramId);
+                            mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(tile, cell, relative, paramId);
 
                             mpr.MapID = -1;
                             mpr.UnkE08 = 255;
@@ -287,7 +297,8 @@ namespace JortPob
             {
                 if (Const.DEBUG_SKIP_INTERIOR) { break; }
 
-                if (group.IsEmpty()) { continue; }   // Skip empty groups.
+                // Skip empty groups.
+                if (group.IsEmpty()) { continue; }
 
                 /* Misc Indices */
                 int nextC = 0, nextMPR = 0;
@@ -300,7 +311,7 @@ namespace JortPob
                 msb.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
 
                 /* Handle chunks */
-                for (int i=0;i<group.chunks.Count();i++)
+                for (int i = 0; i < group.chunks.Count(); i++)
                 {
                     InteriorGroup.Chunk chunk = group.chunks[i];
 
@@ -335,18 +346,7 @@ namespace JortPob
                     /* Add assets */
                     foreach (AssetContent content in chunk.assets)
                     {
-                        /* Load overrides list for do not place @TODO: MAKE THIS A STATIC CLASS */
-                        JsonNode json = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\do_not_place.json")));
-                        bool CheckOverride(string name)
-                        {
-                            foreach (JsonNode node in json.AsArray())
-                            {
-                                if (node.ToString().ToLower() == name.ToLower()) { return true; }
-                            }
-                            return false;
-                        }
-
-                        if (CheckOverride(content.mesh)) { continue; } // SKIP!
+                        if (Override.CheckDoNotPlace(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
 
                         /* Grab ModelInfo */
                         ModelInfo modelInfo = cache.GetModel(content.mesh, content.scale);
@@ -356,6 +356,14 @@ namespace JortPob
                         asset.Position = content.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
+
+                        if (content.papyrus != null)
+                        {
+                            content.entity = script.CreateEntity(EntityType.Asset, content.id);
+                            asset.EntityID = content.entity;
+                            Papyrus papyrusScript = esm.GetPapyrus(content.papyrus);
+                            if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, content); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                        }
 
                         asset.Unk1.DisplayGroups[0] = 0;
                         asset.UnkPartNames[1] = rootCollision.Name;
@@ -383,16 +391,13 @@ namespace JortPob
                         asset.UnkPartNames[3] = rootCollision.Name;
                         asset.UnkPartNames[5] = rootCollision.Name;
 
-                        if (content.warp != null)
-                        {
-                            script.RegisterLoadDoor(content);
-                        }
+                        if (content.warp != null) { script.RegisterLoadDoor(content); } // if the door is a load door we need to register scripts for it
 
                         msb.Parts.Assets.Add(asset);
                     }
 
                     /* Add warp destinations for load doors */
-                    foreach(Layout.WarpDestination warp in chunk.warps)
+                    foreach (Layout.WarpDestination warp in chunk.warps)
                     {
                         MSBE.Part.Player player = MakePart.Player();
                         player.Position = warp.position + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
@@ -427,14 +432,22 @@ namespace JortPob
                         lightManager.CreateLight(light);
                     }
 
-                    /* TEST NPCs */  // make some c0000 npcs where humanoid npcs would spawn as a test
+                    /* Create humanoid NPCs (c0000) */
                     foreach (NpcContent npc in chunk.npcs)
                     {
                         MSBE.Part.Enemy enemy = MakePart.Npc();
                         enemy.Position = npc.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                         enemy.Rotation = npc.rotation;
 
-                        enemy.TalkID = character.GetESD(group.IdList(), npc);       // creates and returns a character esd
+                        // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                        if (npc.papyrus != null)
+                        {
+                            Papyrus papyrusScript = esm.GetPapyrus(npc.papyrus);
+                            if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, script, papyrusScript, npc); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                                                                                                                                   //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
+                        }
+
+                        enemy.TalkID = character.GetESD(group.IdList(), npc); // creates and returns a character esd
                         enemy.NPCParamID = character.GetParam(npc); // creates and returns an npcparam
                         enemy.EntityID = npc.entity;
 
@@ -444,7 +457,7 @@ namespace JortPob
                         msb.Parts.Enemies.Add(enemy);
                     }
 
-                    /* TEST Creatures */  // make some goats where enemies would spawn just as a test
+                    /* TEST Creatures */ // make some goats where enemies would spawn just as a test
                     foreach (CreatureContent creature in chunk.creatures)
                     {
                         MSBE.Part.Enemy enemy = MakePart.Creature();
@@ -469,7 +482,7 @@ namespace JortPob
                     mpr.Rotation = Vector3.Zero;
                     mpr.RegionID = nextMPR++;
                     mpr.MapStudioLayer = 4294967295;
-                    mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(text, group, chunk.cell, chunk.root, paramId);
+                    mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(group, chunk.cell, chunk.root, paramId);
 
                     mpr.MapID = -1;
                     mpr.UnkE08 = 255;
@@ -485,7 +498,8 @@ namespace JortPob
                     msb.Regions.MapPoints.Add(mpr);
                 }
 
-                /* EnvMap & REM for interior */ // @TODO: make this per chunk so we can setupd different rems for different interiors
+                /* EnvMap & REM for interior */
+                // @TODO: make this per chunk so we can setupd different rems for different interiors
                 {
                     /* Create envmap texture file */
                     int envId = 200;
@@ -519,14 +533,18 @@ namespace JortPob
 
             /* Create debug warp area */
             {
-                /* DEBUG - Add a warp from church of elleh to Seyda Neen */
+                /* DEBUG - Add a warp from church of elleh to Seyda Neen */ // @TODO: Move this into it's own class or smth?
                 /* @TODO: DELETE THIS WHEN IT IS NO LONGER NEEDED! */
                 MSBE debugMSB = MSBE.Read(Utility.ResourcePath(@"test\m60_42_36_00.msb.dcx"));
                 MSBE.Part.Asset debugThingToDupe = null;
                 uint debugEntityIdNext = 1042360750;
                 foreach (MSBE.Part.Asset asset in debugMSB.Parts.Assets)
                 {
-                    if (asset.ModelName == "AEG099_309") { debugThingToDupe = asset; break; }
+                    if (asset.ModelName == "AEG099_309")
+                    {
+                        debugThingToDupe = asset;
+                        break;
+                    }
                 }
 
                 Script debugScript = new(scriptManager.common, 60, 42, 36, 0);
@@ -534,7 +552,7 @@ namespace JortPob
                 debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"RegisterBonfire(1042360001, 1042361951, 0, 0, 0, 5);"));
                 List<String> debugWarpCellList = new() { "Seyda Neen", "Balmora", "Tel Mora", "Pelagiad", "Caldera", "Khuul", "Gnisis", "Ald Ruhn" };
                 int actionParamId = 1555, debugCounty = 0;
-                for (int i=0;i<debugWarpCellList.Count();i++)
+                for (int i = 0; i < debugWarpCellList.Count(); i++)
                 {
                     string areaName = debugWarpCellList[i];
                     Tile area = layout.GetTile(areaName);
@@ -553,7 +571,7 @@ namespace JortPob
                         Script.Flag debugEventFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugWarp");
                         EMEVD.Event debugWarpEvent = new(debugEventFlag.id);
 
-                        param.GenerateActionButtonParam(text, actionParamId, $"Debug Warp: {areaName}");
+                        param.GenerateActionButtonParam(actionParamId, $"Debug Warp: {areaName}");
                         debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugAsset.EntityID});"));
                         debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"WarpPlayer({area.map}, {area.coordinate.x}, {area.coordinate.y}, 0, {area.warps[0].id}, 0)"));
 
@@ -584,35 +602,51 @@ namespace JortPob
                 debugMSB.Parts.Assets.Add(debugResetAsset);
 
                 Script.Flag debugResetFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugReset");
-                param.GenerateActionButtonParam(text, actionParamId, $"Debug: Reset Save Data!");
+                param.GenerateActionButtonParam(actionParamId, $"Debug: Reset Save Data!");
                 EMEVD.Event debugResetEvent = new(debugResetFlag.id);
                 debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugResetAsset.EntityID});"));
 
+                int delayCounter = 0; // if you do to much in a single frame the game crashes so every hundred flags we wait a frame
                 foreach (Flag flag in allFlags)
                 {
+                    
                     if (flag.category == Flag.Category.Event) { continue; } // not values, used for event ids
                     if (flag.category == Flag.Category.Temporary) { continue; } // not even saved anyways so skip
                     if (flag.designation == Flag.Designation.PlayerRace) { continue; } // do not reset these as they are only set at character creation
+
                     for (int i = 0; i < (int)flag.type; i++)
                     {
                         bool bit = (flag.value & (1 << i)) != 0;
                         debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {flag.id + i}, {(bit ? "ON" : "OFF")});"));
                     }
+                    if(delayCounter++ > 100)
+                    {
+                        debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"WaitFixedTimeFrames(1);"));
+                        delayCounter = 0;
+                    }
                 }
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"DisplayBanner(31);")); // display a banner when save data reset is done. it takes a secondish
 
                 debugScript.emevd.Events.Add(debugResetEvent);
-                debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"InitializeEvent(0, {debugResetFlag.id})"));
+                debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"InitializeEvent(0, {debugResetFlag.id}, 0)"));
 
                 debugScript.Write();
                 debugMSB.Write($"{Const.OUTPUT_PATH}\\map\\mapstudio\\m60_42_36_00.msb.dcx");
                 Lort.Log($"Created {debugCounty} debug warps...", Lort.Type.Main);
             }
 
+
+            if (param.param[Paramanager.ParamType.TalkParam].Rows.Count() >= ushort.MaxValue) { throw new Exception("Ran out of talk param rows! Will fail to compile params!"); }
+
             /* Write sound BNKs */
             sound.Write($"{Const.OUTPUT_PATH}sd\\enus\\");
 
             /* Write ESD bnds */
             character.Write();
+
+            /* Generate some needed scripts after msb gen */
+            scriptManager.GenerateAreaEvents();
+            scriptManager.GenerateGlobalCrimeAbsolvedEvent();
 
             /* Generate some params and write to file */
             Lort.Log($"Creating PARAMs...", Lort.Type.Main);
@@ -621,10 +655,12 @@ namespace JortPob
             param.GenerateAssetRows(cache.emitters);
             param.GenerateAssetRows(cache.liquids);
             param.GenerateMapInfoParam(layout);
-            param.GenerateActionButtonParam(text, 1500, "Enter");
-            param.GenerateActionButtonParam(text, 1501, "Exit");
-            param.SetAllMapLocation(text);
-            param.GenerateCustomCharacterCreation(text);
+            param.GenerateActionButtonParam(1500, "Enter");
+            param.GenerateActionButtonParam(1501, "Exit");
+            param.GenerateActionButtonParam(6010, "Pickpocket");
+            param.GenerateActionButtonParam(6020, "Examine");
+            param.SetAllMapLocation();
+            param.GenerateCustomCharacterCreation();
             param.KillMapHeightParams();    // murder kill
             param.Write();
 

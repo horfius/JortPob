@@ -1,6 +1,7 @@
 ﻿using JortPob.Common;
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 namespace JortPob
@@ -14,6 +15,7 @@ namespace JortPob
         public readonly ESM.Type type;
 
         public uint entity;  // entity id, usually 0
+        public readonly string papyrus; // papyrus script id if it has one (usually null)
         public Vector3 relative;
         public Int2 load; // if a piece of content needs tile load data this is where it's stored
 
@@ -30,6 +32,8 @@ namespace JortPob
 
             type = record.type;
             entity = 0;
+
+            papyrus = record.json["script"] != null && record.json["script"].GetValue<string>().Trim() != "" ? record.json["script"].GetValue<string>() : null;
 
             float x = float.Parse(json["translation"][0].ToString());
             float z = float.Parse(json["translation"][1].ToString());
@@ -105,16 +109,22 @@ namespace JortPob
         public readonly int hello, fight, flee, alarm;
         public readonly bool hostile, dead;
 
+        public readonly bool essential; // player gets called dumb if they kill this dood
+
         public readonly bool services; // @TODO: STUB! NEED TO ACTUALLY PARSE AND USE THE INDIVIDUAL SERVICE TYPES
+
+        public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
 
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             name = record.json["name"].ToString();
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
             job = record.json["class"].ToString();
-            faction = record.json["faction"].ToString();
+            faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
 
             sex = record.json["npc_flags"].ToString().ToLower().Contains("female") ? Sex.Female : Sex.Male;
+
+            essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
 
             level = int.Parse(record.json["data"]["level"].ToString());
             disposition = int.Parse(record.json["data"]["disposition"].ToString());
@@ -134,6 +144,9 @@ namespace JortPob
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
         }
+
+        /* Return true if this npc is a generic guard that can arrest the player for crimes */
+        public bool IsGuard() { return job == "Guard" || job == "Ordinator Guard"; }
     }
 
     /* creatures, both leveled and non-leveled */
@@ -184,8 +197,41 @@ namespace JortPob
                 float j = float.Parse(json["rotation"][1].ToString());
                 float k = float.Parse(json["rotation"][2].ToString());
 
+                // Same rotation code as in content, just copy pasted because lol lmao
+                /* Katalashes code from MapStudio */
+                Vector3 MatrixToEulerXZY(Matrix4x4 m)
+                {
+                    const float Pi = (float)Math.PI;
+                    const float Deg2Rad = Pi / 180.0f;
+                    Vector3 ret;
+                    ret.Z = MathF.Asin(-Math.Clamp(-m.M12, -1, 1));
+
+                    if (Math.Abs(m.M12) < 0.9999999)
+                    {
+                        ret.X = MathF.Atan2(-m.M32, m.M22);
+                        ret.Y = MathF.Atan2(-m.M13, m.M11);
+                    }
+                    else
+                    {
+                        ret.X = MathF.Atan2(m.M23, m.M33);
+                        ret.Y = 0;
+                    }
+                    ret.X = ret.X <= -180.0f * Deg2Rad ? ret.X + 360.0f * Deg2Rad : ret.X;
+                    ret.Y = ret.Y <= -180.0f * Deg2Rad ? ret.Y + 360.0f * Deg2Rad : ret.Y;
+                    ret.Z = ret.Z <= -180.0f * Deg2Rad ? ret.Z + 360.0f * Deg2Rad : ret.Z;
+                    return ret;
+                }
+
+                /* Adapted code from https://github.com/ColeDeanShepherd/TESUnity */
+                Quaternion xRot = Quaternion.CreateFromAxisAngle(new Vector3(1.0f, 0.0f, 0.0f), i);
+                Quaternion yRot = Quaternion.CreateFromAxisAngle(new Vector3(0.0f, 1.0f, 0.0f), k);
+                Quaternion zRot = Quaternion.CreateFromAxisAngle(new Vector3(0.0f, 0.0f, 1.0f), j);
+                Quaternion q = xRot * zRot * yRot;
+
+                Vector3 eu = MatrixToEulerXZY(Matrix4x4.CreateFromQuaternion(q));
+
                 position = new Vector3(x, y, z) * Const.GLOBAL_SCALE;
-                rotation = new Vector3(i, j, k) + new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializing to match
+                rotation = (eu * (float)(180 / Math.PI)) + new Vector3(0f, 180f, 0); // bonus rotation here, actual models get rotated 180 Y in the model itself, placements like this need it here
                 cell = json["cell"].ToString().Trim();
                 if (cell == "") { cell = null; }
             }

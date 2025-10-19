@@ -1,10 +1,13 @@
-﻿using JortPob.Common;
+﻿using HKLib.hk2018.hkAsyncThreadPool;
+using JortPob.Common;
 using JortPob.Worker;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using static JortPob.Dialog;
+using static SoulsAssetPipeline.Audio.Wwise.WwiseBlock;
 
 namespace JortPob
 {
@@ -19,9 +22,9 @@ namespace JortPob
         private TextManager text;
         private ScriptManager scriptManager;
 
-        private Dictionary<string, int> topicText; // topic text id map
-        private List<EsdInfo> esds;
-        private Dictionary<string, int> npcParamMap;
+        private readonly Dictionary<string, int> topicText; // topic text id map
+        private readonly List<EsdInfo> esds;
+        private readonly Dictionary<string, int> npcParamMap;
 
         private int nextNpcParamId;  // increment by 10
 
@@ -46,14 +49,14 @@ namespace JortPob
             if(npcParamMap.ContainsKey(content.id)) { return npcParamMap[content.id]; }
 
             int id = nextNpcParamId += 10;
-            param.GenerateNpcParam(text, id, content);
+            param.GenerateNpcParam(id, content);
             npcParamMap.Add(content.id, id);
             return id;
         }
 
-        /* Returns esd id, creates it if it does't exist */
+        /* Creates an ESD for the given instance of a npc */
         /* ESDs are generally 1 to 1 with characters but there are some exceptions like guards */
-        // @TODO: THIS SYSTEM USING AN ARRAY OF INTS IS FUCKING SHIT PLEASE GOD REFACTOR THIS TO JUST USE THE ACTUAL TILE OR INTERIOR GROUP JESUS
+        // @TODO: THIS SYSTEM USING AN ARRAY OF INTS IS FUCKING SHIT PLEASE GOD REFACTOR THIS TO JUST USE THE ACTUAL TILE OR INTERIOR GROUP
         public int GetESD(int[] msbIdList, NpcContent content)
         {
             if (Const.DEBUG_SKIP_ESD) { return 0; } // debug skip
@@ -61,74 +64,83 @@ namespace JortPob
             // First check if we even need one, hostile or dead npcs dont' get talk data for now
             if (content.dead || content.hostile) { return 0; }
 
-            // Second check if an esd already exists for the given NPC Record. Return that. This is sort of slimy since a few generaetd values may be incorrect for a given instance of an npc but w/e
-            // @TODO: I can basically guarantee this will cause issues in the future. guards are the obvious thing since if every guard shares esd then they will share all values like disposition
-            EsdInfo lookup = GetEsdInfo(content.id);
-            if (lookup != null) { lookup.AddMsb(msbIdList); return lookup.id; }
+            /* There used to be a check here that looked for an esd tied to the record id of the npc, i'm removing this */
+            /* Every instance of an npc needs its own esd. Sharing esd's will only lead to horrible bugs long term */
+            /* ESDs and event flags now use the entity id of the individual npc as their unique identifying value NOT THE RECORD ID */
 
-            List<Tuple<DialogRecord, List<DialogInfoRecord>>> dialog = esm.GetDialog(content);
+            List<Tuple<DialogRecord, List<DialogInfoRecord>>> dialog = esm.GetDialog(scriptManager, content);
             SoundManager.SoundBankInfo bankInfo = sound.GetBank(content);
 
-            List<TopicData> data = new();
-            foreach (Tuple<DialogRecord, List<DialogInfoRecord>> tuple in dialog)
+            List<TopicData> data = [];
+            foreach ((DialogRecord dia, List<DialogInfoRecord> infos) in dialog)
             {
-                DialogRecord dia = tuple.Item1;
-                List<DialogInfoRecord> infos = tuple.Item2;
-
-                int topicId;
+                int topicId = 20000000; // generic "talk" as default, should never actually end up being used
                 if (dia.type == DialogRecord.Type.Topic)
                 {
-                    topicId = topicText.ContainsKey(dia.id) ? topicText[dia.id] : -1;
-                    if (topicId < 0)
+                    if (!topicText.TryGetValue(dia.id, out topicId))
                     {
                         topicId = text.AddTopic(dia.id);
                         topicText.Add(dia.id, topicId);
                     }
-                }
-                else
-                {
-                    topicId = 20000000; // generic "talk"
                 }
 
                 TopicData topicData = new(dia, topicId);
 
                 foreach (DialogInfoRecord info in infos)
                 {
-                    /* Search existing soundbanks for the specific dialoginfo we are about to generate. if it exists just yoink it instead of generating a new one */
-                    /* If we generate a new talkparam row for every possible line we run out of talkparam rows entirely and the project fails to build */
-                    /* This sharing is required, and unfortunately it had to be added in at the end so its not a great implementation */
-                    SoundBank.Sound snd = sound.FindSound(content, info.id); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
+                    /* If this dialog is too long for a single subtitle we split it into pieces */
+                    List<string> lines = Utility.CivilizedSplit(info.text);
+                    List<int> talkRows = new();
+                    for (int i=0;i<lines.Count();i++)
+                    {
+                        string line = lines[i];
+                        /* Search existing soundbanks for the specific dialoginfo we are about to generate. if it exists just yoink it instead of generating a new one */
+                        /* If we generate a new talkparam row for every possible line we run out of talkparam rows entirely and the project fails to build */
+                        /* This sharing is required, and unfortunately it had to be added in at the end so its not a great implementation */
+                        SoundBank.Sound snd = sound.FindSound(content, info.id + i); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
 
-                    // Make a new sound and talkparam row because no suitable match was found!
-                    int talkRowId;
-                    if (snd == null) { talkRowId = (int)bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id, info.text); }
-                    // Use an existing wem and talkparam we already generated because it's a match
-                    else { talkRowId = (int)bankInfo.bank.AddSound(snd); }
+                        // Use an existing wem and talkparam we already generated because it's a match
+                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); continue; } // and continue here
+
+                        /* Debug voice acting using SAM */
+                        string wemFile;
+                        uint nxtid = (uint)(info.id + i);
+                        string hashName = $"{info.text.GetMD5Hash()}+{i}"; // Get the hash of the actual text string for this line, it will be our unique identier and filename for the cached wav/wem
+                        if (Const.USE_SAM) { wemFile = sound.GenerateLine(dia, info, line, hashName, content); }
+                        else { wemFile = Const.DEFAULT_DIALOG_WEM; }
+
+                        // If this is not the first line in a talkparam group we must generate with sequential ids!
+                        if (talkRows.Count() > 0) { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line, nxtid)); }
+                        // Make a new sound and talkparam row because no suitable match was found!
+                        else { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line)); }
+                    }
                     // The parmanager function will automatically skip duplicates when addign talkparam rows so we don't need to do anything here. the esd gen needs those dupes so ye
-                    topicData.talks.Add(new(info, talkRowId));
+                    topicData.talks.Add(new(info, talkRows, lines));
                 }
 
                 if (topicData.talks.Count > 0) { data.Add(topicData); } // if no valid lines for a topic, discard
             }
-            param.GenerateTalkParam(text, data);
+            param.GenerateTalkParam(data);
 
-            int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}6000");  // i know guh guhhhhh
+            int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}{msbIdList[0]:D2}{(msbIdList[0]==60?0:msbIdList[1]):D2}");  // i know guh guhhhhh
 
             Script areaScript = scriptManager.GetScript(msbIdList[0], msbIdList[1], msbIdList[2], msbIdList[3]); // get area script for this npc
 
-            DialogESD dialogEsd = new(scriptManager, text, areaScript, (uint)esdId, content, data);
+            areaScript.RegisterNpcHostility(content);  // setup hostility flag/event
+            areaScript.RegisterNpcHello(content);      // setup hello flags and turntoplayer script
+
+            DialogESD dialogEsd = new(esm, scriptManager, param, text, areaScript, (uint)esdId, content, data);
             string pyPath = $"{Const.CACHE_PATH}esd\\t{esdId}.py";
             string esdPath = $"{Const.CACHE_PATH}esd\\t{esdId}.esd";
             dialogEsd.Write(pyPath);
 
             EsdInfo esdInfo = new(pyPath, esdPath, content.id, esdId);
-            esdInfo.AddMsb(msbIdList);
             esds.Add(esdInfo);
 
             return esdId;
         }
 
-        /* I dont know what the fuck i was thinking when i wrote this function jesus */
+        /* ESDs are now 1 to 1 with individual placements of enemies/creatures so the file writing has been simplified */
         public void Write()
         {
             EsdWorker.Go(esds);
@@ -136,114 +148,51 @@ namespace JortPob
             Lort.Log($"Binding {esds.Count()} ESDs...", Lort.Type.Main);
             Lort.NewTask($"Binding ESDs", esds.Count());
 
-            Dictionary<int, BND4> bnds = new();
-            foreach(EsdInfo esdInfo in esds)
+            /* Create all needed bnds */
+            Dictionary<(int, int), BND4> bnds = new();
+            foreach(EsdInfo esd in esds)
             {
-                foreach (int msbId in esdInfo.msbIds)
+                if(!bnds.ContainsKey((esd.map, esd.area)))
                 {
-                    if(!bnds.ContainsKey(msbId))
-                    {
-                        BND4 nubnd = new();
-                        nubnd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
-                        nubnd.Version = "07D7R6";
-                        bnds.Add(msbId, nubnd);
-                    }
+                    BND4 bnd = new();
+                    bnd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
+                    bnd.Version = "07D7R6";
+                    bnds.Add((esd.map, esd.area), bnd);
                 }
             }
 
-            for (int i = 0; i < esds.Count() ; i++)
+            /* Write esds to bnds */
+            foreach(EsdInfo esd in esds)
             {
-                string esdPath = esds[i].esd;
+                BND4 bnd = bnds[(esd.map, esd.area)];
+                BinderFile file = new();
+                file.Bytes = System.IO.File.ReadAllBytes(esd.esd);
+                file.Name = $"N:\\GR\\data\\INTERROOT_win64\\script\\talk\\m{esd.map:D2}_{esd.area:D2}_00_00\\{Utility.PathToFileName(esd.esd)}.esd";
+                file.ID = bnd.Files.Count();
 
-                foreach (int msbId in esds[i].msbIds)
-                {
-                    ESD esd = ESD.Read(esdPath);
-
-                    BinderFile file = new();
-                    file.Bytes = esd.Write();
-                    file.Name = $"N:\\GR\\data\\INTERROOT_win64\\script\\talk\\m{msbId.ToString("D4").Substring(0, 2)}_{msbId.ToString("D4").Substring(2, 2)}_00_00\\{Utility.PathToFileName(esdPath)}.esd";
-                    file.ID = i;
-
-                    bnds[msbId].Files.Add(file);
-                }
+                bnd.Files.Add(file);
                 Lort.TaskIterate();
             }
 
+            /* Write bnds to file */
             Lort.Log($"Writing {bnds.Count} Binded ESDs... ", Lort.Type.Main);
             Lort.NewTask($"Writing {bnds.Count} Binded ESDs... ", bnds.Count);
-            foreach (KeyValuePair<int, BND4> kvp in bnds)
+            foreach (KeyValuePair<(int, int), BND4> kvp in bnds)
             {
+                int map = kvp.Key.Item1;
+                int area = kvp.Key.Item2;
                 BND4 bnd = kvp.Value;
-                var files = bnd.Files;
-                int n = files.Count;
 
-                if (n > 1)
-                {
-                    // copy to array for fast sort
-                    BinderFile[] arr = files.ToArray();
-                    uint[] keys = new uint[n];
-
-                    for (int i = 0; i < n; i++)
-                        keys[i] = BinderFileIdComparer.ParseBinderFileId(arr[i]); // fast parse function that avoids Substring if possible
-
-                    Array.Sort(keys, arr); // sorts arr by keys (closest to minimal overhead)
-
-                    // copy back and reassign IDs
-                    for (int i = 0; i < n; i++)
-                    {
-                        files[i] = arr[i];
-                        files[i].ID = i;
-                    }
-                }
-
-                kvp.Value.Write($"{Const.OUTPUT_PATH}script\\talk\\m{kvp.Key.ToString("D4").Substring(0, 2)}_{kvp.Key.ToString("D4").Substring(2, 2)}_00_00.talkesdbnd.dcx");
+                bnd.Write($"{Const.OUTPUT_PATH}script\\talk\\m{map:D2}_{area:D2}_00_00.talkesdbnd.dcx");
                 Lort.TaskIterate();
             }
-
-            //foreach (KeyValuePair<int, BND4> kvp in bnds)
-            //{
-            //    /* Sort bnd ?? test */
-            //    BND4 bnd = kvp.Value;
-            //    for (int i = 0; i < bnd.Files.Count() - 1; i++)
-            //    {
-            //        BinderFile file = bnd.Files[i];
-            //        uint fileId = uint.Parse(Utility.PathToFileName(file.Name).Substring(1));
-            //        BinderFile next = bnd.Files[i+1];
-            //        uint nextId = uint.Parse(Utility.PathToFileName(next.Name).Substring(1));
-
-            //        if (nextId < fileId)
-            //        {
-            //            BinderFile temp = file;
-            //            bnd.Files[i] = next;
-            //            bnd.Files[i + 1] = temp;
-            //            i = 0; // slow and bad
-            //        }
-            //    }
-
-            //    for(int i = 0; i < bnd.Files.Count() ; i++)
-            //    {
-            //        BinderFile file = bnd.Files[i];
-            //        file.ID = i;
-            //    }
-
-            //    kvp.Value.Write($"{Const.OUTPUT_PATH}script\\talk\\m{kvp.Key.ToString("D4").Substring(0, 2)}_{kvp.Key.ToString("D4").Substring(2, 2)}_00_00.talkesdbnd.dcx");
-            //}
-        }
-
-        private EsdInfo GetEsdInfo(string content)
-        {
-            foreach(EsdInfo esdInfo in esds)
-            {
-                if (esdInfo.content == content) { return esdInfo; }
-            }
-            return null;
         }
 
         public class EsdInfo
         {
             public readonly string py, esd, content;
-            public readonly int id;
-            public readonly List<int> msbIds;
+            public readonly int id;  // esd id
+            public readonly int map, area; // msb ids
 
             public EsdInfo(string py, string esd, string content, int id)
             {
@@ -251,16 +200,10 @@ namespace JortPob
                 this.esd = esd;        // path to compiled esd
                 this.content = content;
                 this.id = id;
-                msbIds = new();
-            }
-
-            public void AddMsb(int[] msbId)
-            {
-                int[] alteredId;
-                if (msbId[0] == 60) { alteredId = new[] { 60, 0 }; }
-                else { alteredId = new[] { msbId[0], msbId[1] }; }
-                int GUH = (alteredId[0] * 100) + alteredId[1];
-                if (!msbIds.Contains(GUH)) { msbIds.Add(GUH); }
+                string m = id.ToString().Substring(5, 2);
+                string a = id.ToString().Substring(7, 2);
+                map = int.Parse(m);
+                area = int.Parse(a);
             }
         }
 
@@ -277,15 +220,50 @@ namespace JortPob
                 this.talks = new();
             }
 
+            /* Special case where a topic contains only infos with the filter type "choice" making it unreachable */
+            public bool IsOnlyChoice()
+            {
+                foreach(TalkData talk in talks)
+                {
+                    if(talk.dialogInfo.type != DialogRecord.Type.Choice) { return false; }
+                }
+                return true;
+            }
+
+            /* Check if a rank requirment filter is used anywhere in this topicdata */
+            public bool HasRankRequirementFilter()
+            {
+                foreach (TalkData talk in talks)
+                {
+                    foreach (DialogFilter filter in talk.dialogInfo.filters)
+                    {
+                        if (filter.type == DialogFilter.Type.Function && filter.function == DialogFilter.Function.RankRequirement)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
             public class TalkData
             {
                 public readonly DialogInfoRecord dialogInfo;
-                public readonly int talkRow;
+                public readonly int primaryTalkRow;  // first row for this talk, all that really matters game engine automatically plays subsequent rows in order
+                public readonly List<int> talkRows;
+                public readonly List<string> splitText;
 
-                public TalkData(DialogInfoRecord dialogInfo, int talkRow)
+                public TalkData(DialogInfoRecord dialogInfo, List<int> talkRows, List<string> splitText)
                 {
                     this.dialogInfo = dialogInfo;
-                    this.talkRow = talkRow;
+                    this.primaryTalkRow = talkRows[0];
+                    this.talkRows = talkRows;
+                    this.splitText = splitText;
+                }
+
+                public bool IsChoice()
+                {
+                    return dialogInfo.type == DialogRecord.Type.Choice;
                 }
             }
         }

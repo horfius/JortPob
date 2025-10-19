@@ -252,7 +252,7 @@ namespace JortPob
                         door.warp.x = to.group.area;
                         door.warp.y = to.group.unk;
                         door.warp.block = to.group.block;
-                        door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region);
+                        door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->{door.warp.cell}");
                         to.AddWarp(door.warp);
                     }
                     // Door goes to exterior cell
@@ -264,7 +264,7 @@ namespace JortPob
                         door.warp.x = to.coordinate.x;
                         door.warp.y = to.coordinate.y;
                         door.warp.block = to.block;
-                        door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region);
+                        door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]");
                         to.AddWarp(door.warp);
                     }
                 }
@@ -277,7 +277,7 @@ namespace JortPob
                     foreach(DoorContent door in chunk.doors)
                     {
                         HandleDoor(door);
-                        if(door.warp != null) { door.entity = scriptManager.GetScript(group).CreateEntity(Script.EntityType.Asset); }
+                        if(door.warp != null) { door.entity = scriptManager.GetScript(group).CreateEntity(Script.EntityType.Asset, $"DoorEntry::{door.cell.name}->{door.warp.cell}"); }
                     }
                 }
             }
@@ -287,7 +287,7 @@ namespace JortPob
                 foreach (DoorContent door in tile.doors)
                 {
                     HandleDoor(door);
-                    if (door.warp != null) { door.entity = scriptManager.GetScript(tile).CreateEntity(Script.EntityType.Asset); }
+                    if (door.warp != null) { door.entity = scriptManager.GetScript(tile).CreateEntity(Script.EntityType.Asset, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]"); }
                 }
             }
 
@@ -296,6 +296,29 @@ namespace JortPob
             {
                 int textId = int.Parse($"{group.map:D2}{group.area:D2}0");
                 text.SetLocation(textId, "Interior");
+            }
+
+            /* Handle npc hasWitness flag */ // this check is very similar to and patially entwined with Script.GenerateCrimeEvents() and the ESD state HANDLECRIME
+            /* We can't determine witnesses at runtime so we just do some test now and determine if an npc has witneses to report crimes to */
+            void CheckWitnesses(List<NpcContent> npcs)
+            {
+                foreach (NpcContent npc in npcs)
+                {
+                    if (npc.alarm >= 50 || npc.IsGuard()) { npc.hasWitness = true; continue; } // will report crimes themselves
+                    foreach (NpcContent other in npcs)
+                    {
+                        if (npc == other) { continue; } // dont' self succ
+
+                        // guards get bonus range because I said so
+                        if (other.IsGuard() && System.Numerics.Vector3.Distance(npc.position, other.position) < 23) { npc.hasWitness = true; break; }
+                        if (other.alarm >= 50 && System.Numerics.Vector3.Distance(npc.position, other.position) < 12) { npc.hasWitness = true; break; }
+                    }
+                }
+            }
+
+            foreach (Tile tile in tiles) { CheckWitnesses(tile.npcs); }
+            foreach (InteriorGroup group in interiors) {
+                foreach (InteriorGroup.Chunk chunk in group.chunks) { CheckWitnesses(chunk.npcs); }
             }
 
             /* Handling npc/creature death and respawn flags */
@@ -324,8 +347,8 @@ namespace JortPob
                 foreach (NpcContent npc in npcs)
                 {
                     Script.Flag countFlag = GetTypeCountFlag(npc.id);
-                    npc.entity = script.CreateEntity(Script.EntityType.Enemy);
-                    script.RegisterNpc(npc, countFlag);
+                    npc.entity = script.CreateEntity(Script.EntityType.Enemy, $"NPC::{npc.id}");
+                    script.RegisterNpc(param, npc, countFlag);
                 }
             }
 
@@ -335,7 +358,7 @@ namespace JortPob
                 foreach (CreatureContent creature in creatures)
                 {
                     Script.Flag countFlag = GetTypeCountFlag(creature.id);
-                    creature.entity = script.CreateEntity(Script.EntityType.Enemy);
+                    creature.entity = script.CreateEntity(Script.EntityType.Enemy, $"Creature::{creature.id}");
                     script.RegisterCreature(creature, countFlag);
                 }
             }
@@ -475,7 +498,7 @@ namespace JortPob
 
             public WarpDestination(Vector3 position, Vector3 rotation, uint id)
             {
-                this.position = position;
+                this.position = position - new Vector3(0f, Const.NPC_ROOT_OFFSET, 0f);  // fix load door offset
                 this.rotation = rotation;
                 this.id = id;
             }

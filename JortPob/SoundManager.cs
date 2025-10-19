@@ -1,7 +1,11 @@
 ﻿using JortPob.Common;
+using JortPob.Worker;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using static JortPob.Dialog;
+using static SoulsFormats.DRB.Shape;
 
 namespace JortPob
 {
@@ -11,19 +15,39 @@ namespace JortPob
         private readonly List<SoundBankInfo> banks;
         private readonly SoundBankGlobals globals;
 
+        private readonly SAM sam;
+        private readonly List<SAMData> samQueue;
+        public class SAMData
+        {
+            public readonly Dialog.DialogRecord dialog;
+            public readonly Dialog.DialogInfoRecord info;
+            public readonly string line;
+            public readonly string hashName;
+            public readonly NpcContent npc;
+            public SAMData(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
+            {
+                this.dialog = dialog;
+                this.info = info;
+                this.line = line;
+                this.hashName = hashName;
+                this.npc = npc;
+            }
+        }
+
         public SoundManager()
         {
             nextBankId = 100;
             banks = new();
             globals = new();
+            samQueue = new();
         }
 
         /* Either returns an existing bank meeting the requirements, or makes a new one */
         public SoundBankInfo GetBank(NpcContent npc)
         {
-            foreach(SoundBankInfo bankInfo in banks)
+            foreach (SoundBankInfo bankInfo in banks)
             {
-                if(bankInfo.race == npc.race && bankInfo.sex == npc.sex && bankInfo.uses < 3)
+                if (bankInfo.race == npc.race && bankInfo.sex == npc.sex && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
                 {
                     return bankInfo;
                 }
@@ -34,12 +58,12 @@ namespace JortPob
             return bnk;
         }
 
-        public SoundBank.Sound FindSound(NpcContent npc, uint dialogInfo)
+        public SoundBank.Sound FindSound(NpcContent npc, int dialogInfo)
         {
             foreach (SoundBankInfo bankInfo in banks)
             {
                 if (bankInfo.race != npc.race || bankInfo.sex != npc.sex) { continue; } // not a match
-                foreach(SoundBank.Sound snd in bankInfo.bank.sounds)
+                foreach (SoundBank.Sound snd in bankInfo.bank.sounds)
                 {
                     if (snd.dialogInfo == dialogInfo) { return snd; }
                 }
@@ -47,9 +71,19 @@ namespace JortPob
             return null; // no match found
         }
 
+        /* Adds lines to a queue so we can do multithreaded tts gen on them */
+        public string GenerateLine(DialogRecord dialog, DialogInfoRecord info, string line, string hashName, NpcContent npc)
+        {
+            SAMData dat = new(dialog, info, line, hashName, npc);
+            samQueue.Add(dat);
+            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem";
+        }
+
         /* Writes all soundbanks to given dir */
         public void Write(string dir)
         {
+            SamWorker.Go(samQueue); // actually generate and convert wems
+
             Lort.Log($"Writing {banks.Count()} BNKs...", Lort.Type.Main);
             Lort.NewTask("Writing BNKs", banks.Count);
 
@@ -159,7 +193,7 @@ namespace JortPob
             public readonly int id;         // vc###.bnk id
             public readonly NpcContent.Race race;    // race of npcs that use this bank
             public readonly NpcContent.Sex sex;
-            public int uses;                // how many esds use this same bank
+            public int uses;                // how many esds use this same bank, the max amount per bank is 100. 
 
             public readonly SoundBank bank;
 

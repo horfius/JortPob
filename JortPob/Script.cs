@@ -6,6 +6,8 @@ using SoulsIds;
 using System;
 using System.Collections.Generic;
 using System.Reflection.Metadata.Ecma335;
+using static JortPob.Script.Flag;
+using static SoulsFormats.MSB1.Event;
 using static SoulsFormats.MSBAC4.Event;
 
 /* Individual script for an msb. */
@@ -16,8 +18,11 @@ using static SoulsFormats.MSBAC4.Event;
 
 namespace JortPob
 {
+    using ScriptFlagLookupKey = (Script.Flag.Designation, string);
+
     public class Script
     {
+
         public Events AUTO;
 
         public readonly int map, x, y, block;
@@ -26,12 +31,23 @@ namespace JortPob
         public readonly EMEVD emevd;
         public readonly EMEVD.Event init;
 
+        public readonly List<NpcContent> npcs; // list of npcs that are registered in this areascript, used to do some script generation
+
+        public readonly Dictionary<uint, string> entityIdMapping; // used for debuggin, just records a string (usually a record id) as a description for created entity ids
+
         public enum EntityType
         {
             Enemy = 0, Asset = 1000, Region = 2000, Event = 3000, Collision = 4000, Group = 5000
         }
 
         public List<Flag> flags;
+
+        /**
+         * This is just used to speed up searches for flags. It is a 1:1 mapping, so duplicate designated/named
+         * flags will result in us just using the first one. This is okay (for now), because that is the same logic
+         * that GetFlag already uses elsewhere.
+         */
+        private readonly Dictionary<ScriptFlagLookupKey, Flag> flagsByLookupKey;
         private Dictionary<Flag.Category, uint> flagUsedCounts;
         private Dictionary<EntityType, uint> entityUsedCounts;
 
@@ -43,6 +59,8 @@ namespace JortPob
             this.y = y;
             this.block = block;
 
+            entityIdMapping = new();
+
             AUTO = new(Utility.ResourcePath(@"script\\er-common.emedf.json"), true, true);
 
             EMEVD DEBUGTESTDELETE = EMEVD.Read($"{Const.ELDEN_PATH}\\game\\event\\m60_42_36_00.emevd.dcx");
@@ -51,7 +69,7 @@ namespace JortPob
             emevd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
             emevd.Format = SoulsFormats.EMEVD.Game.Sekiro;
 
-            // Bytes here are raw string data that points to the filenames of common and common_func
+            // Bytes here are raw string data that points to the filenames of common_func and common_macro
             emevd.StringData = new byte[] { 78, 0, 58, 0, 92, 0, 71, 0, 82, 0, 92, 0, 100, 0, 97, 0, 116, 0, 97, 0, 92, 0, 80, 0, 97, 0, 114, 0, 97, 0, 109, 0, 92, 0, 101, 0, 118, 0, 101, 0, 110, 0, 116, 0, 92, 0, 99, 0, 111, 0, 109, 0, 109, 0, 111, 0, 110, 0, 95, 0, 102, 0, 117, 0, 110, 0, 99, 0, 46, 0, 101, 0, 109, 0, 101, 0, 118, 0, 100, 0, 0, 0, 78, 0, 58, 0, 92, 0, 71, 0, 82, 0, 92, 0, 100, 0, 97, 0, 116, 0, 97, 0, 92, 0, 80, 0, 97, 0, 114, 0, 97, 0, 109, 0, 92, 0, 101, 0, 118, 0, 101, 0, 110, 0, 116, 0, 92, 0, 99, 0, 111, 0, 109, 0, 109, 0, 111, 0, 110, 0, 95, 0, 109, 0, 97, 0, 99, 0, 114, 0, 111, 0, 46, 0, 101, 0, 109, 0, 101, 0, 118, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             emevd.LinkedFileOffsets = new() { 0, 82 };
 
@@ -59,6 +77,7 @@ namespace JortPob
             emevd.Events.Add(init);
 
             flags = new();
+            flagsByLookupKey = new();
 
             flagUsedCounts = new()
             {
@@ -76,6 +95,8 @@ namespace JortPob
                 { EntityType.Collision, 0 },
                 { EntityType.Group, 0 }
             };
+
+            npcs = new();
         }
 
         public void RegisterLoadDoor(DoorContent door)
@@ -84,26 +105,99 @@ namespace JortPob
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParam}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
         }
 
-        public void RegisterNpc(NpcContent npc, Flag count)
+        public void RegisterNpcHostility(NpcContent npc)
         {
+            CreateFlag(Flag.Category.Temporary, Flag.Type.Nibble, Flag.Designation.FriendHitCounter, npc.entity.ToString()); // setup friendly hit counter
+            Flag hostileFlag = CreateFlag(Flag.Category.Saved, Flag.Type.Bit, Flag.Designation.Hostile, npc.entity.ToString());
+            Flag crimeFlag = CreateFlag(Flag.Category.Saved, Flag.Type.Bit, Flag.Designation.CrimeEvent, npc.entity.ToString());
+            Flag hostileQuipFlag = CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.HostileQuip, npc.entity.ToString());
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.NpcHostilityHandler]}, {hostileFlag.id}, {npc.entity}, {hostileFlag.id}, {npc.entity});"));
+            npcs.Add(npc);
+        }
+
+        public void RegisterNpcHello(NpcContent npc)
+        {
+            /* Hello event: npc turns to player when player enters a certain radius and the esd sets a flag and says a hello line */
+            Flag helloFlag = CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.Hello, npc.entity.ToString());
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.Hello]}, {helloFlag.id}, {npc.entity}, {helloFlag.id});"));
+        }
+
+        public void RegisterNpc(Paramanager paramanager, NpcContent npc, Flag count)
+        {
+            /* Dead/disable spawn event */
             Flag deadFlag = CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Dead, npc.entity.ToString());
             Flag disableFlag = CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Disabled, npc.entity.ToString());
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.SpawnHandler]}, {disableFlag.id}, {npc.entity}, {deadFlag.id}, {npc.entity}, {npc.entity}, {deadFlag.id}, {count.id}, {count.Bits()}, {count.MaxValue()});"));
+            if(npc.essential)
+            {
+                int tutorialPopupId = paramanager.GenerateMessage("", "With this character's death, the thread of prophecy is severed. You are doomed.");
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.Essential]}, {deadFlag.id}, {deadFlag.id}, {tutorialPopupId});"));
+            }
         }
 
         public void RegisterCreature(CreatureContent creature, Flag count)
         {
+            /* Dead/disable spawn event */
             Flag deadFlag = CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Dead, creature.entity.ToString());
             Flag disableFlag = CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Disabled, creature.entity.ToString());
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.SpawnHandler]}, {disableFlag.id}, {creature.entity}, {deadFlag.id}, {creature.entity}, {creature.entity}, {deadFlag.id}, {count.id}, {count.Bits()}, {count.MaxValue()});"));
         }
 
+        /* Crime events are charcters reactions to being attacked or stolen from */
+        /* These events are generated before Write(). What this does is look for any npcs near an npc and if the player commits a crime against an npc we trigger all nearby npcs to get mad at the player */
+        /* Additionally if this event is triggered we also set all guards hostile and mark guards to force greet the player */
+        public void GenerateCrimeEvents()
+        {
+            foreach(NpcContent npc in npcs)
+            {
+                Flag eventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, npc.entity.ToString());
+                EMEVD.Event crimeEvent = new EMEVD.Event();
+                crimeEvent.ID = eventFlag.id;
+                // If the player commits a crime agains this npc, their crime flag flips, we then go hostile
+                Flag hvar = FindFlagByLookupKey(Script.FormatFlagLookupKey(Flag.Designation.Hostile, npc.entity.ToString()));
+                Flag cvar = FindFlagByLookupKey(Script.FormatFlagLookupKey(Flag.Designation.CrimeEvent, npc.entity.ToString()));
+                crimeEvent.Instructions.Add(AUTO.ParseAdd($"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {cvar.id});"));  // if crime flag on
+                crimeEvent.Instructions.Add(AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {hvar.id}, ON);"));       // go hostile
+
+                // Look for nearby npcs and see if any of them are nearby, if they are they will also turn hostile if their alarm value is high enough
+                // @TODO: minor concern but this only searches by distance within this msb. in the overworld if an npc was near a border it would not look for nearby npcs in the next tile over. very minor issue but noting it here anyways
+                foreach (NpcContent other in npcs)
+                {
+                    if (!other.IsGuard()) // if you are a guard, go full aggro, otherwise its conditional
+                    {
+                        if (other.alarm < 50) { continue; } // no nearby crime aggro if low alarm
+                        if (System.Numerics.Vector3.Distance(npc.position, other.position) > 10) { continue; } // no nearby crime aggro if far away
+                    }
+                    Flag otherhvar = FindFlagByLookupKey(Script.FormatFlagLookupKey(Flag.Designation.Hostile, other.entity.ToString()));
+                    crimeEvent.Instructions.Add(AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {otherhvar.id}, ON);"));       // go hostile as well
+                }
+
+                // Lastly, flip the crime event flag back to 0
+                crimeEvent.Instructions.Add(AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {cvar.id}, OFF);"));
+
+                emevd.Events.Add(crimeEvent);
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {crimeEvent.ID}, 0);"));
+            }
+        }
+
+        /* Create an EMEVD flag for this MSB */
         private static readonly Dictionary<Flag.Category, uint[]> FLAG_TYPE_OFFSETS = new()
         {
             { Flag.Category.Event, new uint[] { 1000, 3000, 6000 } },
             { Flag.Category.Saved, new uint[] { 0, 4000, 7000, 8000, 9000 } },
             { Flag.Category.Temporary, new uint[] { 2000, 5000 } }
         };
+
+        public static ScriptFlagLookupKey GetLookupKeyForFlag(Flag flag)
+        {
+            return FormatFlagLookupKey(flag.designation, flag.name.ToLower());
+        }
+
+        public static ScriptFlagLookupKey FormatFlagLookupKey(Flag.Designation designation, string name)
+        {
+            return (designation, name.ToLower());
+        }
+
         public Flag CreateFlag(Flag.Category category, Flag.Type type, Flag.Designation designation, string name, uint value = 0)
         {
             uint rawCount = flagUsedCounts[category];
@@ -114,23 +208,46 @@ namespace JortPob
             else { mapOffset = uint.Parse($"{map:D2}{x:D2}0000"); }
 
             uint id = mapOffset + FLAG_TYPE_OFFSETS[category][perThou] + mod;  // if we run out of flags this will throw an out of bounds exception. that situation would be bad but should't happen.
+            flagUsedCounts[category] += ((uint)type);
+
+            // Check for a collision with a common event flag, if we find a collision we recursviely try making another flag
+            if (ScriptManager.DO_NOT_USE_FLAGS.Contains(id))
+            {
+                Lort.Log($" ## WARNING ## Flag collision with commonevent found: {id}", Lort.Type.Debug);
+                return CreateFlag(category, type, designation, name, value);
+            }
 
             Flag flag = new(category, type, designation, name, id, value);
             flags.Add(flag);
-
-            flagUsedCounts[category] += ((uint)type);
-
+            flagsByLookupKey.TryAdd(GetLookupKeyForFlag(flag), flag);
             return flag;
         }
 
-        public uint CreateEntity(EntityType type)
+        /* Create a unique entity id for this MSB */
+        public uint CreateEntity(EntityType type, string name)
         {
             uint rawCount = entityUsedCounts[type]++;
-            uint mapOffset = uint.Parse($"{(map == 60 ? "10" : "")}{x:D2}{y:D2}0000");
+            uint mapOffset;
+            if (map == 60)
+            {
+                mapOffset = uint.Parse($"10{x:D2}{y:D2}0000");
+            }
+            else
+            {
+                mapOffset = uint.Parse($"{map:D2}{x:D2}0000");
+            }
+            
 
             if (rawCount >= 1000) { Lort.Log($" ## CRITICAL ## ENTITY ID OVERFLOWED IN m{map:D2}_{x:D2}_{y:D2}", Lort.Type.Debug); }
 
-            return mapOffset + ((uint)type) + rawCount;
+            uint newid = mapOffset + ((uint)type) + rawCount;
+            entityIdMapping.Add(newid, name);
+            return newid;
+        }
+
+        public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)
+        {
+            return flagsByLookupKey.GetValueOrDefault(key);
         }
 
         public void Write()
@@ -152,7 +269,17 @@ namespace JortPob
 
             public enum Designation
             {
-                Event, Dead, DeadCount, Disabled, Global, Local, TopicEnabled, Journal, TalkedToPc, Disposition, PlayerRace, FactionJoined, FactionReputation, FactionRank
+                Event,                                          // Flag is an event ID
+                Global, Local, Reputation, Journal, CrimeLevel,          // CrimeLevel is gold owed to guards, the Crime below is a per npc variable for if you comitted a crime against them
+                Dead, DeadCount, Disabled, Hostile, CrimeEvent, FriendHitCounter, Pickpocketed, ThiefCrime,      // hostile flag exists for friendly npcs, if you piss em off they stab you
+                TopicEnabled, TalkedToPc, Disposition, PlayerRace,
+                FactionJoined, FactionReputation, FactionRank, FactionExpelled,    // faction stuff
+                GuardIsGreeting, PlayerIsTalking, PlayerIsSneaking, PlayerRuneCount,
+                ReturnValueRankReq,                              // these are temp values used by ESD to store variables
+                CrimeAbsolved,            // temp value, setting it to 1 triggers a common emevd event that clears all crime and hostility flags
+                HostileQuip, Hello,    // temp value that is flagged when a guard is gretting the player, if the player has a bounty and trys to leave dialog without paying they get dunked on
+                OnActivate, CellChanged, GetButtonPressedBit, GetButtonPressedValue, // used by papyrus to emulate mw script behaviours
+                Message    // Flag to trigger a popmessage or notification
             }
 
             public readonly Category category;

@@ -10,7 +10,9 @@ namespace JortPob.Common
         public static string MORROWIND_PATH = Settable.Get("MORROWIND_PATH");
         public static string ELDEN_PATH = Settable.Get("ELDEN_PATH");
         public static string OUTPUT_PATH = Settable.Get("OUTPUT_PATH");
+        public static string WWISE_PATH = Settable.Get("WWISE_PATH");
         public static string CACHE_PATH = $"{OUTPUT_PATH}cache\\";
+        public static string[] LOAD_ORDER = Settable.GetArray("LOAD_ORDER");
         #endregion
 
         #region Optimization
@@ -23,6 +25,8 @@ namespace JortPob.Common
         public static readonly float CELL_SIZE = 8192f * GLOBAL_SCALE;
         public static readonly float TILE_SIZE = 256f;
         public static readonly int CELL_GRID_SIZE = 64;    // terrain vertices
+
+        public static readonly float NPC_ROOT_OFFSET = 75f * GLOBAL_SCALE;  // how far the morrownid npc root (pelvis) is from it's feet. this is to fix the offset of spawn points since elden ring uses feet for characters position and mw uses pelvis
 
         public static readonly float TERRAIN_UV_SCALE = 20f;  // uv scale for terrain textures
         public static readonly int TERRAIN_COLOR_OVERLAY_SIZE = 256;  // size of texture generated for vertex color overlay on terrain meshes
@@ -75,6 +79,34 @@ namespace JortPob.Common
         public static readonly int FXR_START_ID = 900000000;
         #endregion
 
+        #region Papyrus
+        public static readonly int ESD_STATE_HARDCODE_MODDISPOSITION = 45;
+        public static readonly int ESD_STATE_HARDCODE_MODFACREP = 46;
+        public static readonly int ESD_STATE_HARDCODE_PERSUADEMENU = 47;
+        public static readonly int ESD_STATE_HARDCODE_HANDLECRIME = 48;
+        public static readonly int ESD_STATE_HARDCODE_COMBATDIALOGSELECT = 49;
+        public static readonly int ESD_STATE_HARDCODE_COMBATTALK = 50;
+        public static readonly int ESD_STATE_HARDCODE_DOATTACKTALK = 51;
+        public static readonly int ESD_STATE_HARDCODE_DOHITTALK = 52;
+        public static readonly int ESD_STATE_HARDCODE_DOTHIEFTALK = 53;
+        public static readonly int ESD_STATE_HARDCODE_IDLETALK = 54;
+        public static readonly int ESD_STATE_HARDCODE_PICKPOCKET = 55;
+        public static readonly int ESD_STATE_HARDCODE_RANKREQUIREMENT = 56;
+        public static readonly int ESD_STATE_HARDCODE_CHOICE = 57;  // this one must be last as it can generate multiple ones after this number
+        public static readonly int CRIME_GOLD_PICKPOCKET = 50;
+        public static readonly int CRIME_GOLD_ASSAULT = 250;
+        public static readonly int CRIME_GOLD_RESIST = 100;
+        public static readonly int CRIME_GOLD_MURDER = 1000;
+        #endregion
+
+        #region Dialog
+        public static readonly bool USE_SAM = true; // very ultra mega hyper slow, only for stress testing dialog
+        public static readonly string DEFAULT_DIALOG_WEM = Utility.ResourcePath(@"sound\page_turn.wem");
+        public static readonly int MAX_CHAR_PER_TALK = 160;  // character limit in a line of dialog. prevents subtitle cutting off
+        public static readonly int MAX_ESD_PER_VCBNK = 10;
+        #endregion
+
+
         #region TEST
         public static readonly Vector3 TEST_OFFSET1 = new(0, 200, 0); // just shifting vertical position a bit so the morrowind map isn't super far down
         public static readonly Vector3 TEST_OFFSET2 = new(0, -15, 0); // these should both be deleted eventually
@@ -103,7 +135,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] { "Balmora" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] {"Balmora"}; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

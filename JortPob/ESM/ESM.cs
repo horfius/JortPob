@@ -1,17 +1,17 @@
-﻿using HKLib.hk2018.hkaiCollisionAvoidance.Solver;
-using HKLib.hk2018.hke;
-using JortPob.Common;
+﻿using JortPob.Common;
 using JortPob.Worker;
 using SoulsFormats;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static JortPob.Dialog;
 using static JortPob.NpcContent;
+using static JortPob.NpcManager;
 using static JortPob.NpcManager.TopicData;
 using static JortPob.Script;
 
@@ -33,12 +33,62 @@ namespace JortPob
         public List<DialogRecord> dialog;
         public List<Faction> factions;
         public List<Cell> exterior, interior;
+        public List<Papyrus> scripts;
 
-        public ESM(string path, ScriptManager scriptManager)
+        public ESM(ScriptManager scriptManager)
         {
-            Lort.Log($"Loading '{path}' ...", Lort.Type.Main);
+            /* Check if a json has been generated from the esm, if not make one */
+            string jsonPath = $"{Const.CACHE_PATH}morrowind.json";
+            if (!File.Exists(jsonPath))
+            {
+                /* Merge load order to a single file using merge_to_master */
+                string esmPath;
+                if (Const.LOAD_ORDER.Length == 1)
+                {
+                    esmPath = $"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[0]}";
+                }
+                else
+                {
+                    // Copy our master esm to the cache folder
+                    esmPath = $"{Const.CACHE_PATH}morrowind.esm";
+                    if(File.Exists(esmPath)) { File.Delete(esmPath); }
+                    if(!Directory.Exists(Const.CACHE_PATH)) { Directory.CreateDirectory(Const.CACHE_PATH); }
+                    File.Copy($"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[0]}", esmPath);
 
-            string tempRawJson = File.ReadAllText(path);
+                    // Merge the rest of the load order into that esm
+                    for (int i=1;i<Const.LOAD_ORDER.Length;i++)
+                    {
+                        Lort.Log($"Merging '{Const.LOAD_ORDER[i]}' ...", Lort.Type.Main);
+                        string childPath = $"{Const.MORROWIND_PATH}Data Files\\{Const.LOAD_ORDER[i]}";
+
+                        ProcessStartInfo mergeStartInfo = new(Utility.ResourcePath(@"tools\MergeToMaster\merge_to_master.exe"), $"-o \"{childPath}\" \"{esmPath}\"")
+                        {
+                            WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        var mergeProcess = Process.Start(mergeStartInfo);
+                        mergeProcess.WaitForExit();
+                    }
+                }
+
+                /* Convert esm to a json file using tes3conv */
+                Lort.Log($"Creating 'cache\\morrowind.json' ...", Lort.Type.Main);
+                if(!System.IO.Directory.Exists(Const.CACHE_PATH)) { System.IO.Directory.CreateDirectory(Const.CACHE_PATH); }
+                ProcessStartInfo convStartInfo = new(Utility.ResourcePath(@"tools\Tes3Conv\tes3conv.exe"), $"-c \"{esmPath}\" \"{jsonPath}\"")
+                {
+                    WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                var convProcess = Process.Start(convStartInfo);
+                convProcess.WaitForExit();
+            }
+            /* Process json */
+            Lort.Log($"Loading 'cache\\morrowind.json' ...", Lort.Type.Main);
+            Lort.Log($"Delete this file if you change the load order.", Lort.Type.Main);
+
+            string tempRawJson = File.ReadAllText(jsonPath);
             JsonArray json = JsonNode.Parse(tempRawJson).AsArray();
 
             recordsByType = new Dictionary<Type, Dictionary<string, JsonNode>>();
@@ -82,9 +132,9 @@ namespace JortPob
                 }
                 else
                 {
-                    recordsByType[type].Add(record["id"].ToString(), record);
+                        recordsByType[type].Add(record["id"].ToString(), record);
+                    }
                 }
-            }
 
             /* Handle dialog stuff now */
             dialog = new();
@@ -96,7 +146,7 @@ namespace JortPob
 
                 if (type == Type.Dialogue)
                 {
-                    string idstr = record["id"].ToString();
+                    string idstr = record["id"].ToString().Trim();
                     string typestr = idstr.Replace(" ", "");
                     string diatype = record["dialogue_type"].ToString();
                     typestr = new String(typestr.Where(c => c != '-' && (c < '0' || c > '9')).ToArray());
@@ -145,27 +195,32 @@ namespace JortPob
             interior = cells[1];
             landscapesByCoordinate = new();
 
-            /* Post processing of local variables. */
-            /* Local variables need to be created and initialized as a fixed "unset" value */
-            /* We cannot simply instance local vars on the fly as some contexts that are looking for them need to know if they exists (filters for examlpe) */
-            /* So we do a quick scan through all papyrus dialog snippets and papyrus scripts (@TODO that part) to find them and create them now */
-            foreach (DialogRecord topic in dialog)
+            /* Load and set defaults for all global variables listed in the ESM */
+            List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
+            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
+            foreach (JsonNode jsonNode in globalVarJson)
             {
-                foreach (DialogInfoRecord info in topic.infos)
+                string id = jsonNode["id"].GetValue<string>();
+                string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
+                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); globalVarFloats.Add(id.ToLower()); continue; }
+                int value = jsonNode["value"]["data"].GetValue<int>();
+                scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
+            }
+
+            /* Process papyrus scripts */
+            scripts = new();
+            List<JsonNode> scriptJsons = [.. GetAllRecordsByType(ESM.Type.Script)];
+            foreach(JsonNode jsonNode in scriptJsons)
+            {
+                try
                 {
-                    if (info.script != null)
-                    {
-                        foreach (DialogPapyrus.PapyrusCall call in info.script.calls)
-                        {
-                            if (call.type == DialogPapyrus.PapyrusCall.Type.Set)
-                            {
-                                if(!call.parameters[0].Contains(".")) { continue; } // if the variable name doesn't contain a '.' then it's a global not a local
-                                Script.Flag lvar = scriptManager.GetFlag(Flag.Designation.Local, call.parameters[0]);
-                                if(lvar == null) { scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Flag.Designation.Local, call.parameters[0], (uint)Utility.Pow(2, (uint)Flag.Type.Short) - 1); }
-                            }
-                        }
-                    }
+                    Papyrus papyrus = new(jsonNode);
+                    if (papyrus.HasCall(Papyrus.Call.Type.Float)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS FLOAT", Lort.Type.Debug); continue; }  // discard scripts with float vars in it for sanity
+                    if (papyrus.HasSignedInt()) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS SIGNED INT", Lort.Type.Debug); continue; } // discard scripts with negative numbers
+                    if (papyrus.HasVariable(globalVarFloats)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS GLOBALVAR FLOAT", Lort.Type.Debug); continue; } // discard scripts that reference a float globalvariable
+                    scripts.Add(papyrus);
                 }
+                catch { Lort.Log($" ## FAILED TO PARSE SCRIPT :: {jsonNode["id"].GetValue<string>()}", Lort.Type.Debug); }
             }
 
             /* Load faction info from esm */
@@ -210,7 +265,7 @@ namespace JortPob
         {
             foreach (Cell cell in exterior)
             {
-                if (cell.coordinate == position) { return cell; }
+                if (cell.coordinate == position && !cell.HasFlag(Cell.Flag.IsInterior)) { return cell; }
             }
             return null;
         }
@@ -271,8 +326,26 @@ namespace JortPob
             }
         }
 
+        public Faction GetFaction(string id)
+        {
+            foreach (Faction faction in factions)
+            {
+                if (faction.id == id) { return faction; }
+            }
+            return null;
+        }
+
+        public Papyrus GetPapyrus(string id)
+        {
+            foreach (Papyrus papyrus in scripts)
+            {
+                if (papyrus.id == id) { return papyrus; }
+            }
+            return null;
+        }
+
         /* Get dialog and character data for building esd */
-        public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(NpcContent npc)
+        public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, NpcContent npc)
         {
             List<Tuple<DialogRecord, List<DialogInfoRecord>>> ds = new();  // i am really sorry about this type
             foreach(DialogRecord dialogRecord in dialog)
@@ -283,14 +356,14 @@ namespace JortPob
                 List<DialogInfoRecord> infos = new();
                 foreach(DialogInfoRecord info in dialogRecord.infos)
                 {
-                    // Check if the npc meets all static requirements for this dialog line
-                    if (info.speaker != null && info.speaker != npc.id) { continue; }
-                    if (info.race != NpcContent.Race.Any && info.race != npc.race) { continue; }
-                    if (info.job != null && info.job != npc.job) { continue; }
-                    if (info.faction != null && info.faction != npc.faction) { continue; }
-                    if (info.rank > npc.rank) { continue; }
-                    if (info.cell != null && npc.cell.name != null && !npc.cell.name.ToLower().StartsWith(info.cell.ToLower())) { continue; }
-                    if (info.sex != NpcContent.Sex.Any && info.sex != npc.sex) { continue; }
+                    //if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Flee) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
+                    if (info.type == DialogRecord.Type.Intruder) { continue; } // discarding this for now
+
+                    // Check if the npc meets all static requirements for this dialog line. this includes resolving some filter to see if they can ever pass
+                    if (info.IsUnreachableFor(scriptManager, npc)) { continue; }
 
                     infos.Add(info);
 
@@ -324,7 +397,7 @@ namespace JortPob
                 string rankName = rankNames[i].GetValue<string>();
                 JsonNode rankRequiremnt = rankRequirements[i];
                 int reputation = rankRequiremnt["reputation"].GetValue<int>();
-                Rank rank = new(rankName, i, reputation);
+                Rank rank = new(rankName, i+1, reputation);
                 ranks.Add(rank);
             }
         }

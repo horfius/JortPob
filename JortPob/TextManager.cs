@@ -15,7 +15,7 @@ namespace JortPob
 
         private Dictionary<TextType, FMG> menu, item;
 
-        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId;
+        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId, nextTutorial, nextMapEventText;
 
         public TextManager()
         {
@@ -24,6 +24,8 @@ namespace JortPob
             nextActionButtonId = 10000;
             nextLocationId = 11000000;
             nextMenuId = 508000;
+            nextTutorial = 500000;
+            nextMapEventText = 20209000;
 
             Dictionary<TextType, FMG> LoadMsgBnd(string path)
             {
@@ -84,6 +86,20 @@ namespace JortPob
             return id;
         }
 
+        /* Find and return a topic, or create it and return that */
+        public int GetTopic(string text)
+        {
+            FMG fmg = menu[TextType.EventTextForTalk];
+            foreach (FMG.Entry entry in fmg.Entries)
+            {
+                if(entry.Text == text) { return entry.ID; }
+            }
+
+            int id = nextTopicId++;
+            fmg.Entries.Add(new(id, text));
+            return id;
+        }
+
         public int AddNpcName(string text)
         {
             int id = nextNpcNameId++;
@@ -123,6 +139,29 @@ namespace JortPob
             fmg.Entries.Add(new(id, text));
             fmg = menu[TextType.GR_LineHelp];
             fmg.Entries.Add(new(id, desc));
+            return id;
+        }
+
+        public int AddTutorial(string title, string text)
+        {
+            int id = nextTutorial++;
+            FMG fmgTitle = menu[TextType.TutorialTitle];
+            FMG fmgBody = menu[TextType.TutorialBody];
+            fmgTitle.Entries.Add(new(id, title));
+            fmgBody.Entries.Add(new(id, text));
+            return id;
+        }
+
+        public int AddMapEventText(string text)
+        {
+            foreach (FMG.Entry entry in menu[TextType.EventTextForMap].Entries)
+            {
+                if (entry.Text == text) { return entry.ID; }
+            }
+
+            int id = nextMapEventText++;
+            FMG fmg = menu[TextType.EventTextForMap];
+            fmg.Entries.Add(new(id, text));
             return id;
         }
 
