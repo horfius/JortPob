@@ -280,6 +280,10 @@ namespace JortPob
                         door.warp.y = to.group.unk;
                         door.warp.block = to.group.block;
                         door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->{door.warp.cell}");
+                        string areaName;
+                        if (to.cell.name.Contains(",")) { areaName = to.cell.name.Split(",")[^1].Trim(); }
+                        else { areaName = to.cell.name; }
+                        door.warp.prompt = $"Enter {areaName}";
                         to.AddWarp(door.warp);
                     }
                     // Door goes to exterior cell
@@ -292,6 +296,7 @@ namespace JortPob
                         door.warp.y = to.coordinate.y;
                         door.warp.block = to.block;
                         door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]");
+                        door.warp.prompt = $"Exit";
                         to.AddWarp(door.warp);
                     }
                 }

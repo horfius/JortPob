@@ -179,7 +179,7 @@ namespace JortPob
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
                     asset.EntityID = content.entity;
 
-                    if (content.warp != null) { script.RegisterLoadDoor(content); } // if the door is a load door we need to generate scripts for it
+                    if (content.warp != null) { script.RegisterLoadDoor(param, content, modelInfo); } // if the door is a load door we need to generate scripts for it
                     else if (Const.DEBUG_DISCARD_ANIMATED_DOORS) { continue; } // if the debug flag is set, skip any doors that are NOT load doors. useful for debugging until we get animated doors working
 
                     msb.Parts.Assets.Add(asset);
@@ -234,6 +234,7 @@ namespace JortPob
                         treasurePart.Position = enemy.Position;
 
                         treasure.Name = $"DeadBodyTreaure->{npc.id}";
+                        treasure.ActionButtonID = param.GenerateActionButtonItemParam($"Loot {npc.name}");
                         treasure.TreasurePartName = treasurePart.Name;
 
                         msb.Parts.Assets.Add(treasurePart);
@@ -278,6 +279,7 @@ namespace JortPob
                         if (content.entity <= 0) { content.entity = script.CreateEntity(EntityType.Asset, content.id); }  // if this content does not yet have an entity id, give it one
                         treasure.ItemLotID = param.GenerateContentItemLot(script, content, itemInfo);
                         treasure.Name = $"ItemTreasure->{content.id}";
+                        treasure.ActionButtonID = param.GenerateActionButtonItemParam(content.ActionText());
                         treasure.TreasurePartName = asset.Name;
 
                         msb.Events.Treasures.Add(treasure);
@@ -318,6 +320,7 @@ namespace JortPob
                         if (content.entity <= 0) { content.entity = script.CreateEntity(EntityType.Asset, content.id); }  // if this content does not yet have an entity id, give it one
                         treasure.ItemLotID = param.GenerateContainerItemLot(script, content, inventory);
                         treasure.Name = $"ContainerTreasure->{content.id}";
+                        treasure.ActionButtonID = param.GenerateActionButtonItemParam(content.ActionText());
                         treasure.TreasurePartName = asset.Name;
 
                         msb.Events.Treasures.Add(treasure);
@@ -495,7 +498,7 @@ namespace JortPob
                         asset.UnkPartNames[3] = rootCollision.Name;
                         asset.UnkPartNames[5] = rootCollision.Name;
 
-                        if (content.warp != null) { script.RegisterLoadDoor(content); } // if the door is a load door we need to register scripts for it
+                        if (content.warp != null) { script.RegisterLoadDoor(param, content, modelInfo); } // if the door is a load door we need to register scripts for it
                         else if (Const.DEBUG_DISCARD_ANIMATED_DOORS) { continue; } // if the debug flag is set, skip any doors that are NOT load doors. useful for debugging until we get animated doors working
 
                         msb.Parts.Assets.Add(asset);
@@ -555,6 +558,7 @@ namespace JortPob
                             treasurePart.Position = enemy.Position;
 
                             treasure.Name = $"DeadBodyTreaure->{npc.id}";
+                            treasure.ActionButtonID = param.GenerateActionButtonItemParam($"Loot {npc.name}");
                             treasure.TreasurePartName = treasurePart.Name;
 
                             msb.Parts.Assets.Add(treasurePart);
@@ -602,6 +606,7 @@ namespace JortPob
                             if (content.entity <= 0) { content.entity = script.CreateEntity(EntityType.Asset, content.id); }  // if this content does not yet have an entity id, give it one
                             treasure.ItemLotID = param.GenerateContentItemLot(script, content, itemInfo);
                             treasure.Name = $"ItemTreasure->{content.id}";
+                            treasure.ActionButtonID = param.GenerateActionButtonItemParam(content.ActionText());
                             treasure.TreasurePartName = asset.Name;
 
                             msb.Events.Treasures.Add(treasure);
@@ -647,6 +652,7 @@ namespace JortPob
                             if (content.entity <= 0) { content.entity = script.CreateEntity(EntityType.Asset, content.id); }  // if this content does not yet have an entity id, give it one
                             treasure.ItemLotID = param.GenerateContainerItemLot(script, content, inventory);
                             treasure.Name = $"ContainerTreasure->{content.id}";
+                            treasure.ActionButtonID = param.GenerateActionButtonItemParam(content.ActionText());
                             treasure.TreasurePartName = asset.Name;
 
                             msb.Events.Treasures.Add(treasure);
@@ -764,10 +770,6 @@ namespace JortPob
             param.GenerateAssetRows(cache.emitters);
             param.GenerateAssetRows(cache.liquids);
             param.GenerateMapInfoParam(layout);
-            param.GenerateActionButtonParam(1500, "Enter");
-            param.GenerateActionButtonParam(1501, "Exit");
-            param.GenerateActionButtonParam(6010, "Pickpocket");
-            param.GenerateActionButtonParam(6020, "Examine");
             param.SetAllMapLocation();
             param.GenerateCustomCharacterCreation();
             param.KillMapHeightParams();    // murder kill

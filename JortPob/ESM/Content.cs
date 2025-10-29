@@ -1,5 +1,6 @@
 ﻿using HKLib.hk2018.hk;
 using JortPob.Common;
+using SoulsFormats.Formats.Morpheme.MorphemeBundle;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -13,7 +14,8 @@ namespace JortPob
     {
         public readonly Cell cell;
 
-        public readonly string id;  // record id
+        public readonly string id;   // record id
+        public readonly string name; // can be null!
         public readonly ESM.Type type;
 
         public uint entity;  // entity id, usually 0
@@ -31,6 +33,7 @@ namespace JortPob
         {
             this.cell = cell;
             id = json["id"].ToString();
+            name = record.json["name"] != null ? record.json["name"].GetValue<string>() : null;
 
             type = record.type;
             entity = 0;
@@ -103,7 +106,7 @@ namespace JortPob
         public enum Race { Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
         public enum Sex { Any, Male, Female };
 
-        public readonly string name, job, faction; // class is job, cant used reserved word
+        public readonly string job, faction; // class is job, cant used reserved word
         public readonly Race race;
         public readonly Sex sex;
 
@@ -135,7 +138,6 @@ namespace JortPob
 
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            name = record.json["name"].ToString();
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
             job = record.json["class"].ToString();
             faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
@@ -219,6 +221,7 @@ namespace JortPob
             // this is the actual warp data we generate
             public int map, x, y, block;
             public uint entity;
+            public string prompt; // used for the action button prompt. this is either the cell name, region name, or a generic "Morrowind" as a last case
 
             public Warp(JsonNode json)
             {
@@ -307,6 +310,13 @@ namespace JortPob
                 inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));  // get item record id and quantity from json
             }
         }
+
+        // Generates button prompt text for looting this container
+        public string ActionText()
+        {
+            if (ownerNpc != null || ownerFaction != null) { return $"Steal from {name}"; }
+            return $"Loot {name}";
+        }
     }
 
     /* static mesh of an item placed in the world that can **CAN** (but not always) be pickupable */
@@ -325,6 +335,13 @@ namespace JortPob
             if (json["owner"] != null ) { ownerNpc = json["owner"].GetValue<string>(); }
             if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
             value = record.json["data"]["value"].GetValue<int>();
+        }
+
+        // Generates button prompt text for looting this container
+        public string ActionText()
+        {
+            if (ownerNpc != null || ownerFaction != null) { return $"Steal {name}"; }
+            return $"Pick up {name}";
         }
     }
 

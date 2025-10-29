@@ -88,9 +88,11 @@ namespace JortPob
 
         public readonly Dictionary<ParamType, FsParam> param;
 
+        public Dictionary<string, int> interactActionButtons, itemActionButtons; // string is the text of the button prompt, int is the row id
+
         public short terrainDrawParamID;
         private Dictionary<int, int> lodPartDrawParamIDs; // first int is the index of the array from Const.ASSET_LOD_VALUES, second int is the param row id
-        private int nextMessageParam, nextMapItemLotId, nextEnemyItemLotId;
+        private int nextMessageParam, nextMapItemLotId, nextEnemyItemLotId, nextActionButtonId;
 
         public Paramanager(TextManager textManager)
         {
@@ -99,6 +101,10 @@ namespace JortPob
             nextMessageParam = 3000;
             nextMapItemLotId = 120000;
             nextEnemyItemLotId = 720000000;
+            nextActionButtonId = 300000;
+
+            interactActionButtons = new();
+            itemActionButtons = new();
 
             SoulsFormats.BND4 paramBnd = SoulsFormats.SFUtil.DecryptERRegulation(Utility.ResourcePath(@"misc\regulation.bin"));
             string[] files = Directory.GetFiles(Utility.ResourcePath(@"misc\paramdefs"));
@@ -419,11 +425,6 @@ namespace JortPob
         // @TODO: maybe move weatherdata to layout or its own class since its used by multiple toher thingsthingso
         public static WeatherData GetWeatherData(string region)
         {
-            if(region == null)
-            {
-
-            }
-
             foreach(WeatherData wd in EXTERIOR_WEATHER_DATA_LIST)
             {
                 foreach(string m in wd.match)
@@ -568,19 +569,88 @@ namespace JortPob
              AddRow(npcParam, row);
         }
 
-        public void GenerateActionButtonParam(int id, string text)
+        public int GenerateActionButtonItemParam(string text)
         {
+            if (itemActionButtons.ContainsKey(text)) { return itemActionButtons[text]; } // already exists, return row to it
+
+            int rowId = nextActionButtonId++;
+
             FsParam actionParam = param[ParamType.ActionButtonParam];
-            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is pick up runes prompt
+            FsParam.Row row = CloneRow(actionParam[4000], text, rowId); // 4000 is default pickup item prompt
 
             int textId = textManager.AddActionButton(text);
 
-            row.Cells[5].SetValue(2f);   // radius
-            row.Cells[9].SetValue(1.5f); // hegiht high
-            row.Cells[10].SetValue(-1.5f); // height low
-            row.Cells[23].SetValue(textId);
+            row["radius"].Value.SetValue(1f); // radius
+            row["angle"].Value.SetValue(180); // angle from dmy
+            row["depth"].Value.SetValue(0f);
+            row["width"].Value.SetValue(0f);
+            row["height"].Value.SetValue(1.75f);
+            row["baseHeightOffset"].Value.SetValue(-1.25f);
+            row["angleCheckType"].Value.SetValue((byte)0);
+            row["allowAngle"].Value.SetValue(180);  // player look angle
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(0f); // cooldown
 
             AddRow(actionParam, row);
+            itemActionButtons.Add(text, rowId);
+
+            return rowId;
+        }
+
+        public int GenerateActionButtonInteractParam(string text)
+        {
+            if (interactActionButtons.ContainsKey(text)) { return interactActionButtons[text]; } // already exists, return row to it
+
+            int rowId = nextActionButtonId++;
+
+            FsParam actionParam = param[ParamType.ActionButtonParam];
+            FsParam.Row row = CloneRow(actionParam[6000], text, rowId); // 6000 is talk prompt
+
+            int textId = textManager.AddActionButton(text);
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(3f); // cooldown
+
+            AddRow(actionParam, row);
+            interactActionButtons.Add(text, rowId);
+
+            return rowId;
+        }
+
+        public int GenerateActionButtonDoorParam(ModelInfo modelInfo, string text)
+        {
+            int rowId = nextActionButtonId++;
+
+            FLVER2 flver = FLVER2.Read($"{Const.CACHE_PATH}{modelInfo.path}"); // load flver of this door so we can look at its bounding box
+            float x = flver.Nodes[0].BoundingBoxMax.X - flver.Nodes[0].BoundingBoxMin.X;
+            float z = flver.Nodes[0].BoundingBoxMax.Z - flver.Nodes[0].BoundingBoxMin.Z;
+            float width = x > z ? x : z;
+            float top = Math.Max(0, flver.Nodes[0].BoundingBoxMax.Y);
+            float bottom = Math.Abs(flver.Nodes[0].BoundingBoxMin.Y);
+
+            FsParam actionParam = param[ParamType.ActionButtonParam];
+            FsParam.Row row = CloneRow(actionParam[1000], text, rowId); // 1000 is pick up runes prompt
+
+            int textId = textManager.AddActionButton(text);
+
+            row["regionType"].Value.SetValue((byte)0); // cylinder
+            row["dummyPoly1"].Value.SetValue(-1); // these seem to be broken in ER so setting -1
+            row["dummyPoly2"].Value.SetValue(-1);
+            row["radius"].Value.SetValue(width); // radius
+            row["angle"].Value.SetValue(180); // angle from dmy
+            row["depth"].Value.SetValue(0f);
+            row["width"].Value.SetValue(0f);
+            row["height"].Value.SetValue(top + bottom);
+            row["baseHeightOffset"].Value.SetValue(-bottom - 0.25f);
+            row["angleCheckType"].Value.SetValue((byte)0);
+            row["allowAngle"].Value.SetValue(90);  // player look angle
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(3f); // cooldown
+
+            AddRow(actionParam, row);
+            return rowId;
         }
 
         /* Set all map placenames to "Morrowind" for now. Later we can edit the map mask and setup the regions properly */

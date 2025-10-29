@@ -420,7 +420,7 @@ namespace JortPob
         {
             string flagName = $"{itemInfo.type}:{itemInfo.row}:{quantity}";
             Flag removeItemFlag = GetFlag(Designation.RemoveItem, flagName);
-            if (removeItemFlag == null) { return removeItemFlag; }
+            if (removeItemFlag != null) { return removeItemFlag; }
 
             removeItemFlag = CreateFlag(Category.Temporary, Flag.Type.Bit, Designation.RemoveItem, flagName);
             init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.RemoveItem]}, {removeItemFlag.id}, {(int)itemInfo.type}, {(int)itemInfo.row}, {quantity}, {removeItemFlag.id});"));

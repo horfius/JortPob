@@ -18,7 +18,7 @@ namespace JortPob
         public static void Generate(Layout layout, ScriptManager scriptManager, Paramanager paramanager)
         {
 
-            /* DEBUG - Add a warp from church of elleh to Seyda Neen */ // @TODO: Move this into it's own class or smth?
+            /* DEBUG - Add a warp from stranded graveyard to various useful locations for debuggin */
             /* @TODO: DELETE THIS WHEN IT IS NO LONGER NEEDED! */
             MSBE debugMSB = MSBE.Read(Utility.ResourcePath(@"test\m18_00_00_00.msb.dcx"));
             MSBE.Part.Asset debugThingToDupe = null;
@@ -51,7 +51,7 @@ namespace JortPob
             debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"RegisterBonfire(18000000, 18001950, 0, 0, 0, 5);"));
             debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"RegisterBonfire(18000001, 18001951, 0, 0, 0, 5);"));
             List<String> debugWarpCellList = new() { "Seyda Neen", "Balmora", "Tel Mora", "Pelagiad", "Caldera", "Khuul", "Gnisis", "Ald Ruhn" };
-            int actionParamId = 1555, debugCounty = 0;
+            int debugCounty = 0;
             for (int i = 0; i < debugWarpCellList.Count(); i++)
             {
                 string areaName = debugWarpCellList[i];
@@ -72,14 +72,13 @@ namespace JortPob
                     Script.Flag debugEventFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugWarp");
                     EMEVD.Event debugWarpEvent = new(debugEventFlag.id);
 
-                    paramanager.GenerateActionButtonParam(actionParamId, $"Debug Warp: {areaName}");
-                    debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugAsset.EntityID});"));
+                    int actionButtonId = paramanager.GenerateActionButtonInteractParam($"Debug Warp: {areaName}");
+                    debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionButtonId}, {debugAsset.EntityID});"));
                     debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"WarpPlayer({area.map}, {area.coordinate.x}, {area.coordinate.y}, 0, {area.warps[0].id}, 0)"));
 
                     debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"InitializeEvent(0, {debugEventFlag.id})"));
 
                     debugScript.emevd.Events.Add(debugWarpEvent);
-                    actionParamId++;
                     debugCounty++;
                 }
             }
@@ -104,9 +103,9 @@ namespace JortPob
             debugMSB.Parts.Assets.Add(debugResetAsset);
 
             Script.Flag debugResetFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugReset");
-            paramanager.GenerateActionButtonParam(actionParamId, $"Debug: Reset Save Data!");
+            int actionButtonId2 = paramanager.GenerateActionButtonInteractParam($"Debug: Reset Save Data!");
             EMEVD.Event debugResetEvent = new(debugResetFlag.id);
-            debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugResetAsset.EntityID});"));
+            debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionButtonId2}, {debugResetAsset.EntityID});"));
 
             int delayCounter = 0; // if you do to much in a single frame the game crashes so every hundred flags we wait a frame
             foreach (Script.Flag flag in allFlags)

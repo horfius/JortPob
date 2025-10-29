@@ -101,10 +101,10 @@ namespace JortPob
             ownedContent = new();
         }
 
-        public void RegisterLoadDoor(DoorContent door)
+        public void RegisterLoadDoor(Paramanager paramanager, DoorContent door, ModelInfo modelInfo)
         {
-            int actionParam = door.warp.map == 60 ? 1501 : 1500;  // enter or exit
-            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParam}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
+            int actionParamId = paramanager.GenerateActionButtonDoorParam(modelInfo, door.warp.prompt);
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParamId}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
         }
 
         public void RegisterItemAsset(ItemContent item)
