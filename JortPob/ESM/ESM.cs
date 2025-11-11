@@ -190,9 +190,7 @@ namespace JortPob
             }
 
             /* Multi threading to speed this up... */
-            List<List<Cell>> cells = CellWorker.Go(this);
-            exterior = cells[0];
-            interior = cells[1];
+            (exterior, interior) = CellWorker.Go(this);
             landscapesByCoordinate = new();
 
             /* Load and set defaults for all global variables listed in the ESM */
