@@ -1,0 +1,14 @@
+{
+  "comment": "Silver staff created from a copy of demi human queen staff",
+  "type": "Weapon",
+  "row": 33060000,
+  "text": {
+    "name": "Silver Staff",
+    "description": "A nice silver staff!"
+  },
+  "data": {
+    "properMagic": 12,
+    "attackBasePhysics": 75,
+    "correctStrength": 85
+  }
+}

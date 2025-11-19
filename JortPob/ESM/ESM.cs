@@ -23,7 +23,7 @@ namespace JortPob
         public enum Type
         {
             Header, GameSetting, GlobalVariable, Class, Faction, Race, Sound, Skill, MagicEffect, Script, Region, Birthsign, LandscapeTexture, Spell, Static, Door,
-            MiscItem, Weapon, Container, Creature, Bodypart, Light, Enchantment, Npc, Armor, Clothing, RepairItem, Activator, Apparatus, Lockpick, Probe, Ingredient,
+            MiscItem, Weapon, Container, Creature, Bodypart, Light, Enchanting, Npc, Armor, Clothing, RepairItem, Activator, Apparatus, Lockpick, Probe, Ingredient,
             Book, Alchemy, LeveledItem, LeveledCreature, Cell, Landscape, PathGrid, SoundGen, Dialogue, DialogueInfo
         }
 

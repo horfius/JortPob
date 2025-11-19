@@ -5232,6 +5232,9 @@
     <None Update="Resources\overrides\character_creation_race.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\overrides\items\silver staff.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\overrides\item_remap.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Converters;
+﻿using JortPob.Common;
+using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -26,13 +27,15 @@ namespace JortPob
         public readonly List<ItemInfo> items; // string is record if of item from MW. int is the row id of the item in Elden Ring, type is type of item in ER
 
         private Paramanager paramanager;
+        private SpeffManager speffManager;
         private TextManager textManager;
 
         private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId;
 
-        public ItemManager(ESM esm, Paramanager paramanager, TextManager textManager)
+        public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, TextManager textManager)
         {
             this.paramanager = paramanager;
+            this.speffManager = speffManager;
             this.textManager = textManager;
 
             items = new();
@@ -119,13 +122,73 @@ namespace JortPob
                     int value = json["data"]["value"].GetValue<int>();
 
                     bool scriptItem = scriptItems.Contains(id);
+                    Override.ItemDefinition def = Override.GetItemDefinition(id);
                     Override.ItemRemap remap = Override.GetItemRemap(id);
 
-                    if (remap != null)
+                    /* Item id has a corresponding definition json file from overrides/items */   // this creates a new item for this id that is defined by data in the json file
+                    if (def != null)
                     {
-                        ItemInfo it = new(id, remap.type, remap.row, value, scriptItem);
+                        ItemInfo it;
+                        switch(def.type)
+                        {
+                            case Type.Weapon:
+                                it = new(def.id, Type.Weapon, nextWeaponId, value, scriptItem);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamWeapon, def.id, def.row, nextWeaponId, def.data);
+                                textManager.AddWeapon(it.row, def.text.name, def.text.description);
+                                nextWeaponId += 10000;
+                                break;
+                            case Type.Armor:
+                                it = new(def.id, Type.Armor, nextArmorId, value, scriptItem);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamProtector, def.id, def.row, nextWeaponId, def.data);
+                                textManager.AddArmor(it.row, def.text.name, def.text.summary, def.text.description);
+                                nextArmorId += 10000;
+                                break;
+                            case Type.Accessory:
+                                it = new(def.id, Type.Accessory, nextAccessoryId, value, scriptItem);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamAccessory, def.id, def.row, nextWeaponId, def.data);
+                                textManager.AddAccessory(it.row, def.text.name, def.text.summary, def.text.description);
+                                nextAccessoryId += 10;
+                                break;
+                            case Type.Goods:
+                                it = new(def.id, Type.Goods, nextGoodsId, value, scriptItem);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamGoods, def.id, def.row, nextWeaponId, def.data);
+                                textManager.AddGoods(it.row, def.text.name, def.text.summary, def.text.description, def.text.effect);
+                                nextGoodsId += 10;
+                                break;
+                            default:
+                                throw new Exception($"Item definition for id {id} has invalid type {def.type}");
+                        }
                         items.Add(it);
                     }
+                    /* Item id has a corresponding entry in the item_remap.json file */   // this points the item id at an existing item row. Not a copy, more like a reference
+                    else if (remap != null)
+                    {
+                        ItemInfo it = new(id, remap.type, remap.row, value, scriptItem);                        
+                        items.Add(it);
+
+                        // if the item remap has text changes (name/description) we apply those!
+                        if (remap.HasTextChanges())
+                        {
+                            switch (remap.type)
+                            {
+                                case Type.Weapon:
+                                    textManager.RenameWeapon(it.row, remap.text.name, remap.text.description);
+                                    break;
+                                case Type.Armor:
+                                    textManager.RenameArmor(it.row, remap.text.name, remap.text.summary, remap.text.description);
+                                    break;
+                                case Type.Accessory:
+                                    textManager.RenameAccessory(it.row, remap.text.name, remap.text.summary, remap.text.description);
+                                    break;
+                                case Type.Goods:
+                                    textManager.RenameGoods(it.row, remap.text.name, remap.text.summary, remap.text.description, remap.text.effect);
+                                    break;
+                                default:
+                                    throw new Exception($"Item remap for id {id} has invalid type {def.type}");
+                            }
+                        }
+                    }
+                    /* Item id has no matches so we just generate an item from data in the ESM. This can be bad for soemthings but fine for others. Really just depends! */
                     else if (scriptItem)
                     {
                         if (json["has_script_reference"] == null) { json["has_script_reference"] = scriptItem; } // add this data to the json so i dont have to pass this var through parameters
@@ -270,9 +333,13 @@ namespace JortPob
             FsParam weaponParam = paramanager.param[Paramanager.ParamType.EquipParamWeapon];
             FsParam.Row row = paramanager.CloneRow(weaponParam[rowToCopy], id, nextWeaponId);
 
+            string enchantId = json["enchanting"] != null ? json["enchanting"].GetValue<string>().ToLower() : null;
+            SpeffManager.SpeffEnchant speff = speffManager.GetEnchantingSpeff(enchantId);
+
             textManager.AddWeapon(row.ID, json["name"].GetValue<string>(), "Descriptions describe things!");
 
             row["rarity"].Value.SetValue((byte)0);
+            if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(weaponParam, row);
             items.Add(new(id, Type.Weapon, row.ID, value, hasScriptReference));
@@ -287,9 +354,13 @@ namespace JortPob
             FsParam weaponParam = paramanager.param[Paramanager.ParamType.EquipParamWeapon];
             FsParam.Row row = paramanager.CloneRow(weaponParam[31330000], id, nextWeaponId); // 31330000 is a basic heater shield
 
+            string enchantId = json["enchanting"] != null ? json["enchanting"].GetValue<string>().ToLower() : null;
+            SpeffManager.SpeffEnchant speff = speffManager.GetEnchantingSpeff(enchantId);
+
             textManager.AddWeapon(row.ID, json["name"].GetValue<string>(), "Descriptions describe things!");
 
             row["rarity"].Value.SetValue((byte)0);
+            if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(weaponParam, row);
             items.Add(new(id, Type.Weapon, row.ID, value, hasScriptReference));
@@ -329,9 +400,13 @@ namespace JortPob
             FsParam armorParam = paramanager.param[Paramanager.ParamType.EquipParamProtector];
             FsParam.Row row = paramanager.CloneRow(armorParam[rowToCopy], id, nextArmorId);
 
+            string enchantId = json["enchanting"] != null ? json["enchanting"].GetValue<string>().ToLower() : null;
+            SpeffManager.SpeffEnchant speff = speffManager.GetEnchantingSpeff(enchantId);
+
             textManager.AddArmor(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
             row["rarity"].Value.SetValue((byte)0);
+            if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(armorParam, row);
             items.Add(new(id, Type.Armor, row.ID, value, hasScriptReference));
@@ -368,9 +443,13 @@ namespace JortPob
             FsParam armorParam = paramanager.param[Paramanager.ParamType.EquipParamProtector];
             FsParam.Row row = paramanager.CloneRow(armorParam[rowToCopy], id, nextArmorId);
 
+            string enchantId = json["enchanting"] != null ? json["enchanting"].GetValue<string>().ToLower() : null;
+            SpeffManager.SpeffEnchant speff = speffManager.GetEnchantingSpeff(enchantId);
+
             textManager.AddArmor(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
             row["rarity"].Value.SetValue((byte)0);
+            if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(armorParam, row);
             items.Add(new(id, Type.Armor, row.ID, value, hasScriptReference));
@@ -401,9 +480,13 @@ namespace JortPob
             FsParam accessoryParam = paramanager.param[Paramanager.ParamType.EquipParamAccessory];
             FsParam.Row row = paramanager.CloneRow(accessoryParam[rowToCopy], id, nextAccessoryId);
 
+            string enchantId = json["enchanting"] != null ? json["enchanting"].GetValue<string>().ToLower() : null;
+            SpeffManager.SpeffEnchant speff = speffManager.GetEnchantingSpeff(enchantId);
+
             textManager.AddAccessory(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
             row["rarity"].Value.SetValue((byte)0);
+            if (speff != null) { row["refId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(accessoryParam, row);
             items.Add(new(id, Type.Accessory, row.ID, value, hasScriptReference));
@@ -437,7 +520,12 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            SpeffManager.Speff speff = speffManager.GetAlchemySpeff(id);
+
+            row["sellValue"].Value.SetValue(json["data"]["value"].GetValue<int>());
             row["rarity"].Value.SetValue((byte)0);
+            row["maxNum"].Value.SetValue((short)5);
+            row["refId_default"].Value.SetValue(speff.row);
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));

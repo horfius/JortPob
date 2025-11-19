@@ -204,6 +204,65 @@ namespace JortPob
             fmgSummary.Entries.Add(new(id, summary));
             fmgDescription.Entries.Add(new(id, description));
         }
+        public void RenameWeapon(int id, string name, string description)
+        {
+            FMG fmgName = item[TextType.WeaponName];
+            FMG fmgDescription = item[TextType.WeaponCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (description != null) { entryDescription.Text = description; }
+        }
+
+        public void RenameArmor(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.ProtectorName];
+            FMG fmgSummary = item[TextType.ProtectorInfo];
+            FMG fmgDescription = item[TextType.ProtectorCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
+        }
+
+        public void RenameGoods(int id, string name, string summary, string description, string effect)
+        {
+            FMG fmgName = item[TextType.GoodsName];
+            FMG fmgSummary = item[TextType.GoodsInfo];
+            FMG fmgDescription = item[TextType.GoodsCaption];
+            FMG fmgEffect = item[TextType.GoodsInfo2];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+            FMG.Entry entryEffect = GetEntry(fmgEffect, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
+            if (effect != null && entryEffect != null) { entryEffect.Text = effect; }
+        }
+
+        public void RenameAccessory(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.AccessoryName];
+            FMG fmgSummary = item[TextType.AccessoryInfo];
+            FMG fmgDescription = item[TextType.AccessoryCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
+        }
 
         public void Write(string dir)
         {

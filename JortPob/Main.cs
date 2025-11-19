@@ -31,11 +31,18 @@ namespace JortPob
             ESM esm = new ESM(scriptManager);                                               // Morrowind ESM parse and partial serialization
             Cache cache = Cache.Load(esm);                                                  // Load existing cache (FAST!) or generate a new one (SLOW!)
             TextManager text = new();                                                           // Manages FMG text files
+            IconManager icon = new(esm);                                                       // Manages the creation and assignment of item icons
+
+            /* DEBUG! DELETE ME! */
+            icon.Write();
+
             Paramanager param = new(text);                                                        // Class for managing PARAM files
-            ItemManager item = new(esm, param, text);                                                   // Handles generation and reampping of items
+            SpeffManager speff = new(esm, param, text);                                                   // Manages speff params, primarily for magic effects like potions and enchanted gear. NOT SPELLS!
+            ItemManager item = new(esm, param, speff, text);                                                   // Handles generation and reampping of items
             Layout layout = new(cache, esm, param, text, scriptManager);                          // Subdivides all content data from ESM into a more elden ring friendly format
             SoundManager sound = new();                                                         // Manages vcbanks
             NpcManager character = new(esm, sound, param, text, item, scriptManager);                 // Manages dialog esd
+
 
             // Helpers/shared values
             List<Tuple<Vector3, TerrainInfo>> emptyTerrainList = [];

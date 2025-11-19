@@ -3,7 +3,7 @@
     "id": "iron longsword",
     "type": "Weapon",
     "row": 2000000,
-    "comment": "Remapping 'iron longsword'' to the Elden Ring Longsword."
+    "comment": "Remapping 'iron longsword' to the Elden Ring Longsword."
   },
   {
     "id": "miner's pick",
@@ -16,12 +16,6 @@
     "type": "Weapon",
     "row": 41000000,
     "comment": "Longbow"
-  },
-  {
-    "id": "ring_keley",
-    "type": "Accessory",
-    "row": 1000,
-    "comment": "Fargoth's Ring to Crimson Amber Medalion"
   },
   {
     "id": "nuccius_ring",
@@ -57,6 +51,12 @@
     "id": "gold_001",
     "type": "Goods",
     "row": 2900,
+    "text": {
+      "name": "Coin pouch [1]",
+      "summary": "Gives  you cash",
+      "description": "Sack full of cash gamer girl!",
+      "effect": "Gives  you cash"
+    },
     "comment": "Single gold coin to Rune [1]"
   },
   {

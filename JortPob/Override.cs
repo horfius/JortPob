@@ -2,6 +2,7 @@
 using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using static JortPob.NpcContent;
 
 namespace JortPob
 {
@@ -22,6 +24,7 @@ namespace JortPob
         private static List<PlayerClass> CHARACTER_CREATION_CLASS;
         private static List<PlayerRace> CHARACTER_CREATION_RACE;
         private static List<ItemRemap> ITEM_REMAPS;
+        private static List<ItemDefinition> ITEM_DEFINITIONS;
 
         public static bool CheckDoNotPlace(string id)
         {
@@ -52,6 +55,15 @@ namespace JortPob
             return null;
         }
 
+        public static ItemDefinition GetItemDefinition(string id)
+        {
+            foreach (ItemDefinition def in ITEM_DEFINITIONS)
+            {
+                if (def.id == id) { return def; }
+            }
+            return null;
+        }
+
         /* load all the override jsons into this class */
         public static void Initialize()
         {
@@ -75,6 +87,13 @@ namespace JortPob
 
             /* Load item remapping list */
             ITEM_REMAPS = JsonSerializer.Deserialize<List<ItemRemap>>(File.ReadAllText(Utility.ResourcePath(@"overrides\item_remap.json")), new JsonSerializerOptions { IncludeFields = true, Converters = { new JsonStringEnumConverter() } });
+
+            /* Load all item definitinos from resources/override/items */
+            string[] itemFiles = Directory.GetFiles(Utility.ResourcePath(@"overrides\items"));
+            ITEM_DEFINITIONS = new();
+            foreach (string itemFile in itemFiles) {
+                ITEM_DEFINITIONS.Add(new ItemDefinition(itemFile));
+            }
         }
 
         /* Classes for serializing */
@@ -99,7 +118,54 @@ namespace JortPob
             public ItemManager.Type type;
             public int row;
 
+            public ItemText text;
+
             public ItemRemap() { }
+
+            public bool HasTextChanges()
+            {
+                return text != null && (text.name != null || text.summary != null || text.description != null || text.effect != null);
+            }
+        }
+
+        public class ItemText
+        {
+            public string name, summary, description, effect;
+
+            public ItemText() { }
+        }
+
+        public class ItemDefinition
+        {
+            public readonly string id, comment;
+            public readonly ItemManager.Type type;
+            public readonly int row;
+
+            public readonly ItemText text;
+            public readonly Dictionary<string, string> data;
+
+            public ItemDefinition(string jsonPath)
+            {
+                id = Utility.PathToFileName(jsonPath);
+
+                JsonNode json = JsonNode.Parse(File.ReadAllText(jsonPath));
+
+                comment = json["comment"].GetValue<string>();
+                type = (ItemManager.Type)System.Enum.Parse(typeof(ItemManager.Type), json["type"].GetValue<string>());
+                row = json["row"].GetValue<int>();
+
+                text = new();
+                text.name = json["text"]["name"] != null ? json["text"]["name"].GetValue<string>() : null;
+                text.summary = json["text"]["summary"] != null ? json["text"]["summary"].GetValue<string>() : null;
+                text.description = json["text"]["description"] != null ? json["text"]["description"].GetValue<string>() : null;
+                text.effect = json["text"]["effect"] != null ? json["text"]["effect"].GetValue<string>() : null;
+
+                data = new();
+                foreach(var property in json["data"].AsObject())
+                {
+                    data.Add(property.Key, property.Value.ToString());
+                }
+            }
         }
     }
 }
