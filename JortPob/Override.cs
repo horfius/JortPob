@@ -1,4 +1,5 @@
-﻿using JortPob.Common;
+﻿using HKLib.hk2018.hke;
+using JortPob.Common;
 using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using static JortPob.NpcContent;
+using static JortPob.Override;
 
 namespace JortPob
 {
@@ -25,6 +27,7 @@ namespace JortPob
         private static List<PlayerRace> CHARACTER_CREATION_RACE;
         private static List<ItemRemap> ITEM_REMAPS;
         private static List<ItemDefinition> ITEM_DEFINITIONS;
+        private static List<SpeffDefinition> SPEFF_DEFINITIONS;
 
         public static bool CheckDoNotPlace(string id)
         {
@@ -64,6 +67,20 @@ namespace JortPob
             return null;
         }
 
+        public static SpeffDefinition GetSpeffDefinition(string id)
+        {
+            foreach (SpeffDefinition def in SPEFF_DEFINITIONS)
+            {
+                if (def.id == id) { return def; }
+            }
+            return null;
+        }
+
+        public static List<SpeffDefinition> GetSpeffDefinitions()
+        {
+            return SPEFF_DEFINITIONS;
+        }
+
         /* load all the override jsons into this class */
         public static void Initialize()
         {
@@ -93,6 +110,14 @@ namespace JortPob
             ITEM_DEFINITIONS = new();
             foreach (string itemFile in itemFiles) {
                 ITEM_DEFINITIONS.Add(new ItemDefinition(itemFile));
+            }
+
+            /* Load all speff definitinos from resources/override/speffs */
+            string[] speffFiles = Directory.GetFiles(Utility.ResourcePath(@"overrides\speffs"));
+            SPEFF_DEFINITIONS = new();
+            foreach (string speffFile in speffFiles)
+            {
+                SPEFF_DEFINITIONS.Add(new SpeffDefinition(speffFile));
             }
         }
 
@@ -135,11 +160,37 @@ namespace JortPob
             public ItemText() { }
         }
 
+        public class SpeffDefinition
+        {
+            public readonly string id, comment;
+            public readonly int row;
+
+            public readonly Dictionary<string, string> data;
+
+            public SpeffDefinition(string jsonPath)
+            {
+                id = Utility.PathToFileName(jsonPath);
+
+                JsonNode json = JsonNode.Parse(File.ReadAllText(jsonPath));
+
+                comment = json["comment"].GetValue<string>();
+                row = json["row"].GetValue<int>();
+
+                data = new();
+                foreach (var property in json["data"].AsObject())
+                {
+                    data.Add(property.Key, property.Value.ToString());
+                }
+            }
+        }
+
         public class ItemDefinition
         {
             public readonly string id, comment;
             public readonly ItemManager.Type type;
-            public readonly int row;
+            public readonly int row;                   // row we copy as our base
+
+            public readonly bool useIcon; // use morrowind item icon if true, otherwise use whatever is set in the param
 
             public readonly ItemText text;
             public readonly Dictionary<string, string> data;
@@ -153,6 +204,8 @@ namespace JortPob
                 comment = json["comment"].GetValue<string>();
                 type = (ItemManager.Type)System.Enum.Parse(typeof(ItemManager.Type), json["type"].GetValue<string>());
                 row = json["row"].GetValue<int>();
+
+                useIcon = json["useIcon"] != null ? json["useIcon"].GetValue<bool>() : false;
 
                 text = new();
                 text.name = json["text"]["name"] != null ? json["text"]["name"].GetValue<string>() : null;

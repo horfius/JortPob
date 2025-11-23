@@ -32,13 +32,9 @@ namespace JortPob
             Cache cache = Cache.Load(esm);                                                  // Load existing cache (FAST!) or generate a new one (SLOW!)
             TextManager text = new();                                                           // Manages FMG text files
             IconManager icon = new(esm);                                                       // Manages the creation and assignment of item icons
-
-            /* DEBUG! DELETE ME! */
-            icon.Write();
-
             Paramanager param = new(text);                                                        // Class for managing PARAM files
             SpeffManager speff = new(esm, param, text);                                                   // Manages speff params, primarily for magic effects like potions and enchanted gear. NOT SPELLS!
-            ItemManager item = new(esm, param, speff, text);                                                   // Handles generation and reampping of items
+            ItemManager item = new(esm, param, speff, icon, text);                                                   // Handles generation and reampping of items
             Layout layout = new(cache, esm, param, text, scriptManager);                          // Subdivides all content data from ESM into a more elden ring friendly format
             SoundManager sound = new();                                                         // Manages vcbanks
             NpcManager character = new(esm, sound, param, text, item, scriptManager);                 // Manages dialog esd
@@ -793,6 +789,7 @@ namespace JortPob
             /* Bind and write all materials and textures */
             Bind.BindMaterials($"{Const.OUTPUT_PATH}material\\allmaterial.matbinbnd.dcx");
             Bind.BindTPF(cache, layout.ListCommon());
+            icon.Write();
 
             /* Bind all assets */    // Multithreaded because slow
             Lort.Log($"Binding {cache.assets.Count} assets...", Lort.Type.Main);
@@ -814,6 +811,7 @@ namespace JortPob
             /* Write msbs */
             esm = null;  // free some memory here
             param = null;
+            icon = null;
             GC.Collect();
             MsbWorker.Go(msbs);
 

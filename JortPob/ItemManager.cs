@@ -28,14 +28,16 @@ namespace JortPob
 
         private Paramanager paramanager;
         private SpeffManager speffManager;
+        private IconManager iconManager;
         private TextManager textManager;
 
         private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId;
 
-        public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, TextManager textManager)
+        public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
         {
             this.paramanager = paramanager;
             this.speffManager = speffManager;
+            this.iconManager = iconManager;
             this.textManager = textManager;
 
             items = new();
@@ -133,31 +135,39 @@ namespace JortPob
                         {
                             case Type.Weapon:
                                 it = new(def.id, Type.Weapon, nextWeaponId, value, scriptItem);
-                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamWeapon, def.id, def.row, nextWeaponId, def.data);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamWeapon, def.id, def.row, nextWeaponId, def.data);
                                 textManager.AddWeapon(it.row, def.text.name, def.text.description);
+                                if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
                                 nextWeaponId += 10000;
                                 break;
                             case Type.Armor:
                                 it = new(def.id, Type.Armor, nextArmorId, value, scriptItem);
-                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamProtector, def.id, def.row, nextWeaponId, def.data);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamProtector, def.id, def.row, nextWeaponId, def.data);
                                 textManager.AddArmor(it.row, def.text.name, def.text.summary, def.text.description);
+                                if (def.useIcon) {
+                                    SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextWeaponId, "iconIdM", iconManager.GetIconByRecord(id).id);
+                                    SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextWeaponId, "iconIdF", iconManager.GetIconByRecord(id).id);
+                                }
                                 nextArmorId += 10000;
                                 break;
                             case Type.Accessory:
                                 it = new(def.id, Type.Accessory, nextAccessoryId, value, scriptItem);
-                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamAccessory, def.id, def.row, nextWeaponId, def.data);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamAccessory, def.id, def.row, nextWeaponId, def.data);
                                 textManager.AddAccessory(it.row, def.text.name, def.text.summary, def.text.description);
+                                if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamAccessory, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
                                 nextAccessoryId += 10;
                                 break;
                             case Type.Goods:
                                 it = new(def.id, Type.Goods, nextGoodsId, value, scriptItem);
-                                SillyJsonUtils.CopyRowAndModify(paramanager, Paramanager.ParamType.EquipParamGoods, def.id, def.row, nextWeaponId, def.data);
+                                SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamGoods, def.id, def.row, nextWeaponId, def.data);
                                 textManager.AddGoods(it.row, def.text.name, def.text.summary, def.text.description, def.text.effect);
+                                if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamGoods, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
                                 nextGoodsId += 10;
                                 break;
                             default:
                                 throw new Exception($"Item definition for id {id} has invalid type {def.type}");
                         }
+
                         items.Add(it);
                     }
                     /* Item id has a corresponding entry in the item_remap.json file */   // this points the item id at an existing item row. Not a copy, more like a reference
@@ -188,10 +198,15 @@ namespace JortPob
                             }
                         }
                     }
-                    /* Item id has no matches so we just generate an item from data in the ESM. This can be bad for soemthings but fine for others. Really just depends! */
+                    /* Item id has no matches so we just generate an item from data in the ESM. This can be bad for some things but fine for others. Really just depends! */
                     else if (scriptItem)
                     {
                         if (json["has_script_reference"] == null) { json["has_script_reference"] = scriptItem; } // add this data to the json so i dont have to pass this var through parameters
+                        GenerateItem(recordType, json);
+                    }
+                    /* Depending on debug settings, generate this non-essential item */
+                    else if(!Const.DEBUG_SKIP_NON_ESSENTIAL_ITEMS)
+                    {
                         GenerateItem(recordType, json);
                     }
                 }
@@ -338,6 +353,8 @@ namespace JortPob
 
             textManager.AddWeapon(row.ID, json["name"].GetValue<string>(), "Descriptions describe things!");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon!=null?icon.id:((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
@@ -359,6 +376,8 @@ namespace JortPob
 
             textManager.AddWeapon(row.ID, json["name"].GetValue<string>(), "Descriptions describe things!");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
@@ -405,6 +424,9 @@ namespace JortPob
 
             textManager.AddArmor(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconIdM"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
+            row["iconIdF"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
@@ -448,6 +470,9 @@ namespace JortPob
 
             textManager.AddArmor(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconIdM"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
+            row["iconIdF"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
@@ -485,6 +510,8 @@ namespace JortPob
 
             textManager.AddAccessory(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
             if (speff != null) { row["refId"].Value.SetValue(speff.row); }
 
@@ -503,6 +530,8 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
 
             paramanager.AddRow(goodsParam, row);
@@ -522,6 +551,8 @@ namespace JortPob
 
             SpeffManager.Speff speff = speffManager.GetAlchemySpeff(id);
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["sellValue"].Value.SetValue(json["data"]["value"].GetValue<int>());
             row["rarity"].Value.SetValue((byte)0);
             row["maxNum"].Value.SetValue((short)5);
@@ -542,6 +573,8 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
 
             paramanager.AddRow(goodsParam, row);
@@ -559,6 +592,8 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
 
             paramanager.AddRow(goodsParam, row);
@@ -576,6 +611,8 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
 
             paramanager.AddRow(goodsParam, row);
@@ -593,6 +630,8 @@ namespace JortPob
 
             textManager.AddGoods(row.ID, json["name"].GetValue<string>(), "Information informs you.", "Descriptions describe things!", "More information.");
 
+            IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
+            row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
 
             paramanager.AddRow(goodsParam, row);

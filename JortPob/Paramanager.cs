@@ -162,6 +162,11 @@ namespace JortPob
             return clone;
         }
 
+        public FsParam.Row GetRow(FsParam param, int row)
+        {
+            return param[row];
+        }
+
         public void Write()
         {
             Lort.Log($"Binding {param.Count()} PARAMs...", Lort.Type.Main);

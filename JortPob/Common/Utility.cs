@@ -4,8 +4,11 @@ using SoulsFormats;
 using SoulsIds;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using WitchyFormats;
+using Xbrz;
 
 namespace JortPob.Common
 {
@@ -213,6 +216,70 @@ namespace JortPob.Common
             }
 
             return true;
+        }
+
+        public static Bitmap XbrzUpscale(Bitmap bitmap, int factor)
+        {
+            // Convert to ARGB int[] array
+            int width = bitmap.Width, height = bitmap.Height;
+            int[] srcPixels = new int[width * height];
+            var rect = new Rectangle(0, 0, width, height);
+            var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            System.Runtime.InteropServices.Marshal.Copy(data.Scan0, srcPixels, 0, srcPixels.Length);
+            bitmap.UnlockBits(data);
+
+            // Perform scaling
+            var scaler = new XbrzScaler(factor, withAlpha: true);
+            int[] scaledPixels = scaler.ScaleImage(srcPixels, null, width, height);
+
+            // Convert back to Bitmap
+            int scaledWidth = width * factor, scaledHeight = height * factor;
+            var scaledBitmap = new Bitmap(scaledWidth, scaledHeight, PixelFormat.Format32bppArgb);
+            var scaledRect = new Rectangle(0, 0, scaledWidth, scaledHeight);
+            var scaledData = scaledBitmap.LockBits(scaledRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            System.Runtime.InteropServices.Marshal.Copy(scaledPixels, 0, scaledData.Scan0, scaledPixels.Length);
+            scaledBitmap.UnlockBits(scaledData);
+
+            return scaledBitmap;
+        }
+
+        /* Converts a linear color space to SRGB */
+        public static Bitmap LinearToSRGB(Bitmap bitmap)
+        {
+            Bitmap linearBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
+
+            float ConvertValue(float colorValue)
+            {
+                if (colorValue <= 0.0031308f)
+                {
+                    return colorValue * 12.92f;
+                }
+                else
+                {
+                    return 1.055f * ((float)Math.Pow(colorValue, 1.0f / 2.4f)) - 0.055f;
+                }
+            }
+
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    Color srgbColor = bitmap.GetPixel(x, y);
+                    // Convert each channel from sRGB to linear
+                    float r = ConvertValue(srgbColor.R / 255f);
+                    float g = ConvertValue(srgbColor.G / 255f);
+                    float b = ConvertValue(srgbColor.B / 255f);
+                    float a = srgbColor.A / 255f; // Alpha remains the same
+                    Color linearColor = Color.FromArgb(
+                        (int)(a * 255),
+                        (int)(r * 255),
+                        (int)(g * 255),
+                        (int)(b * 255)
+                    );
+                    linearBitmap.SetPixel(x, y, linearColor);
+                }
+            }
+            return linearBitmap;
         }
 
         /* Sort binderfiles by id */
