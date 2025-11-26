@@ -37,6 +37,8 @@ namespace JortPob
             Lort.NewTask("Loading Icons", 1);
 
             icons = new();
+
+            Dictionary<string, IconInfo> iconsByPath = icons.ToDictionary(icon => icon.path, icon => icon); // one-off lookup to get an icon by path
             void FindIcons(ESM.Type recordType)
             {
                 foreach (JsonNode json in esm.GetAllRecordsByType(recordType))
@@ -44,19 +46,19 @@ namespace JortPob
                     if (json["icon"] != null && json["icon"].GetValue<string>().Trim() != "")
                     {
                         string recordId = json["id"].GetValue<string>().ToLower();
-                        string iconPath = json["icon"].GetValue<string>().ToLower();
+                        string iconPath = json["icon"].GetValue<string>().ToLower().Replace(".tga", ".dds");
 
-                        IconInfo iconInfo = GetIconByPath(iconPath);
-
-                        if (iconInfo == null)
+                        // now we only replace once
+                        if (iconsByPath.TryGetValue(iconPath, out IconInfo iconInfo))
                         {
-                            iconInfo = new IconInfo(iconPath, nextIconId++);
                             iconInfo.referers.Add(recordId);
-                            icons.Add(iconInfo);
                         }
                         else
                         {
-                            iconInfo.referers.Add(recordId);
+                            IconInfo ii = new(iconPath, nextIconId++);
+                            ii.referers.Add(recordId);
+                            icons.Add(ii);
+                            iconsByPath.Add(iconPath, ii); // update our temporary lookup
                         }
                     }
                 }
@@ -98,30 +100,6 @@ namespace JortPob
             foreach (IconInfo icon in icons)
             {
                 if (icon.referers.Contains(record.ToLower()))
-                {
-                    return icon;
-                }
-            }
-            return null;
-        }
-
-        public IconInfo GetIconByPath(string path)
-        {
-            foreach (IconInfo icon in icons)
-            {
-                if (icon.path == path.Replace(".tga", ".dds")) // guh
-                {
-                    return icon;
-                }
-            }
-            return null;
-        }
-
-        public IconInfo GetIconById(int id)
-        {
-            foreach(IconInfo icon in icons)
-            {
-                if (icon.id == id)
                 {
                     return icon;
                 }
@@ -338,16 +316,7 @@ namespace JortPob
                 }
 
                 /* Reindex after inserting new files */
-                int insertAt = 0;
-                for(int i= 0;i<bxf.Files.Count();i++)
-                {
-                    BinderFile bf = bxf.Files[i];
-                    if(bf.Name.StartsWith("00_Solo\\MENU_Knowledge_"))
-                    {
-                        insertAt = i;
-                    }
-                }
-
+                int insertAt = bxf.Files.FindLastIndex(bf => bf.Name.StartsWith("00_Solo\\MENU_Knowledge_"));
                 bxf.Files.InsertRange(insertAt + 1, filesToInsert); // slam dunk those new filse into the bnd
 
                 for (int i = 0; i < bxf.Files.Count(); i++)

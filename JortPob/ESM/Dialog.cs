@@ -631,7 +631,7 @@ namespace JortPob
                     {
                         retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{npcContent.id}.{varName}");
                     }
-                    else if (varName.Contains(".")) // looks like it's actually a local var of a different object
+                    else         // looks like it's actually a local var of a different object
                     {
                         retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, varName); // look for it, if we dont find it we create it
                         if (retFlag == null) { retFlag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Local, varName); }
@@ -651,7 +651,6 @@ namespace JortPob
                                 // This var can be either global or local so check for both
                                 Flag var = GetFlagByVariable(call.parameters[0]);
                                 if (var == null) { break; } // if we fail to find the variable just discard for now. this only really happens if a papyrus script is discarded and fails to setup a local var
-                                if (npcContent.id == "banor seran") { int x = 69; }
                                 string code = $"SetEventFlagValue({var.id}, {var.Bits()}, {ParseParameters(call.parameters, 2)})";
 
                                 lines.Add(code);

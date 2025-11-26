@@ -6,7 +6,7 @@ using System.Numerics;
 
 namespace JortPob
 {
-    /* BigTile is a 2x2 grid of Tiles. Sort of like an LOD type thing. (????) */
+    /* BigTile is a 2x2 grid of Tiles. Sort of like an LOD type thing. */
     [DebuggerDisplay("Big m{map}_{coordinate.x}_{coordinate.y}_{block} :: [{cells.Count}] Cells")]
     public class BigTile : BaseTile
     {

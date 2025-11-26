@@ -33,7 +33,7 @@ namespace JortPob
         {
             this.cell = cell;
             id = json["id"].ToString();
-            name = record.json["name"] != null ? record.json["name"].GetValue<string>() : null;
+            name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
             entity = 0;

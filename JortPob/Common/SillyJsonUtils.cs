@@ -49,53 +49,48 @@ namespace JortPob.Common
                 string key = property.Key;
                 string value;
 
-                switch (paramType)
+                if (Utility.StringIsInteger(property.Value)) { value = property.Value; }
+                else
                 {
-                    case Paramanager.ParamType.EquipParamWeapon:
-                        if (equipSpeffFieldNames.Contains(key))
-                        {
-                            if (Utility.StringIsInteger(property.Value)) { goto default; }
-                            SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
-                            if (speff != null) { value = speff.row.ToString(); }
-                            else { goto default; }
-                        }
-                        else { goto default; }
-                        break;
-                    case Paramanager.ParamType.EquipParamProtector:
-                        if (equipSpeffFieldNames.Contains(key))
-                        {
-                            if (Utility.StringIsInteger(property.Value)) { goto default; }
-                            SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
-                            if (speff != null) { value = speff.row.ToString(); }
-                            else { goto default; }
-                        }
-                        else { goto default; }
-                        break;
-                    case Paramanager.ParamType.EquipParamAccessory:
-                        if (equipSpeffFieldNames.Contains(key) || accSpeffFieldName == key)
-                        {
-                            if (Utility.StringIsInteger(property.Value)) { goto default; }
-                            SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
-                            if (speff != null) { value = speff.row.ToString(); }
-                            else { goto default; }
-                        }
-                        else { goto default; }
-                        break;
-                    case Paramanager.ParamType.EquipParamGoods:
-                        if (goodFieldName == key)
-                        {
-                            if (Utility.StringIsInteger(property.Value)) { goto default; }
-                            SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
-                            if (speff != null) { value = speff.row.ToString(); }
-                            else { goto default; }
-                        }
-                        else { goto default; }
-                        break;
-                    default:
-                        value = property.Value;
-                        break;
+                    switch (paramType)
+                    {
+                        case Paramanager.ParamType.EquipParamWeapon:
+                            if (equipSpeffFieldNames.Contains(key))
+                            {
+                                SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
+                                value = speff.row.ToString();
+                                break;
+                            }
+                            goto default;
+                        case Paramanager.ParamType.EquipParamProtector:
+                            if (equipSpeffFieldNames.Contains(key))
+                            {
+                                SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
+                                value = speff.row.ToString();
+                                break;
+                            }
+                            goto default;
+                        case Paramanager.ParamType.EquipParamAccessory:
+                            if (equipSpeffFieldNames.Contains(key) || accSpeffFieldName == key)
+                            {
+                                SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
+                                value = speff.row.ToString();
+                                break;
+                            }
+                            goto default;
+                        case Paramanager.ParamType.EquipParamGoods:
+                            if (goodFieldName == key)
+                            {
+                                SpeffManager.Speff speff = speffManager.GetSpeff(property.Value);
+                                value = speff.row.ToString();
+                                break;
+                            }
+                            goto default;
+                        default:
+                            value = property.Value;
+                            break;
+                    }
                 }
-
 
                 /* Apply values from json to the param */
                 FsParam.Cell cell = (FsParam.Cell)row[key];

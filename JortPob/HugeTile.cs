@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace JortPob
 {
-    /* HugeTile is a 4x4 grid of Tiles. Sort of like an LOD type thing. */
+    /* HugeTile is a 4x4 grid of Tiles. Sort of like an LOD type thing. HugeTile contains 4 big tiles & 16 regular tiles. */
     [DebuggerDisplay("Huge m{map}_{coordinate.x}_{coordinate.y}_{block} :: [{cells.Count}] Cells")]
     public class HugeTile : BaseTile
     {

@@ -138,8 +138,7 @@ namespace JortPob
 
             /* Load and set defaults for all global variables listed in the ESM */
             List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
-            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
-            foreach (JsonNode jsonNode in globalVarJson)
+            foreach (JsonNode jsonNode in GetAllRecordsByType(ESM.Type.GlobalVariable))
             {
                 string id = jsonNode["id"].GetValue<string>();
                 string type = jsonNode["value"]["type"].GetValue<string>().ToLower();

@@ -34,8 +34,8 @@ namespace JortPob
         public Cell(ESM esm, JsonNode json)
         {
             /* Cell Data */
-            name = json["name"].ToString() == "" ? null : json["name"].ToString();
-            region = json["region"] != null ? json["region"].ToString() : null;
+            name = json["name"]?.ToString();
+            region = json["region"]?.ToString();
 
             flags = new();
             string[] fs = json["data"]["flags"].GetValue<string>().ToLower().Split("|");
