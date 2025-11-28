@@ -1,5 +1,8 @@
-﻿using System;
+﻿using HKX2;
+using System;
 using System.Collections.Concurrent;
+using System.IO;
+using System.Threading.Tasks;
 using System.Linq;
 
 namespace JortPob.Common
@@ -11,6 +14,7 @@ namespace JortPob.Common
         public static string progressOutput;
         public static int total, current;
         public static bool update;
+        public static string logFilePath;
 
         public static void Initialize()
         {
@@ -20,6 +24,8 @@ namespace JortPob.Common
             total = 0;
             current = 0;
             update = false;
+            logFilePath = Const.OUTPUT_PATH + $"jortpob-log-{DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "")}.txt";
+            File.WriteAllText(logFilePath, "");
         }
 
         public enum Type
@@ -38,6 +44,7 @@ namespace JortPob.Common
                     debugOutput.Add(message); break;
             }
             update = true;
+            AppendTextToLog(message, type);
         }
 
         public static void NewTask(string task, int max)
@@ -52,6 +59,19 @@ namespace JortPob.Common
         {
             current = Math.Min(current+1, total);
             update = true;
+        }
+
+        private static void AppendTextToLog(string message, Type type)
+        {
+            switch (type)
+            {
+                case Type.Main:
+                    Task.Run(async () => await File.AppendAllTextAsync(logFilePath, $"[MAIN] {message}\n"));
+                    break;
+                case Type.Debug:
+                    Task.Run(async () => await File.AppendAllTextAsync(logFilePath, $"[DEBUG] {message}\n"));
+                    break;
+            }
         }
     }
 }

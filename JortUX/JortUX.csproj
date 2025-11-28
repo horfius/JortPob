@@ -79,6 +79,8 @@
     <Reference Include="StudioUtils">
       <HintPath>..\JortPob\DLL\StudioUtils.dll</HintPath>
     </Reference>
+    <Reference Include="tes3-interop">
+      <HintPath>..\JortPob\DLL\tes3-interop.dll</HintPath>
     <Reference Include="Tommy">
       <HintPath>..\JortPob\DLL\Tommy.dll</HintPath>
     </Reference>
@@ -90,6 +92,11 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="tes3.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Target Name="CopyESDLangDocs" AfterTargets="AfterBuild">
     <ItemGroup Label="ESDLangDocs">
       <ESDLangDocsSourceFiles Include="..\JortPob\Resources\tools\ESDTool\dist\**\*" />

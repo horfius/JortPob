@@ -239,7 +239,7 @@ namespace JortPob
 
                 /* Add some pregen assets */
                 ModelInfo boxModelInfo = new("InteriorShadowBox", $"meshes\\interior_shadow_box.flver", 100);
-                ModelConverter.FBXtoFLVER(assimpContext, materialContext, boxModelInfo, false, Utility.ResourcePath(@"mesh\\box.fbx"), $"{Const.CACHE_PATH}{boxModelInfo.path}");
+                ModelConverter.NIFToFLVER(materialContext, boxModelInfo, false, Utility.ResourcePath(@"mesh\\box.nif"), $"{Const.CACHE_PATH}{boxModelInfo.path}");
                 FLVER2 boxFlver = FLVER2.Read($"{Const.CACHE_PATH}{boxModelInfo.path}"); // we need this box to be exactly 1 unit in each direction no matter what so we just edit it real quick
                 foreach (FLVER.Vertex v in boxFlver.Meshes[0].Vertices)
                 {
@@ -355,14 +355,14 @@ namespace JortPob
                 }
 
                 /* Write new cache file */
-                string jsonOutput = JsonSerializer.Serialize<Cache>(nu, new JsonSerializerOptions { IncludeFields = true });
+                string jsonOutput = JsonSerializer.Serialize<Cache>(nu, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals });
                 File.WriteAllText(manifestPath, jsonOutput);
                 Lort.Log($"Generated new cache: {Const.CACHE_PATH}", Lort.Type.Main);
             }
 
             /* Load cache manifest */
             string tempRawJson = File.ReadAllText(manifestPath);
-            Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true });
+            Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals });
             return cache;
         }
     }
