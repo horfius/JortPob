@@ -1,4 +1,5 @@
 ﻿using SoulsFormats;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -13,6 +14,7 @@ namespace JortPob.Common
         public static Dictionary<EmitterInfo, int> EmitterInstances = new(); // counts instances of emitter assets
         public static Dictionary<string, int> EnemyInstances = new();      // counts instances of enemies
         public static Dictionary<LiquidInfo, int> WaterInstances = new();
+        public static Dictionary<string, int> VanillaAssetInstances = new();
         public static int PlayerInstances = 9000;
 
         /* Makes simple collideable asset */
@@ -577,6 +579,103 @@ namespace JortPob.Common
             envPoint.UnkT2C = 0;
             envPoint.UnkT2D = 1;
             return envPoint;
+        }
+
+        public static MSBE.Event.Treasure Treasure()
+        {
+            MSBE.Event.Treasure treasure = new();
+            return treasure;
+        }
+
+        // invis object to put a treasure on
+        public static MSBE.Part.Asset TreasureAsset()
+        {
+            MSBE.Part.Asset asset = new();
+
+            /* Model Stuff */
+            asset.ModelName = "AEG099_090";
+
+            /* Instance */
+            int inst;
+            if (VanillaAssetInstances.ContainsKey(asset.ModelName)) { inst = ++VanillaAssetInstances[asset.ModelName]; }
+            else { inst = 0; VanillaAssetInstances.Add(asset.ModelName, inst); }
+            asset.Name = $"{asset.ModelName}_{inst.ToString("D4")}";
+            asset.InstanceID = inst;
+
+            /* Top stuff */
+            asset.AssetSfxParamRelativeID = -1;
+            asset.MapStudioLayer = 4294967295;
+            asset.IsShadowDest = true;
+
+            /* Gparam */
+            asset.Gparam.FogParamID = -1;
+            asset.Gparam.LightSetID = -1;
+
+            /* Various Unks */
+            asset.UnkE0F = 1;
+            asset.UnkE3C = -1;
+            asset.UnkT12 = 255;
+            asset.UnkT1E = -1;
+            asset.UnkT24 = -1;
+            asset.UnkT30 = -1;
+            asset.UnkT34 = -1;
+
+            /* Display Groups */
+            asset.Unk1.DisplayGroups[0] = 16;
+            asset.Unk1.UnkC4 = -1;
+
+            /* Unk Groups */
+            asset.Unk2.Condition = -1;
+            asset.Unk2.Unk26 = -1;
+
+            /* TileLoad */
+            asset.TileLoad.MapID = new byte[] { 255, 255, 255, 255 };
+            asset.TileLoad.CullingHeightBehavior = -1;
+
+            /* Grass */
+            asset.Grass.Unk18 = -1;
+
+            /* Asset Partnames */
+            asset.UnkT54PartName = asset.Name;
+            asset.UnkPartNames[4] = asset.Name;
+            asset.UnkPartNames[5] = asset.Name;
+            asset.UnkModelMaskAndAnimID = -1;
+            asset.UnkT5C = -1;
+            asset.UnkT60 = -1;
+            asset.UnkT64 = -1;
+
+            /* AssetUnk1 */
+            asset.AssetUnk1.Unk1C = -1;
+            asset.AssetUnk1.Unk24 = -1;
+            asset.AssetUnk1.Unk26 = -1;
+            asset.AssetUnk1.Unk28 = -1;
+            asset.AssetUnk1.Unk2C = -1;
+
+            /* AssetUnk2 */
+            asset.AssetUnk2.Unk04 = 100;
+            asset.AssetUnk2.Unk14 = -1f;
+            asset.AssetUnk2.Unk1C = 255;
+            asset.AssetUnk2.Unk1D = 255;
+            asset.AssetUnk2.Unk1E = 255;
+            asset.AssetUnk2.Unk1F = 255;
+
+            /* AssetUnk3 */
+            asset.AssetUnk3.Unk04 = 64.808716f;
+            asset.AssetUnk3.Unk09 = 255;
+            asset.AssetUnk3.Unk0B = 255;
+            asset.AssetUnk3.Unk0C = -1;
+            asset.AssetUnk3.Unk10 = -1f;
+            asset.AssetUnk3.DisableWhenMapLoadedMapID = new sbyte[] { -1, -1, -1, -1 };
+            asset.AssetUnk3.Unk18 = -1;
+            asset.AssetUnk3.Unk1C = -1;
+            asset.AssetUnk3.Unk20 = -1;
+            asset.AssetUnk3.Unk24 = 255;
+
+            /* AssetUnk4 */
+            asset.AssetUnk4.Unk01 = 255;
+            asset.AssetUnk4.Unk02 = 255;
+
+            return asset;
         }
     }
 }

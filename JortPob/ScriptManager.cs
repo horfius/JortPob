@@ -252,6 +252,7 @@ namespace JortPob
             foreach(Script script in scripts)
             {
                 script.GenerateCrimeEvents();
+                script.GenerateThieveryEvent();
             }
         }
 

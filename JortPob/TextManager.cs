@@ -15,7 +15,7 @@ namespace JortPob
 
         private Dictionary<TextType, FMG> menu, item;
 
-        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId, nextTutorial, nextMapEventText;
+        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId, nextTutorial, nextMapEventText, nextWeaponEffectId;
 
         public TextManager()
         {
@@ -26,6 +26,7 @@ namespace JortPob
             nextMenuId = 508000;
             nextTutorial = 500000;
             nextMapEventText = 20209000;
+            nextWeaponEffectId = 7000;
 
             Dictionary<TextType, FMG> LoadMsgBnd(string path)
             {
@@ -163,6 +164,128 @@ namespace JortPob
             FMG fmg = menu[TextType.EventTextForMap];
             fmg.Entries.Add(new(id, text));
             return id;
+        }
+
+        public void AddWeapon(int id, string name, string description)
+        {
+            AddWeapon(id, name, description, ItemManager.Infusion.None);
+        }
+
+        public void AddWeapon(int id, string name, string description, ItemManager.Infusion infusion)
+        {
+            string InfusionName(ItemManager.Infusion inf, string name)
+            {
+                switch(inf)
+                {
+                    case ItemManager.Infusion.FlameArt: return $"Flame Art {name}";
+                    case ItemManager.Infusion.None: return name;
+                    default: return $"{inf.ToString()} {name}";
+                }
+            }
+
+            FMG fmgName = item[TextType.WeaponName];
+            FMG fmgDescription = item[TextType.WeaponCaption];
+            fmgName.Entries.Add(new(id, InfusionName(infusion, name)));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+
+        public int AddWeaponEffect(string text)
+        {
+            int id = nextWeaponEffectId++;
+            FMG fmg = item[TextType.WeaponEffect];
+            fmg.Entries.Add(new(id, text));
+            return id;
+        }
+
+        public void AddArmor(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.ProtectorName];
+            FMG fmgSummary = item[TextType.ProtectorInfo];
+            FMG fmgDescription = item[TextType.ProtectorCaption];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+
+        public void AddGoods(int id, string name, string summary, string description, string effect)
+        {
+            FMG fmgName = item[TextType.GoodsName];
+            FMG fmgSummary = item[TextType.GoodsInfo];
+            FMG fmgDescription = item[TextType.GoodsCaption];
+            FMG fmgEffect = item[TextType.GoodsInfo2];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+            fmgEffect.Entries.Add(new(id, effect));
+        }
+
+        public void AddAccessory(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.AccessoryName];
+            FMG fmgSummary = item[TextType.AccessoryInfo];
+            FMG fmgDescription = item[TextType.AccessoryCaption];
+            fmgName.Entries.Add(new(id, name));
+            fmgSummary.Entries.Add(new(id, summary));
+            fmgDescription.Entries.Add(new(id, description));
+        }
+        public void RenameWeapon(int id, string name, string description)
+        {
+            FMG fmgName = item[TextType.WeaponName];
+            FMG fmgDescription = item[TextType.WeaponCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (description != null) { entryDescription.Text = description; }
+        }
+
+        public void RenameArmor(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.ProtectorName];
+            FMG fmgSummary = item[TextType.ProtectorInfo];
+            FMG fmgDescription = item[TextType.ProtectorCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
+        }
+
+        public void RenameGoods(int id, string name, string summary, string description, string effect)
+        {
+            FMG fmgName = item[TextType.GoodsName];
+            FMG fmgSummary = item[TextType.GoodsInfo];
+            FMG fmgDescription = item[TextType.GoodsCaption];
+            FMG fmgEffect = item[TextType.GoodsInfo2];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+            FMG.Entry entryEffect = GetEntry(fmgEffect, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
+            if (effect != null && entryEffect != null) { entryEffect.Text = effect; }
+        }
+
+        public void RenameAccessory(int id, string name, string summary, string description)
+        {
+            FMG fmgName = item[TextType.AccessoryName];
+            FMG fmgSummary = item[TextType.AccessoryInfo];
+            FMG fmgDescription = item[TextType.AccessoryCaption];
+
+            FMG.Entry entryName = GetEntry(fmgName, id);
+            FMG.Entry entrySummary = GetEntry(fmgSummary, id);
+            FMG.Entry entryDescription = GetEntry(fmgDescription, id);
+
+            if (name != null) { entryName.Text = name; }
+            if (summary != null) { entrySummary.Text = summary; }
+            if (description != null) { entryDescription.Text = description; }
         }
 
         public void Write(string dir)

@@ -1,5 +1,8 @@
-﻿using JortPob.Common;
+﻿using HKLib.hk2018.hk;
+using JortPob.Common;
+using SoulsFormats.Formats.Morpheme.MorphemeBundle;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
@@ -11,7 +14,8 @@ namespace JortPob
     {
         public readonly Cell cell;
 
-        public readonly string id;  // record id
+        public readonly string id;   // record id
+        public readonly string name; // can be null!
         public readonly ESM.Type type;
 
         public uint entity;  // entity id, usually 0
@@ -29,6 +33,7 @@ namespace JortPob
         {
             this.cell = cell;
             id = json["id"].ToString();
+            name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
             entity = 0;
@@ -101,7 +106,7 @@ namespace JortPob
         public enum Race { Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
         public enum Sex { Any, Male, Female };
 
-        public readonly string name, job, faction; // class is job, cant used reserved word
+        public readonly string job, faction; // class is job, cant used reserved word
         public readonly Race race;
         public readonly Sex sex;
 
@@ -115,9 +120,24 @@ namespace JortPob
 
         public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
 
+        public List<(string id, int quantity)> inventory;
+
+        public List<Travel> travel;  // travel destinations for silt strider people, mage guild teles, etc...
+
+        public Script.Flag treasure; // only used if this is a dead body npc and it has treasure. otherwise null. NEVER SET THIS FOR A LIVING NPC!!!
+
+        public class Travel : DoorContent.Warp
+        {
+            public string name;
+            public int cost;
+            public Travel(JsonNode json) : base(json)
+            {
+                cost = 100;
+            }
+        }
+
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            name = record.json["name"].ToString();
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
             job = record.json["class"].ToString();
             faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
@@ -143,6 +163,21 @@ namespace JortPob
             services = record.json["ai_data"]["services"].ToString().Trim() != "";
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach(JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));
+            }
+
+            travel = new();
+            JsonArray travelJson = record.json["travel_destinations"].AsArray();
+            foreach (JsonNode t in travelJson)
+            {
+                travel.Add(new Travel(t));
+            }
         }
 
         /* Return true if this npc is a generic guard that can arrest the player for crimes */
@@ -186,6 +221,7 @@ namespace JortPob
             // this is the actual warp data we generate
             public int map, x, y, block;
             public uint entity;
+            public string prompt; // used for the action button prompt. this is either the cell name, region name, or a generic "Morrowind" as a last case
 
             public Warp(JsonNode json)
             {
@@ -247,6 +283,65 @@ namespace JortPob
             {
                 warp = new(json["destination"]);
             }
+        }
+    }
+
+    /* static mesh of a container in the world that can **CAN** (but not always) be lootable */
+    public class ContainerContent : Content
+    {
+        public readonly string ownerNpc; // npc record id of the owenr of this container, can be null
+        public readonly string ownerFaction; // faction id that owns this container, player can take it if they are in that faction. can be null
+
+        public List<(string id, int quantity)> inventory;
+
+        public Script.Flag treasure; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
+
+        public ContainerContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        {
+            mesh = record.json["mesh"].ToString().ToLower();
+            if (json["owner"] != null) { ownerNpc = json["owner"].GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach (JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));  // get item record id and quantity from json
+            }
+        }
+
+        // Generates button prompt text for looting this container
+        public string ActionText()
+        {
+            if (ownerNpc != null || ownerFaction != null) { return $"Steal from {name}"; }
+            return $"Loot {name}";
+        }
+    }
+
+    /* static mesh of an item placed in the world that can **CAN** (but not always) be pickupable */
+    public class ItemContent : Content
+    {
+        public readonly string ownerNpc; // npc record id of the owenr of this item, can be null
+        public readonly string ownerFaction; // faction id that owns this item, player can take it if they are in that faction. can be null
+
+        public readonly int value; // morrowind gp value for this item
+
+        public Script.Flag treasure; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
+
+        public ItemContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        {
+            mesh = record.json["mesh"].ToString().ToLower();
+            if (json["owner"] != null ) { ownerNpc = json["owner"].GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
+            value = record.json["data"]["value"].GetValue<int>();
+        }
+
+        // Generates button prompt text for looting this container
+        public string ActionText()
+        {
+            if (ownerNpc != null || ownerFaction != null) { return $"Steal {name}"; }
+            return $"Pick up {name}";
         }
     }
 

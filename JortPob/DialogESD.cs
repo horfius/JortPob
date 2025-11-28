@@ -10,6 +10,7 @@ using System.Security;
 using System.Text;
 using static JortPob.Dialog;
 using static JortPob.Faction;
+using static JortPob.NpcContent;
 using static JortPob.NpcManager.TopicData;
 
 namespace JortPob
@@ -21,6 +22,7 @@ namespace JortPob
         private readonly ScriptManager scriptManager;
         private readonly Paramanager paramanager;
         private readonly TextManager textManager;
+        private readonly ItemManager itemManager;
         private readonly Script areaScript;
         private readonly NpcContent npcContent;
 
@@ -28,9 +30,10 @@ namespace JortPob
         private readonly List<string> generatedStates;
         private int nxtGenStateId;
 
-        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, Script areaScript, uint id, NpcContent npcContent, List<NpcManager.TopicData> topicData)
+        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, ItemManager itemManager, Script areaScript, uint id, NpcContent npcContent, List<NpcManager.TopicData> topicData)
         {
             this.esm = esm;
+            this.itemManager = itemManager;
             this.scriptManager = scriptManager;
             this.paramanager = paramanager;
             this.textManager = textManager;
@@ -76,6 +79,11 @@ namespace JortPob
                 bribeSuccess, bribeFail
             ));
 
+            if (npcContent.travel.Count() > 0)
+            {
+                generatedStates.Add(GeneratedState_TravelMenu(id, Common.Const.ESD_STATE_HARDCODE_TRAVELMENU));
+            }
+
             if (npcContent.faction != null)
             {
                 generatedStates.Add(GeneratedState_RankReq(id, Common.Const.ESD_STATE_HARDCODE_RANKREQUIREMENT));
@@ -90,9 +98,11 @@ namespace JortPob
             generatedStates.Add(GeneratedState_IdleTalk(id, Common.Const.ESD_STATE_HARDCODE_IDLETALK, idle, hello));
             generatedStates.Add(GeneratedState_Pickpocket(id, Common.Const.ESD_STATE_HARDCODE_PICKPOCKET));
 
+            int talkActionButtonId = paramanager.GenerateActionButtonInteractParam($"Talk to {npcContent.name}");
+
             defs.Add($"# dialog esd : {npcContent.id}\r\n");
 
-            defs.Add(State_1(id));
+            defs.Add(State_1(id, talkActionButtonId));
 
             defs.Add(State_1000(id));
             defs.Add(State_1001(id));
@@ -101,16 +111,16 @@ namespace JortPob
             defs.Add(State_1103(id));
             defs.Add(State_2000(id));
 
-            defs.Add(State_x0(id));
+            defs.Add(State_x0(id, talkActionButtonId));
             defs.Add(State_x1(id));
             defs.Add(State_x2(id));
             defs.Add(State_x3(id));
             defs.Add(State_x4(id));
-            defs.Add(State_x5(id));
-            defs.Add(State_x6(id));
+            defs.Add(State_x5(id, talkActionButtonId));
+            defs.Add(State_x6(id, talkActionButtonId));
             defs.Add(State_x7(id));
             defs.Add(State_x8(id));
-            defs.Add(State_x9(id));
+            defs.Add(State_x9(id, talkActionButtonId));
 
             defs.Add(State_x10(id));
             defs.Add(State_x11(id));
@@ -125,7 +135,7 @@ namespace JortPob
 
             defs.Add(State_x20(id));
             defs.Add(State_x21(id));
-            defs.Add(State_x22(id));
+            defs.Add(State_x22(id, talkActionButtonId));
             defs.Add(State_x23(id));
             defs.Add(State_x24(id));
             defs.Add(State_x25(id));
@@ -147,7 +157,7 @@ namespace JortPob
 
             defs.Add(State_x40(id, attack));
             defs.Add(State_x41(id, hit));
-            defs.Add(State_x42(id));
+            defs.Add(State_x42(id, talkActionButtonId));
             defs.Add(State_x44(id, npcContent.services, talk));
 
             foreach (string genState in generatedStates)
@@ -181,11 +191,11 @@ namespace JortPob
 
 
         /* Starting state, top level */
-        private string State_1(uint id)
+        private string State_1(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
             Script.Flag hostile = scriptManager.GetFlag(Script.Flag.Designation.Hostile, npcContent.entity.ToString());
-            return $"def t{id_s}_1():\r\n    \"\"\"State 0,1\"\"\"\r\n    # actionbutton:6000:\"Talk\"\r\n    t{id_s}_x5(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1=6000,\r\n                  flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                  z4=1000000, mode1=1, mode2=1)\r\n    Quit()\r\n";
+            return $"def t{id_s}_1():\r\n    \"\"\"State 0,1\"\"\"\r\n    # actionbutton:6000:\"Talk\"\r\n    t{id_s}_x5(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1={talkActionButtonId},\r\n                  flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                  z4=1000000, mode1=1, mode2=1)\r\n    Quit()\r\n";
         }
 
         private string State_1000(uint id)
@@ -239,8 +249,9 @@ namespace JortPob
             return $"def t{id_s}_2000():\r\n    \"\"\"State 0,2,3\"\"\"\r\n    assert t{id_s}_x42(flag2={unk0Flag}, flag3={unk1Flag})\r\n    \"\"\"State 1\"\"\"\r\n    EndMachine(2000)\r\n    Quit()\r\n";
         }
 
-        private string State_x0(uint id)
+        private string State_x0(uint id, int talkActionButtonId)
         {
+            int pickpocketActionId = paramanager.GenerateActionButtonInteractParam($"Pickpocket {npcContent.name}");
             Script.Flag crimeLevel = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
             Script.Flag playerIsSneaking = scriptManager.GetFlag(Script.Flag.Designation.PlayerIsSneaking, "PlayerIsSneaking");
             Script.Flag pickpocketedFlag = scriptManager.GetFlag(Script.Flag.Designation.Pickpocketed, npcContent.entity.ToString());
@@ -252,7 +263,7 @@ namespace JortPob
             else { forceGreetBypassSneak = ""; }
 
             string s = $""""
-                        def t{id:D9}_x0(actionbutton1=6000, flag10=6001, flag14=6000, flag15=6000, flag16=6000, flag17=6000, flag9=6000):
+                        def t{id:D9}_x0(actionbutton1={talkActionButtonId}, flag10=6001, flag14=6000, flag15=6000, flag16=6000, flag17=6000, flag9=6000):
                             """State 0"""
                             while True:
                                 """State 1"""
@@ -263,7 +274,7 @@ namespace JortPob
                                 """State 4"""
                                 assert not GetEventFlag(flag9)
                                 """State 2"""
-                                # actionbutton:6000:"Talk"
+                                # actionbutton:{talkActionButtonId}:"Talk"
                                 if not GetEventFlag({playerIsSneaking.id}) or GetEventFlag({pickpocketedFlag.id}){forceGreetBypassSneak}:
                                     call = t{id:D9}_x{Const.ESD_STATE_HARDCODE_IDLETALK:D2}()
                                     if (GetEventFlag(flag9) or not (not GetOneLineHelpStatus() and not IsClientPlayer() and not IsPlayerDead() and not IsCharacterDisabled()) or (not GetEventFlag(flag10) and not GetEventFlag(flag14) and not GetEventFlag(flag15) and not GetEventFlag(flag16) and not GetEventFlag(flag17))):
@@ -272,12 +283,12 @@ namespace JortPob
                                         break
                                     elif GetEventFlag({playerIsSneaking.id}):
                                         continue
-                                # actionbutton:6010:"Pickpocket"
+                                # actionbutton:{pickpocketActionId}:"Pickpocket"
                                 elif GetEventFlag({playerIsSneaking.id}):
                                     call = t{id:D9}_x{Const.ESD_STATE_HARDCODE_IDLETALK:D2}()
                                     if (GetEventFlag(flag9) or not (not GetOneLineHelpStatus() and not IsClientPlayer() and not IsPlayerDead() and not IsCharacterDisabled()) or (not GetEventFlag(flag10) and not GetEventFlag(flag14) and not GetEventFlag(flag15) and not GetEventFlag(flag16) and not GetEventFlag(flag17))):
                                         continue
-                                    elif CheckActionButtonArea(6010):
+                                    elif CheckActionButtonArea({pickpocketActionId}):
                                         assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_PICKPOCKET:D2}()
                                         continue
                                     elif not GetEventFlag({playerIsSneaking.id}):
@@ -313,17 +324,17 @@ namespace JortPob
             return $"def t{id_s}_x4():\r\n    \"\"\"State 0,1\"\"\"\r\n    assert t{id_s}_x1()\r\n    \"\"\"State 2\"\"\"\r\n    return 0\r\n";
         }
 
-        private string State_x5(uint id)
+        private string State_x5(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
             Script.Flag hostile = scriptManager.GetFlag(Script.Flag.Designation.Hostile, npcContent.entity.ToString());
-            return $"def t{id_s}_x5(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1=6000,\r\n                  flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                  z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    assert GetCurrentStateElapsedTime() > 1.5\r\n    while True:\r\n        \"\"\"State 2\"\"\"\r\n        call = t{id_s}_x22(flag6=flag6, flag7=flag7, val1=val1, val2=val2, val3=val3, val4=val4,\r\n                              val5=val5, actionbutton1=actionbutton1, flag9=flag9, flag10=flag10, flag11=flag11,\r\n                              flag12=flag12, flag13=flag13, z1=z1, z2=z2, z3=z3, z4=z4, mode1=mode1, mode2=mode2)\r\n        assert IsClientPlayer()\r\n        \"\"\"State 1\"\"\"\r\n        call = t{id_s}_x21()\r\n        assert not IsClientPlayer()\r\n";
+            return $"def t{id_s}_x5(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1={talkActionButtonId},\r\n                  flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                  z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    assert GetCurrentStateElapsedTime() > 1.5\r\n    while True:\r\n        \"\"\"State 2\"\"\"\r\n        call = t{id_s}_x22(flag6=flag6, flag7=flag7, val1=val1, val2=val2, val3=val3, val4=val4,\r\n                              val5=val5, actionbutton1=actionbutton1, flag9=flag9, flag10=flag10, flag11=flag11,\r\n                              flag12=flag12, flag13=flag13, z1=z1, z2=z2, z3=z3, z4=z4, mode1=mode1, mode2=mode2)\r\n        assert IsClientPlayer()\r\n        \"\"\"State 1\"\"\"\r\n        call = t{id_s}_x21()\r\n        assert not IsClientPlayer()\r\n";
         }
 
-        private string State_x6(uint id)
+        private string State_x6(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
-            return $"def t{id_s}_x6(val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1=6000, flag9=6000, flag10=6001, flag11=6000,\r\n                  flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000, z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 2\"\"\"\r\n        call = t{id_s}_x9(actionbutton1=actionbutton1, flag9=flag9, flag10=flag10, z2=z2, z3=z3, z4=z4)\r\n        def WhilePaused():\r\n            RemoveMyAggroIf(IsAttackedBySomeone() and (DoesSelfHaveSpEffect(9626) and DoesSelfHaveSpEffect(9627)))\r\n            GiveSpEffectToPlayerIf(not CheckSpecificPersonTalkHasEnded(0), 9640)\r\n        if call.Done():\r\n            \"\"\"State 4\"\"\"\r\n            Label('L0')\r\n            ChangeCamera(1000000)\r\n            call = t{id_s}_x13(val1=val1, z1=z1)\r\n            def WhilePaused():\r\n                ChangeCameraIf(GetDistanceToPlayer() > 2.5, -1)\r\n                RemoveMyAggroIf(IsAttackedBySomeone() and (DoesSelfHaveSpEffect(9626) and DoesSelfHaveSpEffect(9627)))\r\n                GiveSpEffectToPlayer(9640)\r\n                SetLookAtEntityForTalkIf(mode1 == 1, -1, 0)\r\n                SetLookAtEntityForTalkIf(mode2 == 1, 0, -1)\r\n            def ExitPause():\r\n                ChangeCamera(-1)\r\n            if call.Done():\r\n                continue\r\n            elif IsAttackedBySomeone():\r\n                pass\r\n        elif IsAttackedBySomeone() and not DoesSelfHaveSpEffect(9626) and not DoesSelfHaveSpEffect(9627):\r\n            pass\r\n        elif GetEventFlag(flag13):\r\n            Goto('L0')\r\n        elif GetEventFlag(flag11) and not GetEventFlag(flag12) and GetDistanceToPlayer() < val4:\r\n            \"\"\"State 5\"\"\"\r\n            call = t{id_s}_x15(val5=val5)\r\n            if call.Done():\r\n                continue\r\n            elif IsAttackedBySomeone():\r\n                pass\r\n        elif ((GetDistanceToPlayer() > val5 or GetTalkInterruptReason() == 6) and not CheckSpecificPersonTalkHasEnded(0)\r\n              and not DoesSelfHaveSpEffect(9625)):\r\n            \"\"\"State 6\"\"\"\r\n            assert t{id_s}_x26() and CheckSpecificPersonTalkHasEnded(0)\r\n            continue\r\n        elif GetEventFlag(9000):\r\n            \"\"\"State 1\"\"\"\r\n            assert not GetEventFlag(9000)\r\n            continue\r\n        \"\"\"State 3\"\"\"\r\n        def ExitPause():\r\n            RemoveMyAggro()\r\n        assert t{id_s}_x11(val2=val2, val3=val3)\r\n";
+            return $"def t{id_s}_x6(val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1={talkActionButtonId}, flag9=6000, flag10=6001, flag11=6000,\r\n                  flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000, z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 2\"\"\"\r\n        call = t{id_s}_x9(actionbutton1=actionbutton1, flag9=flag9, flag10=flag10, z2=z2, z3=z3, z4=z4)\r\n        def WhilePaused():\r\n            RemoveMyAggroIf(IsAttackedBySomeone() and (DoesSelfHaveSpEffect(9626) and DoesSelfHaveSpEffect(9627)))\r\n            GiveSpEffectToPlayerIf(not CheckSpecificPersonTalkHasEnded(0), 9640)\r\n        if call.Done():\r\n            \"\"\"State 4\"\"\"\r\n            Label('L0')\r\n            ChangeCamera(1000000)\r\n            call = t{id_s}_x13(val1=val1, z1=z1)\r\n            def WhilePaused():\r\n                ChangeCameraIf(GetDistanceToPlayer() > 2.5, -1)\r\n                RemoveMyAggroIf(IsAttackedBySomeone() and (DoesSelfHaveSpEffect(9626) and DoesSelfHaveSpEffect(9627)))\r\n                GiveSpEffectToPlayer(9640)\r\n                SetLookAtEntityForTalkIf(mode1 == 1, -1, 0)\r\n                SetLookAtEntityForTalkIf(mode2 == 1, 0, -1)\r\n            def ExitPause():\r\n                ChangeCamera(-1)\r\n            if call.Done():\r\n                continue\r\n            elif IsAttackedBySomeone():\r\n                pass\r\n        elif IsAttackedBySomeone() and not DoesSelfHaveSpEffect(9626) and not DoesSelfHaveSpEffect(9627):\r\n            pass\r\n        elif GetEventFlag(flag13):\r\n            Goto('L0')\r\n        elif GetEventFlag(flag11) and not GetEventFlag(flag12) and GetDistanceToPlayer() < val4:\r\n            \"\"\"State 5\"\"\"\r\n            call = t{id_s}_x15(val5=val5)\r\n            if call.Done():\r\n                continue\r\n            elif IsAttackedBySomeone():\r\n                pass\r\n        elif ((GetDistanceToPlayer() > val5 or GetTalkInterruptReason() == 6) and not CheckSpecificPersonTalkHasEnded(0)\r\n              and not DoesSelfHaveSpEffect(9625)):\r\n            \"\"\"State 6\"\"\"\r\n            assert t{id_s}_x26() and CheckSpecificPersonTalkHasEnded(0)\r\n            continue\r\n        elif GetEventFlag(9000):\r\n            \"\"\"State 1\"\"\"\r\n            assert not GetEventFlag(9000)\r\n            continue\r\n        \"\"\"State 3\"\"\"\r\n        def ExitPause():\r\n            RemoveMyAggro()\r\n        assert t{id_s}_x11(val2=val2, val3=val3)\r\n";
         }
 
         private string State_x7(uint id)
@@ -338,10 +349,10 @@ namespace JortPob
             return $"def t{id_s}_x8(flag6=4743, val2=10, val3=12):\r\n    \"\"\"State 0,8\"\"\"\r\n    assert t{id_s}_x36()\r\n    \"\"\"State 1\"\"\"\r\n    if GetEventFlag(flag6):\r\n        \"\"\"State 2\"\"\"\r\n        pass\r\n    else:\r\n        \"\"\"State 3\"\"\"\r\n        if GetDistanceToPlayer() < val2:\r\n            \"\"\"State 4,6\"\"\"\r\n            call = t{id_s}_x20()\r\n            if call.Done():\r\n                pass\r\n            elif GetDistanceToPlayer() > val3 or GetTalkInterruptReason() == 6:\r\n                \"\"\"State 7\"\"\"\r\n                assert t{id_s}_x1()\r\n        else:\r\n            \"\"\"State 5\"\"\"\r\n            pass\r\n    \"\"\"State 9\"\"\"\r\n    return 0\r\n";
         }
 
-        private string State_x9(uint id)
+        private string State_x9(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
-            return $"def t{id_s}_x9(actionbutton1=6000, flag9=6000, flag10=6001, z2=1000000, z3=1000000, z4=1000000):\r\n    \"\"\"State 0,1\"\"\"\r\n    call = t{id_s}_x10(machine1=2000, val6=2000)\r\n    if call.Get() == 1:\r\n        \"\"\"State 2\"\"\"\r\n        assert (t{id_s}_x0(actionbutton1=actionbutton1, flag10=flag10, flag14=6000, flag15=6000, flag16=6000,\r\n                flag17=6000, flag9=flag9))\r\n    elif call.Done():\r\n        pass\r\n    \"\"\"State 3\"\"\"\r\n    return 0\r\n";
+            return $"def t{id_s}_x9(actionbutton1={talkActionButtonId}, flag9=6000, flag10=6001, z2=1000000, z3=1000000, z4=1000000):\r\n    \"\"\"State 0,1\"\"\"\r\n    call = t{id_s}_x10(machine1=2000, val6=2000)\r\n    if call.Get() == 1:\r\n        \"\"\"State 2\"\"\"\r\n        assert (t{id_s}_x0(actionbutton1=actionbutton1, flag10=flag10, flag14=6000, flag15=6000, flag16=6000,\r\n                flag17=6000, flag9=flag9))\r\n    elif call.Done():\r\n        pass\r\n    \"\"\"State 3\"\"\"\r\n    return 0\r\n";
         }
 
         private string State_x10(uint id)
@@ -436,11 +447,11 @@ namespace JortPob
             return $"def t{id_s}_x21():\r\n    \"\"\"State 0\"\"\"\r\n    Quit()\r\n";
         }
 
-        private string State_x22(uint id)
+        private string State_x22(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
             Script.Flag hostile = scriptManager.GetFlag(Script.Flag.Designation.Hostile, npcContent.entity.ToString());
-            return $"def t{id_s}_x22(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1=6000,\r\n                   flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                   z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        RemoveMyAggro()\r\n        call = t{id_s}_x6(val1=val1, val2=val2, val3=val3, val4=val4, val5=val5, actionbutton1=actionbutton1,\r\n                             flag9=flag9, flag10=flag10, flag11=flag11, flag12=flag12, flag13=flag13, z1=z1, z2=z2,\r\n                             z3=z3, z4=z4, mode1=mode1, mode2=mode2)\r\n        if CheckSelfDeath() or GetEventFlag(flag6):\r\n            \"\"\"State 3\"\"\"\r\n            Label('L0')\r\n            call = t{id_s}_x8(flag6=flag6, val2=val2, val3=val3)\r\n            if not CheckSelfDeath() and not GetEventFlag(flag6):\r\n                continue\r\n            elif GetEventFlag(9000):\r\n                pass\r\n        elif GetEventFlag(flag7):\r\n            \"\"\"State 2\"\"\"\r\n            call = t{id_s}_x7(val2=val2, val3=val3)\r\n            if CheckSelfDeath() or GetEventFlag(flag6):\r\n                Goto('L0')\r\n            elif not GetEventFlag(flag7):\r\n                continue\r\n            elif GetEventFlag(9000):\r\n                pass\r\n        elif GetEventFlag(9000) or IsPlayerDead():\r\n            pass\r\n        \"\"\"State 4\"\"\"\r\n        assert t{id_s}_x35() and not GetEventFlag(9000)\r\n";
+            return $"def t{id_s}_x22(flag6=4743, flag7={hostile.id}, val1=5, val2=10, val3=12, val4=10, val5=12, actionbutton1={talkActionButtonId},\r\n                   flag9=6000, flag10=6001, flag11=6000, flag12=6000, flag13=6000, z1=1, z2=1000000, z3=1000000,\r\n                   z4=1000000, mode1=1, mode2=1):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        RemoveMyAggro()\r\n        call = t{id_s}_x6(val1=val1, val2=val2, val3=val3, val4=val4, val5=val5, actionbutton1=actionbutton1,\r\n                             flag9=flag9, flag10=flag10, flag11=flag11, flag12=flag12, flag13=flag13, z1=z1, z2=z2,\r\n                             z3=z3, z4=z4, mode1=mode1, mode2=mode2)\r\n        if CheckSelfDeath() or GetEventFlag(flag6):\r\n            \"\"\"State 3\"\"\"\r\n            Label('L0')\r\n            call = t{id_s}_x8(flag6=flag6, val2=val2, val3=val3)\r\n            if not CheckSelfDeath() and not GetEventFlag(flag6):\r\n                continue\r\n            elif GetEventFlag(9000):\r\n                pass\r\n        elif GetEventFlag(flag7):\r\n            \"\"\"State 2\"\"\"\r\n            call = t{id_s}_x7(val2=val2, val3=val3)\r\n            if CheckSelfDeath() or GetEventFlag(flag6):\r\n                Goto('L0')\r\n            elif not GetEventFlag(flag7):\r\n                continue\r\n            elif GetEventFlag(9000):\r\n                pass\r\n        elif GetEventFlag(9000) or IsPlayerDead():\r\n            pass\r\n        \"\"\"State 4\"\"\"\r\n        assert t{id_s}_x35() and not GetEventFlag(9000)\r\n";
         }
 
         private string State_x23(uint id)
@@ -495,8 +506,9 @@ namespace JortPob
             for (int i = 0; i < greeting.talks.Count(); i++)
             {
                 NpcManager.TopicData.TalkData talkData = greeting.talks[i];
+                if (talkData.IsChoice()) { continue; }
 
-                string filters = $" {talkData.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talkData.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 string greetLine = "";
                 if (filters == " " || !(i < greeting.talks.Count() - 1)) { ifop = "else"; filters = ""; }
                 if (greeting.talks.Count() == 1) { ifop = "if"; filters = " True"; }
@@ -514,18 +526,18 @@ namespace JortPob
                 {
                     if (talkData.dialogInfo.script.calls.Count() > 0)
                     {
-                        greetLine += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, scriptManager, npcContent, id, 8);
+                        greetLine += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 8);
                     }
                     if (talkData.dialogInfo.script.choice != null)
                     {
-                        string genState = GeneratedState_Choice(id, nxtGenStateId, talkData, greeting);
+                        int genChoiceStateId = nxtGenStateId++;
+                        string genState = GeneratedState_Choice(id, genChoiceStateId, talkData, greeting);
                         generatedStates.Add(genState);
-                        greetLine += $"        call = t{id_s}_x{nxtGenStateId}()\r\n";
+                        greetLine += $"        call = t{id_s}_x{genChoiceStateId}()\r\n";
                         greetLine += $"        if call.Get() == 0:\r\n";
                         greetLine += $"            return 0\r\n";
                         greetLine += $"        elif call.Done():\r\n";
                         greetLine += $"            pass\r\n";
-                        nxtGenStateId++;
                     }
                         
                 }
@@ -587,8 +599,11 @@ namespace JortPob
         /* Greeting -> Dialog parent state */
         private string State_x37(uint id)
         {
+            Script.Flag npcHelloFlag = scriptManager.GetFlag(Script.Flag.Designation.Hello, npcContent.entity.ToString());
+
             string id_s = id.ToString("D9");
             string s = $"def t{id:D9}_x37():\r\n    \"\"\"State 0,1\"\"\"\r\n";
+            s += $"    SetEventFlag({npcHelloFlag.id}, FlagState.On)";  // set hello flag when the player hits a to talk to a npc, this locks the npc out of using a "hello" line until you walk away and come back
             if(npcContent.IsGuard())
             {
                 Script.Flag guardTalkingFlag = scriptManager.GetFlag(Script.Flag.Designation.GuardIsGreeting, "GuardIsGreeting");
@@ -682,7 +697,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                 if (filters == "") { filters = "True"; }
 
                 s += $"    {ifop} {filters}:\r\n";
@@ -696,12 +711,12 @@ namespace JortPob
             return s;
         }
 
-        private string State_x42(uint id)
+        private string State_x42(uint id, int talkActionButtonId)
         {
             string id_s = id.ToString("D9");
             int unk0Flag = 1043332706;
             int unk1Flag = 1043332707;
-            return $"def t{id_s}_x42(flag2={unk0Flag}, flag3={unk1Flag}):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        # actionbutton:6000:\"Talk\"\r\n        call = t{id_s}_x0(actionbutton1=6000, flag10=6001, flag14=6000, flag15=6000, flag16=6000, flag17=6000,\r\n                             flag9=6000)\r\n        if call.Done():\r\n            break\r\n        elif GetEventFlag(flag2) and not GetEventFlag(flag3):\r\n            \"\"\"State 2\"\"\"\r\n            # talk:80181010:\"What are you playing at! Stop this!\"\r\n            assert t{id_s}_x34(text1=80181010, flag3=flag3, mode3=1)\r\n    \"\"\"State 3\"\"\"\r\n    return 0\r\n";
+            return $"def t{id_s}_x42(flag2={unk0Flag}, flag3={unk1Flag}):\r\n    \"\"\"State 0\"\"\"\r\n    while True:\r\n        \"\"\"State 1\"\"\"\r\n        # actionbutton:6000:\"Talk\"\r\n        call = t{id_s}_x0(actionbutton1={talkActionButtonId}, flag10=6001, flag14=6000, flag15=6000, flag16=6000, flag17=6000,\r\n                             flag9=6000)\r\n        if call.Done():\r\n            break\r\n        elif GetEventFlag(flag2) and not GetEventFlag(flag3):\r\n            \"\"\"State 2\"\"\"\r\n            # talk:80181010:\"What are you playing at! Stop this!\"\r\n            assert t{id_s}_x34(text1=80181010, flag3=flag3, mode3=1)\r\n    \"\"\"State 3\"\"\"\r\n    return 0\r\n";
         }
 
         // Some ESD calls have custom state machine calls because they are complex
@@ -733,6 +748,13 @@ namespace JortPob
                 s.Append($"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
+            // Add travel option
+            if (npcContent.travel.Count() > 0)
+            {
+                int travelMenuTopicId = textManager.GetTopic("Travel");
+                s.Append($"        # action:{travelMenuTopicId}:\"Travel\"\r\n        AddTalkListData({listCount++}, {travelMenuTopicId}, -1)\r\n");
+            }
+
             // Add persuasion option
             int persuasionMenuTopicId = textManager.GetTopic("Persuade");
             s.Append($"        # action:{persuasionMenuTopicId}:\"Persuasion\"\r\n        AddTalkListData({listCount++}, {persuasionMenuTopicId}, -1)\r\n");
@@ -745,7 +767,7 @@ namespace JortPob
                 List<string> filters = new();
                 foreach(NpcManager.TopicData.TalkData talk in topic.talks)
                 {
-                    string filter = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filter = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if(filter == "") { filters.Clear(); break; }
                     filters.Add(filter);
                 }
@@ -773,6 +795,13 @@ namespace JortPob
                 ifopA = "elif";
             }
 
+            // travel options
+            if (npcContent.travel.Count() > 0)
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            # travel menu\r\n            assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_TRAVELMENU:D2}()\r\n");
+                ifopA = "elif";
+            }
+
             // persuasion options
             s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            # persuade menu\r\n            assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_PERSUADEMENU:D2}()\r\n");
             ifopA = "elif";
@@ -790,7 +819,7 @@ namespace JortPob
                 {
                     if (talk.IsChoice()) { continue; } // choice dialogs are unreachable from this context, discard
 
-                    string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if (filters == "") { filters = "True"; }
 
                     s.Append($"            {ifopB} {filters}:\r\n");
@@ -806,14 +835,14 @@ namespace JortPob
                     {
                         if (talk.dialogInfo.script.calls.Count() > 0)
                         {
-                            s.Append(talk.dialogInfo.script.GenerateEsdSnippet(paramanager,scriptManager, npcContent, id, 16));
+                            s.Append(talk.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 16));
                         }
                         if(talk.dialogInfo.script.choice != null)
                         {
-                            string genState = GeneratedState_Choice(id, nxtGenStateId, talk, topic);
+                            int genChoiceStateId = nxtGenStateId++;
+                            string genState = GeneratedState_Choice(id, genChoiceStateId, talk, topic);
                             generatedStates.Add(genState);
-                            s.Append($"                assert t{id_s}_x{nxtGenStateId}()\r\n");
-                            nxtGenStateId++;
+                            s.Append($"                assert t{id_s}_x{genChoiceStateId}()\r\n");
                         }
                     }
                     if (ifopB == "if") { ifopB = "elif"; }
@@ -852,7 +881,7 @@ namespace JortPob
                 {
                     NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                    string filters = talk.dialogInfo.GenerateCondition(scriptManager, npcContent);
+                    string filters = talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
                     if (filters == "") { filters = "True"; }
 
                     sb.Append($"                {ifop} {filters}:\r\n");
@@ -944,6 +973,76 @@ namespace JortPob
             return s;
         }
 
+        private string GeneratedState_TravelMenu(uint id, int x)
+        {
+            StringBuilder s = new();
+
+            string a = $""""
+                        def t{id:D9}_x{x:D2}():
+                            while True:
+                                ClearPreviousMenuSelection()
+                                ClearTalkActionState()
+                                ClearTalkListData()
+                                ShuffleRNGSeed(100)
+                                SetRNGSeed()
+
+                        """";
+            s.Append(a);
+
+            int i = 1;
+            foreach (NpcContent.Travel travel in npcContent.travel)
+            {
+                string b = $""""
+                                    # action:##:"{travel.name}"
+                                    if ComparePlayerStat(PlayerStat.RunesCollected, CompareType.Greater, {travel.cost}):
+                                        AddTalkListData({i++}, {textManager.GetTopic(travel.name)}, -1)
+                                    else:
+                                        pass
+
+                            """";
+                s.Append(b);
+            }
+
+            string c = $""""
+                                # action:##:"Cancel"
+                                AddTalkListData(99, {textManager.GetTopic("Back")}, -1)
+
+                                ShowShopMessage(TalkOptionsType.Regular)
+                                assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))
+
+                        """";
+            s.Append(c);
+
+            i = 1;
+            string ifop = "if";
+            foreach (NpcContent.Travel travel in npcContent.travel)
+            {
+                Script.Flag warpFlag = scriptManager.common.GetOrRegisterTravelWarp(travel);
+
+                string d = $""""
+                                    {ifop} GetTalkListEntryResult() == {i++}:
+                                        ## Travel :: {travel.name}
+                                        ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Subtract, {travel.cost})
+                                        assert GetCurrentStateElapsedTime() > 0.25
+                                        SetEventFlag({warpFlag.id}, FlagState.On)
+                                        assert GetCurrentStateElapsedTime() > 1
+                                        return 0
+
+                            """";
+                ifop = "elif";
+                s.Append(d);
+            }
+
+            string e = $""""
+                                else:
+                                    ## "Cancel"
+                                    return 0
+                       
+                        """";
+            s.Append(e);
+            return s.ToString();
+        }
+
         /* Handles assault, resist arrest, and murder */
         private string GeneratedState_HandleCrime(uint id, int x)
         {
@@ -1023,7 +1122,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
                 if (topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
@@ -1045,7 +1144,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
                 if(topic.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
@@ -1067,7 +1166,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = topic.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < topic.talks.Count() - 1)) { filters = ""; ifop = "else"; i = topic.talks.Count(); }
 
 
@@ -1088,7 +1187,7 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = idle.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < idle.talks.Count() - 1)) { filters = ""; ifop = "else"; i = idle.talks.Count(); }
 
                 idleCode += $"            {ifop}{filters}:\r\n";
@@ -1104,8 +1203,9 @@ namespace JortPob
             {
                 NpcManager.TopicData.TalkData talk = hello.talks[i];
 
-                string filters = $" {talk.dialogInfo.GenerateCondition(scriptManager, npcContent)}";
+                string filters = $" {talk.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent)}";
                 if (filters == " " || !(i < hello.talks.Count() - 1)) { filters = ""; ifop = "else"; i = hello.talks.Count(); }
+                if (hello.talks.Count() == 1) { ifop = "if"; filters = " True"; } // special stupid case. does actually happen (rolls eyes)
 
                 helloCode += $"            {ifop}{filters}:\r\n";
                 helloCode += $"                # hello talk:{talk.primaryTalkRow}:\"{Utility.SanitizeTextForComment(talk.dialogInfo.text)}\"\r\n";
@@ -1151,6 +1251,7 @@ namespace JortPob
 
                                assert GetCurrentStateElapsedTime() > 0.25
                            return 0
+
                        """";
             return s;
         }
@@ -1178,6 +1279,7 @@ namespace JortPob
                                SetEventFlag({crimeFlag.id}, FlagState.On)
 
                            return 0
+
                        """";
             return s;
         }
@@ -1234,6 +1336,7 @@ namespace JortPob
             string executeList = "";
 
             string ifop = "if";
+            List<int> addedChoices = new(); // to prevent adding duplicate choices to the same id. does not cause issues ingame, just a code cleanliness thing. multiple results on same id is fine, this just does the choice part
             foreach (Tuple<int, string> tuple in choice.choices)
             {
                 int choiceId = tuple.Item1;
@@ -1255,10 +1358,15 @@ namespace JortPob
                     }
                     if (!match) { continue; }
 
-                    int choiceTextId = textManager.AddChoice(choiceText);
+                    if (!addedChoices.Contains(choiceId))
+                    {
+                        int choiceTextId = textManager.AddChoice(choiceText);
+                        createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
+                    }
 
-                    createList += $"        # action:{choiceTextId}:\"{choiceText}\"\r\n        AddTalkListData({choiceId}, {choiceTextId}, -1)\r\n";
-                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}:\r\n            assert t{id_s}_x33(text2={talkData.primaryTalkRow}, mode4=1)\r\n";
+                    string optFilters = talkData.dialogInfo.GenerateCondition(itemManager, scriptManager, npcContent);
+                    if(optFilters != "") { optFilters = $" and ({optFilters})"; }
+                    executeList += $"        {ifop} GetTalkListEntryResult() == {choiceId}{optFilters}:\r\n            # choice: \"{Common.Utility.SanitizeTextForComment(talkData.dialogInfo.text)}\"\r\n            assert t{id_s}_x33(text2={talkData.primaryTalkRow}, mode4=1)\r\n";
 
                     foreach (DialogRecord dialog in talkData.dialogInfo.unlocks)
                     {
@@ -1267,12 +1375,21 @@ namespace JortPob
 
                     if (talkData.dialogInfo.script != null)
                     {
-                        executeList += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager,scriptManager, npcContent, id, 12);
+                        if (talkData.dialogInfo.script.calls.Count() > 0)
+                        {
+                            executeList += talkData.dialogInfo.script.GenerateEsdSnippet(paramanager, itemManager, scriptManager, npcContent, id, 12);
+                        }
+                        if (talkData.dialogInfo.script.choice != null) // rare situation where a choice option goes into another choice option
+                        {
+                            int genChoiceStateId = nxtGenStateId++;
+                            string genState = GeneratedState_Choice(id, genChoiceStateId, talkData, topic); 
+                            generatedStates.Add(genState);
+                            executeList += $"            assert t{id_s}_x{genChoiceStateId}()\r\n";
+                        }
                     }
 
+                    addedChoices.Add(choiceId);
                     if (ifop == "if") { ifop = "elif"; }
-
-                    break;
                 }
             }
 
@@ -1287,7 +1404,7 @@ namespace JortPob
             s += createList;
             s += $"        \"\"\"State 3\"\"\"\r\n        ShowShopMessage(TalkOptionsType.Regular)\r\n        \"\"\"State 4\"\"\"\r\n        assert not (CheckSpecificPersonMenuIsOpen(1, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        \"\"\"State 5\"\"\"\r\n";
             s += executeList;
-            s += "        else:\r\n            ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Add, 1)\r\n            return 0\r\n";
+            s += "        else:\r\n            return 0\r\n";
             s += $"        \"\"\"State 10,11\"\"\"\r\n        return 1\r\n\r\n";
 
             return s;

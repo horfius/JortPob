@@ -32,6 +32,7 @@ namespace JortPob
         public readonly EMEVD.Event init;
 
         public readonly List<NpcContent> npcs; // list of npcs that are registered in this areascript, used to do some script generation
+        public readonly List<Content> ownedContent; // list of all items/containers that have an npc owner. this is used to generate a thievery script after main gen finishes
 
         public readonly Dictionary<uint, string> entityIdMapping; // used for debuggin, just records a string (usually a record id) as a description for created entity ids
 
@@ -97,12 +98,81 @@ namespace JortPob
             };
 
             npcs = new();
+            ownedContent = new();
         }
 
-        public void RegisterLoadDoor(DoorContent door)
+        public void RegisterLoadDoor(Paramanager paramanager, DoorContent door, ModelInfo modelInfo)
         {
-            int actionParam = door.warp.map == 60 ? 1501 : 1500;  // enter or exit
-            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParam}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
+            int actionParamId = paramanager.GenerateActionButtonDoorParam(modelInfo, door.warp.prompt);
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.LoadDoor]}, {actionParamId}, {door.entity}, {door.entity}, {1000}, {door.warp.map}, {door.warp.x}, {door.warp.y}, {door.warp.block}, {door.warp.entity});"));
+        }
+
+        public void RegisterItemAsset(ItemContent item)
+        {
+            NpcContent owner;
+            if(item.ownerNpc != null) { owner = GetAreaNpcById(item.ownerNpc); }
+            else { owner = null; }
+
+            // Unowned item free for the taking
+            if (owner == null)
+            {
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.ItemAsset]}, {item.treasure.id}, {item.entity});"));
+            }
+            // Item owned by an npc that counts as stealing if you take it
+            else
+            {
+                Flag ownerDead = GetFlag(Designation.Dead, owner.entity.ToString());
+                Flag crimeLevel = common.GetFlag(Designation.CrimeLevel, "CrimeLevel");
+                Flag crimeFlag = GetFlag(Designation.CrimeEvent, owner.entity.ToString());
+                Flag thiefFlag = GetFlag(Designation.ThiefCrime, owner.entity.ToString());
+
+                List<string> parameters = new()
+                {
+                    item.treasure.id.ToString(),
+                    item.entity.ToString(),
+                    item.treasure.id.ToString(),
+                    item.entity.ToString(),
+                    ownerDead.id.ToString(),
+                    crimeFlag.id.ToString(),
+                    thiefFlag.id.ToString(),
+                    crimeLevel.id.ToString(),
+                    crimeLevel.Bits().ToString(),
+                    item.value.ToString()
+                };
+
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.OwnedItemAsset]}, {string.Join(", ", parameters)});"));
+                ownedContent.Add(item);
+            }
+        }
+
+        public void RegisterContainerAsset(ContainerContent container)
+        {
+            NpcContent owner;
+            if (container.ownerNpc != null) { owner = GetAreaNpcById(container.ownerNpc); }
+            else { owner = null; }
+
+            if(owner != null)
+            {
+                Flag ownerDead = GetFlag(Designation.Dead, owner.entity.ToString());
+                Flag crimeLevel = common.GetFlag(Designation.CrimeLevel, "CrimeLevel");
+                Flag crimeFlag = GetFlag(Designation.CrimeEvent, owner.entity.ToString());
+                Flag thiefFlag = GetFlag(Designation.ThiefCrime, owner.entity.ToString());
+
+                List<string> parameters = new()
+                {
+                    container.treasure.id.ToString(),
+                    container.treasure.id.ToString(),
+                    ownerDead.id.ToString(),
+                    crimeFlag.id.ToString(),
+                    thiefFlag.id.ToString(),
+                    crimeLevel.id.ToString(),
+                    crimeLevel.Bits().ToString(),
+                    500.ToString() // @TODO: just setting a random value for this. we should calculate value of items in a container in the future and set that as the crimegold for stealing
+                };
+
+                init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.OwnedContainer]}, {string.Join(", ", parameters)});"));
+                ownedContent.Add(container);
+            }
         }
 
         public void RegisterNpcHostility(NpcContent npc)
@@ -120,6 +190,12 @@ namespace JortPob
             /* Hello event: npc turns to player when player enters a certain radius and the esd sets a flag and says a hello line */
             Flag helloFlag = CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.Hello, npc.entity.ToString());
             init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.Hello]}, {helloFlag.id}, {npc.entity}, {helloFlag.id});"));
+        }
+
+        /* Dead body */
+        public void RegisterDeadNpc(NpcContent npc)
+        {
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeCommonEvent(0, {common.events[ScriptCommon.Event.DeadBody]}, {npc.entity}, {npc.entity}, {npc.entity});"));
         }
 
         public void RegisterNpc(Paramanager paramanager, NpcContent npc, Flag count)
@@ -178,6 +254,41 @@ namespace JortPob
                 emevd.Events.Add(crimeEvent);
                 init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {crimeEvent.ID}, 0);"));
             }
+        }
+
+        /* Generate thievery event */
+        /* Geneartes a big event that hides all owned item pickups UNLESS the player is sneaking. This is to make accidentally stealing stuff not a problem */
+        public void GenerateThieveryEvent()
+        {
+            EMEVD.Event thieveryEvent = new();
+            Flag thieveryEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"ThieveryEvent::{map:D2}_{x:D2}_{y:D2}_{block:D2}");
+            thieveryEvent.ID = thieveryEventFlag.id;
+
+            Flag playerIsSneakingFlag = common.GetFlag(Designation.PlayerIsSneaking, "PlayerIsSneaking");
+
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {playerIsSneakingFlag.id});")); // if not sneaking
+            foreach (Content content in ownedContent)
+            {
+                thieveryEvent.Instructions.Add(AUTO.ParseAdd($"SetAssetTreasureState({content.entity}, Disabled);"));
+            }
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {playerIsSneakingFlag.id});")); // if sneaking
+            foreach (Content content in ownedContent)
+            {
+                thieveryEvent.Instructions.Add(AUTO.ParseAdd($"SetAssetTreasureState({content.entity}, Enabled);"));
+            }
+            thieveryEvent.Instructions.Add(AUTO.ParseAdd($"EndUnconditionally(EventEndType.Restart);"));
+
+            emevd.Events.Add(thieveryEvent);
+            init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {thieveryEventFlag.id}, 0);"));
+        }
+
+        private NpcContent GetAreaNpcById(string id)
+        {
+            foreach(NpcContent npc in npcs)
+            {
+                if (npc.id == id) { return npc; }
+            }
+            return null;
         }
 
         /* Create an EMEVD flag for this MSB */
@@ -245,6 +356,13 @@ namespace JortPob
             return newid;
         }
 
+        private Script.Flag GetFlag(Designation designation, string name)
+        {
+            var lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
+
+            return FindFlagByLookupKey(lookupKey);
+        }
+
         public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)
         {
             return flagsByLookupKey.GetValueOrDefault(key);
@@ -270,6 +388,7 @@ namespace JortPob
             public enum Designation
             {
                 Event,                                          // Flag is an event ID
+                Item,                                           // ItemLot awarded flag
                 Global, Local, Reputation, Journal, CrimeLevel,          // CrimeLevel is gold owed to guards, the Crime below is a per npc variable for if you comitted a crime against them
                 Dead, DeadCount, Disabled, Hostile, CrimeEvent, FriendHitCounter, Pickpocketed, ThiefCrime,      // hostile flag exists for friendly npcs, if you piss em off they stab you
                 TopicEnabled, TalkedToPc, Disposition, PlayerRace,
@@ -279,7 +398,9 @@ namespace JortPob
                 CrimeAbsolved,            // temp value, setting it to 1 triggers a common emevd event that clears all crime and hostility flags
                 HostileQuip, Hello,    // temp value that is flagged when a guard is gretting the player, if the player has a bounty and trys to leave dialog without paying they get dunked on
                 OnActivate, CellChanged, GetButtonPressedBit, GetButtonPressedValue, // used by papyrus to emulate mw script behaviours
-                Message    // Flag to trigger a popmessage or notification
+                Message,    // Flag to trigger a popmessage or notification
+                TravelWarp, // Flag to trigger warping the player from travel npcs
+                RemoveItem  // Flag to trigger removing an item from the player
             }
 
             public readonly Category category;

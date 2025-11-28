@@ -78,7 +78,7 @@ namespace JortPob.Worker
                             models.Add(baked);
                         }
                     }
-                    if (makeDynamic)
+                    if (makeDynamic || premodel.forceDynamic) // force dynamic does not force all instances to be dynamic, it just forces us to make a dynamic version. used by itemcontent specifically
                     {
                         ModelInfo dynamic = new(modelInfo.name, modelInfo.path, Const.DYNAMIC_ASSET);
                         dynamic.collision = modelInfo.collision;

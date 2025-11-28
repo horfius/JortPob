@@ -1,0 +1,25 @@
+{
+  "iron shardaxe": {
+    "type": "CustomWeapon",
+    "row": 14000000,
+    "infusion": "Lightning",
+    "skill": 21700,
+    "upgrade": 2,
+    "comment": "Remapping the iron shardaxe to a regular battle axe with +2 lightning infusion and the lightning slash skill."
+  },
+  "iron longsword": {
+    "type": "Weapon",
+    "row": 2000000,
+    "comment": "Remapping 'iron longsword' to the Elden Ring Longsword."
+  },
+  "miner's pick": {
+    "type": "Weapon",
+    "row": 12140000,
+    "comment": "Pickaxe"
+  },
+  "long bow": {
+    "type": "Weapon",
+    "row": 41000000,
+    "comment": "Longbow"
+  }
+}

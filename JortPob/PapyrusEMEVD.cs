@@ -16,7 +16,7 @@ namespace JortPob
     {
         public static List<Call.Type> UNSUPPORTED_CALL_LIST = new(), UNSUPPORTED_CONDITIONAL_LIST = new(), UNSUPPORTED_SET_LIST = new();
 
-        public static void Compile(ScriptManager scriptManager, Paramanager paramanager, Script script, Papyrus papyrus, Content content)
+        public static void Compile(ScriptManager scriptManager, Paramanager paramanager, ItemManager itemManager, Script script, Papyrus papyrus, Content content)
         {
             /* DEFINE SOME LOCAL FUNCTIONS FIRST */
 
@@ -259,25 +259,26 @@ namespace JortPob
 
                             // Resolve those operations as best as we can
                             Script.Flag lflag = GetFlagByVariable(call.parameters[0]);
+                            if (lflag == null) { break; } // another safety break. there is a tribunal script that fails to declare a var "done" and trys to set it resulting in a null
                             foreach ((string op, Call call) operation in operations)
                             {
                                 switch (operation.call.type)
                                 {
                                     case Call.Type.Literal:
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, {int.Parse(operation.call.parameters[0])}, 0, 1, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, {int.Parse(operation.call.parameters[0])}, 0, 1, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.Variable:
                                         Script.Flag l2flag = GetFlagByVariable(operation.call.parameters[0]);
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {l2flag.id}, {l2flag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {l2flag.id}, {l2flag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.GetJournalIndex:
                                         Script.Flag jflag = scriptManager.GetFlag(Script.Flag.Designation.Journal, operation.call.parameters[0]); // find journal flag or create it if it does not exist
                                         if(jflag == null) { jflag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, operation.call.parameters[0]); }
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {jflag.id}, {jflag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {jflag.id}, {jflag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         break;
                                     case Call.Type.GetButtonPressed:
                                         Script.Flag bflag = scriptManager.GetFlag(Script.Flag.Designation.GetButtonPressedValue, content.entity.ToString());
-                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {bflag.id}, {bflag.Bits()}, {GetEventValueOperator(operation.op)})");
+                                        lines.Add($"EventValueOperation({lflag.id}, {lflag.Bits()}, 0, {bflag.id}, {bflag.Bits()}, {GetEventValueOperator(operation.op)});");
                                         lines.Add($"EventValueOperation({bflag.id}, {bflag.Bits()}, {ushort.MaxValue}, 0, 1, 5);"); // reset value after reading it
                                         break;
                                     default: if (!UNSUPPORTED_SET_LIST.Contains(operation.call.type)) { Lort.Log($" ## WARNING ## Unsupported Papyrus->EMEVD set operation call {papyrus.id}->{call.type}->{operation.call.type}", Lort.Type.Debug); UNSUPPORTED_SET_LIST.Add(operation.call.type); }
@@ -291,7 +292,9 @@ namespace JortPob
                         {
                             Script.Flag jflag = scriptManager.GetFlag(Script.Flag.Designation.Journal, call.parameters[0]); // look for flag, if not found make one
                             if (jflag == null) { jflag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, call.parameters[0]); }
-                            lines.Add($"EventValueOperation({jflag.id}, {jflag.Bits()}, {int.Parse(call.parameters[1])}, 0, 1, 5)");  // 5 is the 'Assign' operation
+                            Script.Flag mflag = scriptManager.common.GetOrRegisterNotification(paramanager, "Your journal has been updated!");
+                            lines.Add($"EventValueOperation({jflag.id}, {jflag.Bits()}, {int.Parse(call.parameters[1])}, 0, 1, 5);");  // 5 is the 'Assign' operation
+                            lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {mflag.id}, ON);");
                             break;
                         }
 
@@ -317,6 +320,48 @@ namespace JortPob
                             if (evar == null) { break; } // currently, disabilng/enabling assets is unsupported and so the flag doesnt exist. meaning we need to pass here. fixme later
                             lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {evar.id}, OFF);");
                             lines.Add($"ChangeCharacterEnableState({content.entity.ToString()}, 0);");
+                            break;
+                        }
+
+                    case Papyrus.Call.Type.AddItem:
+                        {
+                            // only supporting items/gold added to player rn. will eventually support other stuff
+                            if (call.target == "player")
+                            {
+                                // Gold specifically handled as souls so its diffo from other item checks
+                                if (call.parameters[0] == "gold_001")
+                                {
+                                    // @TODO: need to generate a speff for this to work
+                                }
+                                // Any other item
+                                else
+                                {
+                                    ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
+                                    if (itemInfo == null) { throw new Exception(); }
+                                    lines.Add($"DirectlyGivePlayerItem({(int)itemInfo.type}, {itemInfo.row}, 0, 0);");
+                                }
+                            }
+                            break;
+                        }
+
+                    case Papyrus.Call.Type.RemoveItem:
+                        {
+                            // only supporting items/gold added to player rn. will eventually support other stuff
+                            if (call.target == "player")
+                            {
+                                // Gold specifically handled as souls so its diffo from other item checks
+                                if (call.parameters[0] == "gold_001")
+                                {
+                                    // @TODO: need to generate a speff for this to work
+                                }
+                                // Any other item
+                                else
+                                {
+                                    ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
+                                    if (itemInfo == null) { throw new Exception(); }
+                                    lines.Add($"RemoveItemFromPlayer({(int)itemInfo.type}, {itemInfo.row}, 1);");
+                                }
+                            }
                             break;
                         }
 
@@ -450,22 +495,45 @@ namespace JortPob
             EMEVD.Event evt = new();
             evt.ID = evtFlag.id;
 
-            /* If there is an "on activate" call we need a paralell script to handle that so we generate one */
-            /* This paralell script emulates the behaviour of MW by awaiting the player hitting A on an object to interact with it, then setting a flag to true */
-            /* The actual papyrus code then just reads this flag to determine if the player has activated it. The papyrus script also resets the value after reading it for consistency */
-            /* We cannot simply do an onactionbutton check in the main papyrus script because it is blocking and can't be compared to false. This is the best way to emulate behaviour */
+            /* Emulate OnActivate papyrus call if it is present in this script */
             if (papyrus.HasCall(Call.Type.OnActivate))
             {
-                Script.Flag onActivateFlag = script.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.OnActivate, content.entity.ToString());
-                Script.Flag onActivateEventFlag = script.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, content.entity.ToString());
-                EMEVD.Event onActivateEvent = new();
-                onActivateEvent.ID = onActivateEventFlag.id;
-                onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {onActivateFlag.id});"));
-                onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, 6020, {content.entity});"));
-                onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {onActivateFlag.id}, ON);"));
-                onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"EndUnconditionally(EventEndType.Restart);"));
-                script.emevd.Events.Add(onActivateEvent);
-                script.init.Instructions.Add(script.AUTO.ParseAdd($"InitializeEvent(0, {onActivateEventFlag.id}, 0);"));
+                Script.Flag treasuerLootFlag = null;
+                if (content is ItemContent) { treasuerLootFlag = ((ItemContent)content).treasure; }
+                else if (content is ContainerContent) { treasuerLootFlag = ((ContainerContent)content).treasure; }
+                else if (content is NpcContent) { treasuerLootFlag = ((NpcContent)content).treasure; }
+
+                /* If the object is an ItemContent or ContainerContent we can emulate OnActivate by simply waiting for the treasure flag to be set */
+                if (treasuerLootFlag != null)
+                {
+                    Script.Flag onActivateFlag = script.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.OnActivate, content.entity.ToString());
+                    Script.Flag onActivateEventFlag = script.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, content.entity.ToString());
+                    EMEVD.Event onActivateEvent = new();
+                    onActivateEvent.ID = onActivateEventFlag.id;
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {treasuerLootFlag.id});")); // if the looted flag is initially off
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {treasuerLootFlag.id});"));  // then switches on...
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {onActivateFlag.id}, ON);"));         // it means the player just picked up the item or looted the container!
+                    script.emevd.Events.Add(onActivateEvent);
+                    script.init.Instructions.Add(script.AUTO.ParseAdd($"InitializeEvent(0, {onActivateEventFlag.id}, 0);"));
+                }
+                /* If there is an "on activate" call we need a paralell script to handle that so we generate one */
+                /* This paralell script emulates the behaviour of MW by awaiting the player hitting A on an object to interact with it, then setting a flag to true */
+                /* The actual papyrus code then just reads this flag to determine if the player has activated it. The papyrus script also resets the value after reading it for consistency */
+                /* We cannot simply do an onactionbutton check in the main papyrus script because it is blocking and can't be compared to false. This is the best way to emulate behaviour */
+                else
+                {
+                    int actionButtonId = paramanager.GenerateActionButtonInteractParam($"Interact with {content.name}");
+                    Script.Flag onActivateFlag = script.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Bit, Script.Flag.Designation.OnActivate, content.entity.ToString());
+                    Script.Flag onActivateEventFlag = script.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, content.entity.ToString());
+                    EMEVD.Event onActivateEvent = new();
+                    onActivateEvent.ID = onActivateEventFlag.id;
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {onActivateFlag.id});"));
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionButtonId}, {content.entity});"));
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {onActivateFlag.id}, ON);"));
+                    onActivateEvent.Instructions.Add(script.AUTO.ParseAdd($"EndUnconditionally(EventEndType.Restart);"));
+                    script.emevd.Events.Add(onActivateEvent);
+                    script.init.Instructions.Add(script.AUTO.ParseAdd($"InitializeEvent(0, {onActivateEventFlag.id}, 0);"));
+                }
             }
 
             /* If there is an "Cell Changed" call we need a temp flag created to use as our "run once" flag */

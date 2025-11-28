@@ -239,6 +239,28 @@ namespace JortPob
             return RecursiveCheck(scope);
         }
 
+        /* Looks through a papyrus script and returns every call of the given type in a list */
+        public List<Call> GetCalls(Call.Type type)
+        {
+            List<Call> ret = new();
+            void RecursiveCheck(Scope scope)
+            {
+                foreach (Call call in scope.calls)
+                {
+                    if (call is Conditional conditional)
+                    {
+                        if (conditional.left.type == type) { ret.Add(conditional.left); }
+                        if (conditional.right.type == type) { ret.Add(conditional.right); }
+                        RecursiveCheck(conditional.pass);
+                        RecursiveCheck(conditional.fail);
+                    }
+                    else if (call.type == type) { ret.Add(call); }
+                }
+            }
+            RecursiveCheck(scope);
+            return ret;
+        }
+
         public class Scope
         {
             public readonly List<Call> calls;
@@ -290,8 +312,9 @@ namespace JortPob
                 ModFactionReaction, ModFlee, SetAlarm, PlaceAtPc, ClearInfoActor, Cast, ForceGreeting, SetHello, GetJournalIndex, PayFineThief,
                 AiWander, AiFollow, AiFollowCell, AiEscort, GetAiPackageDone, GetCurrentAiPackage, AiTravel, AiFollowCellPlayer, PositionCell, ModFight,
                 GetPcCell, MenuMode, OnPcSoulGemUse, GetLOS, GetLineOfSight, GetDeadCount, CellChanged, OnPcHitMe, OnPcEquip, OnPcAdd, GetStandingPc,
+                GetPcCrimeLevel, GetCollidingPC, GetWaterLevel, GetPcInJail, GetPcTraveling, GetButtonPressed,
                 OnKnockout, GetSpellEffects, GetSoundPlaying, ScriptRunning, GetCurrentWeather, OnMurder, GetPcSleep, PcVampire, PcExpelled, GetLocked,
-                GetButtonPressed,
+                PlaceItem, SetScale, ModResistParalysis, ModResistPoison, ModResistMagicka, ModResistFire, ModResistFrost, SetDelete, ExplodeSpell, TurnMoonRed, TurnMoonWhite, BecomeWerewolf,
                 Random,
                 Xbox,
                 GameHour, Day, Month,
@@ -340,7 +363,13 @@ namespace JortPob
             {
                 RAW = line;
 
-                string sanitize = line.Trim().ToLower();
+                // Go ahead and trim
+                string sanitize = line.Trim();
+
+                // Force lowercase for anything that is NOT in a string literal "like dis"
+                sanitize = Utility.StringAwareLower(sanitize);
+
+                // Check if likne is literally blank or a comment
                 if (sanitize.StartsWith(";") || sanitize == "") { type = Type.None; target = null; parameters = new string[0]; return; } // line does nothing
 
                 // Replace any tabs with spaces for consistency
@@ -349,14 +378,15 @@ namespace JortPob
                 // Remove trailing comments
                 if (sanitize.Contains(";"))
                 {
-                    sanitize = sanitize.Split(";")[0].Trim();
+                    sanitize = Utility.StringAwareSplit(sanitize, ';')[0].Trim();
                 }
 
                 // Remove parens. Papyrus doesn't really use them for anything. As far as i can tell they don't use it for order of operations or multi expression conditionals
-                if(sanitize.Contains("(") || sanitize.Contains(")"))
-                {
-                    sanitize = sanitize.Replace("(", "").Replace(")", "");
-                }
+                sanitize = Utility.StringAwareReplace(sanitize, '(', ' ');
+                sanitize = Utility.StringAwareReplace(sanitize, ')', ' ');
+
+                // Remove any commas as they are not actually needed for papyrus syntax and are used somewhat randomly lol
+                sanitize = Utility.StringAwareReplace(sanitize, ',', ' ');
 
                 // Add spaces between operators. This is notably an issue when conditionals have a missing space like 'if var >=3`  that missing space makes parsing messy so we fix this here
                 if (sanitize.StartsWith("if") || sanitize.StartsWith("elseif"))
@@ -385,10 +415,6 @@ namespace JortPob
                     sanitize = sanitize.Replace("  ", " ");
                 }
 
-                // Remove any commas as they are not actually needed for papyrus syntax and are used somewhat randomly lol
-                // @TODO: this is fine except on choice calls which have strings with dialog text in them. the dialogs can have commas but we are just erasing them rn. should fix, low prio
-                sanitize = sanitize.Replace(",", "");
-
                 // Fix a specific single case where a stupid -> has a space in it
                 if (sanitize.Contains("-> ")) { sanitize = sanitize.Replace("-> ", "->"); }
 
@@ -401,6 +427,12 @@ namespace JortPob
                 // Fix a specific case in Tribunal.esm where some weirdo used a colon after the choice command for no reason
                 if (sanitize.Contains("choice:")) { sanitize = sanitize.Replace("choice:", "choice"); }
 
+                // And another one in Bloodmoon.esm, this time with a space. What the fuck is wrong with these scripters lmao
+                if(sanitize.StartsWith("choice :")) { sanitize = sanitize.Replace("choice :", "choice"); }
+
+                // Fix a specific case in Tribunal.esm where some freak wrote moddispoistion calls with a subtraction to the function (????) instead of negative value
+                if(sanitize.StartsWith("moddisposition") && sanitize.Contains("- ")) { sanitize = sanitize.Replace("- ", "-"); }
+
                 // Handle literal
                 if (Utility.StringIsFloat(sanitize))  // doing stringisfloat because a literal can be an int or a float and this covers both cases
                 {
@@ -408,16 +440,16 @@ namespace JortPob
                     parameters = new string[] { sanitize };
                 }
                 //  Handle If
-                else if(sanitize.StartsWith("if"))
+                else if (sanitize.StartsWith("if"))
                 {
                     type = Type.If;
-                    parameters = Utility.StringAwareSplit(sanitize[2..].Trim());
+                    parameters = Utility.StringAwareSplit(sanitize[2..].Trim(), ' ');
                 }
                 //  Handle ElseIf
                 else if (sanitize.StartsWith("elseif"))
                 {
                     type = Type.ElseIf;
-                    parameters = Utility.StringAwareSplit(sanitize[6..].Trim());
+                    parameters = Utility.StringAwareSplit(sanitize[6..].Trim(), ' ');
                 }
                 // Handle targeted call
                 else if (sanitize.Contains("->"))
@@ -438,7 +470,7 @@ namespace JortPob
                 else if (!Enum.TryParse(typeof(Type), sanitize.Split(" ")[0], true, out object? callTest))
                 {
                     type = Type.Variable;
-                    parameters = Utility.StringAwareSplit(sanitize);
+                    parameters = Utility.StringAwareSplit(sanitize, ' ');
                 }
                 // Handle normal call
                 else
@@ -453,7 +485,7 @@ namespace JortPob
                     /* Handle special case where you have a call like this :: Set "Manilian Scerius".slaveStatus to 2 */
                     /* Seems to be fairly rare that we have syntax like this but it does happen. */
                     /* Recombine the 2 halves of that "name" and remove the quotes */
-                    parameters = Utility.StringAwareSplit(s);
+                    parameters = Utility.StringAwareSplit(s, ' ');
                 }
 
                 // remove quotes around parameters, this is to fix some weird situations where mw devs wrote scripts that have random unnescary quotes around vars/literals

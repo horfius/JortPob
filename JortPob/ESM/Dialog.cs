@@ -1,4 +1,6 @@
-﻿using JortPob.Common;
+﻿using IronPython.Compiler;
+using JortPob.Common;
+using SharpAssimp.Unmanaged;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -83,7 +85,7 @@ namespace JortPob
 
                 playerFaction = NullEmpty(json["player_faction"].ToString());
                 disposition = int.Parse(json["data"]["disposition"].ToString());
-                playerRank = int.Parse(json["data"]["player_rank"].ToString());
+                playerRank = playerFaction!=null?int.Parse(json["data"]["player_rank"].ToString()):-1;  // minor MW bug fix. some dialogs have a mistake where they have a required rank set but no faction
 
                 filters = new();
                 foreach (JsonNode filterNode in json["filters"].AsArray())
@@ -266,7 +268,7 @@ namespace JortPob
 
             /* Generates an ESD condition for this line using the data from its filters */ // used by DialogESD.cs
             private static List<String> debugUnsupportedFiltersLogging = new();
-            public string GenerateCondition(ScriptManager scriptManager, NpcContent npcContent)
+            public string GenerateCondition(ItemManager itemManager, ScriptManager scriptManager, NpcContent npcContent)
             {
                 List<string> conditions = new();
 
@@ -283,7 +285,7 @@ namespace JortPob
                     conditions.Add($"GetEventFlag({flag.id}) == True");
                 }
 
-                if(playerRank > -1)
+                if (playerRank > -1)
                 {
                     Script.Flag flag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, playerFaction);
                     conditions.Add($"GetEventFlagValue({flag.id}, {flag.Bits()}) >= {playerRank + 1}"); // the +1 is because i made the first rank 1 and morrowind assumes 0
@@ -379,6 +381,10 @@ namespace JortPob
                                             Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
                                             return $"(not GetEventFlag({hflag.id}) and GetEventFlagValue({dvar.id}, {dvar.Bits()}) > 60 and GetEventFlagValue({fvar.id}, {fvar.Bits()}) {filter.OperatorSymbol()} {filter.value - 1})";
                                         }
+                                    case DialogFilter.Function.Choice:
+                                        {
+                                            return $"True"; // choice commands are handled differently. this "true" is just to prevent breaking choices that have filters
+                                        }
 
                                     default: return null;
                                 }
@@ -407,8 +413,8 @@ namespace JortPob
                                                 return $"CompareRNGValue({filter.OperatorString()}, {filter.value}) == True";
                                             }
 
-                                            Flag gvar = scriptManager.GetFlag(Script.Flag.Designation.Global, filter.id); // look for flag, if not found make one
-                                            if (gvar == null) { gvar = scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Script.Flag.Designation.Global, filter.id); }
+                                            Flag gvar = scriptManager.GetFlag(Script.Flag.Designation.Global, filter.id); // look for flag. if not found return a static 'False' as it's probably a float variable
+                                            if(gvar == null) { return "False"; }
                                             return $"GetEventFlagValue({gvar.id}, {gvar.Bits()}) {filter.OperatorSymbol()} {filter.value}";
                                         }
 
@@ -527,7 +533,12 @@ namespace JortPob
                                                 return $"ComparePlayerStat(PlayerStat.RunesCollected, {filter.OperatorString()}, {filter.value})";
                                             }
                                             // Any other item
-                                            return "False"; // not supported yet
+                                            else
+                                            {
+                                                ItemManager.ItemInfo itemInfo = itemManager.GetItem(filter.id.ToLower());
+                                                if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
+                                                return $"ComparePlayerInventoryNumber({(int)itemInfo.type}, {itemInfo.row}, {filter.OperatorString()}, {filter.value}, False)";
+                                            }
                                         }
                                     default: return null;
                                 }
@@ -589,7 +600,7 @@ namespace JortPob
 
             /* Creates code for a dialog esd to execute when the dialoginfo that this dialogpapyrus is owned by gets played */
             private static List<String> debugUnsupportedPapyrusCallLogging = new();
-            public string GenerateEsdSnippet(Paramanager paramanager, ScriptManager scriptManager, NpcContent npcContent, uint esdId, int indent)
+            public string GenerateEsdSnippet(Paramanager paramanager, ItemManager itemManager, ScriptManager scriptManager, NpcContent npcContent, uint esdId, int indent)
             {
                 // Takes any mixed numeric parameter and converts it to an esd friendly format. for example  "1 + 2 + crimeGold + 7" or "crimeGold - valueValue" or just "5"
                 string ParseParameters(string[] parameters, int startIndex)
@@ -602,14 +613,31 @@ namespace JortPob
                         else if (Utility.StringIsOperator(p)) { parsed += p; }
                         else  // its (probably) a variable
                         {
-                            Flag pvar = scriptManager.GetFlag(Script.Flag.Designation.Global, p); // look for flag, if not found make one
-                            if (pvar == null) { pvar = scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Script.Flag.Designation.Global, p); }
-                            parsed += $"GetEventFlagValue({pvar.id}, {(int)pvar.type})";
+                            Flag pvar = GetFlagByVariable(p); // get variable flag
+                            if (pvar == null) { parsed += "0"; } // @TODO: discarding function calls rn, should suppor them properly (like in papyrusemevd.cs)
+                            else { parsed += $"GetEventFlagValue({pvar.id}, {(int)pvar.type})"; }
                         }
                         if (i < parameters.Length - 1) { parsed += " "; }
                     }
                     if (parsed.StartsWith("(")) { parsed += ")"; }
                     return parsed;
+                }
+
+                // Little function to resolve a variable to a flag
+                Script.Flag GetFlagByVariable(string varName)
+                {
+                    Script.Flag retFlag = null;
+                    if (!varName.Contains("."))  // probably a local var of this object
+                    {
+                        retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{npcContent.id}.{varName}");
+                    }
+                    else         // looks like it's actually a local var of a different object
+                    {
+                        retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, varName); // look for it, if we dont find it we create it
+                        if (retFlag == null) { retFlag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Local, varName); }
+                    }
+                    if (retFlag == null) { retFlag = scriptManager.GetFlag(Script.Flag.Designation.Global, varName); } // maybe its a global var!
+                    return retFlag;
                 }
 
                 List<string> lines = new();
@@ -620,11 +648,9 @@ namespace JortPob
                     {
                         case Papyrus.Call.Type.Set:
                             {
-                                // This var can be either global or local so check for both. since locals are preprocessed if we dont find either we make a global
-                                Flag var = scriptManager.GetFlag(Script.Flag.Designation.Global, call.parameters[0]);
-                                if (var == null) { var = scriptManager.GetFlag(Flag.Designation.Local, call.parameters[0]); }
-                                if (var == null) { var = scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Script.Flag.Designation.Global, call.parameters[0]); }
-
+                                // This var can be either global or local so check for both
+                                Flag var = GetFlagByVariable(call.parameters[0]);
+                                if (var == null) { break; } // if we fail to find the variable just discard for now. this only really happens if a papyrus script is discarded and fails to setup a local var
                                 string code = $"SetEventFlagValue({var.id}, {var.Bits()}, {ParseParameters(call.parameters, 2)})";
 
                                 lines.Add(code);
@@ -649,7 +675,7 @@ namespace JortPob
                         case Papyrus.Call.Type.PcJoinFaction:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionJoined, npcContent.faction);
-                                string code = $"SetEventFlag({fvar.id}, FlagState.On);";
+                                string code = $"SetEventFlag({fvar.id}, FlagState.On)";
                                 lines.Add(code);
                                 break;
                             }
@@ -674,14 +700,14 @@ namespace JortPob
                         case Papyrus.Call.Type.PcExpell:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionExpelled, npcContent.faction);
-                                string code = $"SetEventFlag({fvar.id}, FlagState.On);";
+                                string code = $"SetEventFlag({fvar.id}, FlagState.On)";
                                 lines.Add(code);
                                 break;
                             }
                         case Papyrus.Call.Type.PcClearExpelled:
                             {
                                 Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FactionExpelled, npcContent.faction);
-                                string code = $"SetEventFlag({fvar.id}, FlagState.Off);";
+                                string code = $"SetEventFlag({fvar.id}, FlagState.Off)";
                                 lines.Add(code);
                                 break;
                             }
@@ -692,27 +718,49 @@ namespace JortPob
                             }
                         case Papyrus.Call.Type.RemoveItem:
                             {
-                                // Gold specifically handled as souls so its diffo from other item checks
-                                if (call.target == "player" && call.parameters[0] == "gold_001")
+                                // only supporting items/gold added to player rn. will eventually support other stuff
+                                if (call.target == "player")
                                 {
-                                    string code = $"ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Subtract, {ParseParameters(call.parameters, 1)})";
-                                    lines.Add(code);
-                                    break;
+                                    // Gold specifically handled as souls so its diffo from other item checks
+                                    if (call.parameters[0] == "gold_001")
+                                    {
+                                        string code = $"ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Subtract, {ParseParameters(call.parameters, 1)})";
+                                        lines.Add(code);
+                                    }
+                                    // Any other item
+                                    else
+                                    {
+                                        ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
+                                        if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
+                                        Script.Flag removeItemFlag = scriptManager.common.GetOrRegisterRemoveItem(itemInfo, int.Parse(call.parameters[1]));
+                                        string code = $"SetEventFlag({removeItemFlag.id}, FlagState.On)";
+                                        lines.Add(code);
+                                    }
                                 }
-                                // Any other item
-                                break; // not yet supported
+                                break;
                             }
                         case Papyrus.Call.Type.AddItem:
                             {
-                                // Gold specifically handled as souls so its diffo from other item checks
-                                if (call.target == "player" && call.parameters[0] == "gold_001")
+                                // only supporting items/gold added to player rn. will eventually support other stuff
+                                if (call.target == "player")
                                 {
-                                    string code = $"ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Add, {ParseParameters(call.parameters, 1)})";
-                                    lines.Add(code);
-                                    break;
+                                    // Gold specifically handled as souls so its diffo from other item checks
+                                    if (call.parameters[0] == "gold_001")
+                                    {
+                                        string code = $"ChangePlayerStat(PlayerStat.RunesCollected, ChangeType.Add, {ParseParameters(call.parameters, 1)})";
+                                        lines.Add(code);
+                                    }
+                                    // Any other item
+                                    else
+                                    {
+                                        ItemManager.ItemInfo itemInfo = itemManager.GetItem(call.parameters[0].ToLower());
+                                        if (itemInfo == null) { throw new Exception("Script failed to find referenced item! This should not happen!"); }
+                                        int row = paramanager.GenerateAddItemLot(itemInfo);
+                                        string code = $"AwardItemLot({row})";
+                                        lines.Add(code);
+                                    }
                                 }
-                                // Any other item
-                                break; // not yet supported
+                                break;
                             }
                         case Papyrus.Call.Type.ModDisposition:
                             {
@@ -890,10 +938,10 @@ namespace JortPob
                     case Operator.Equal: return "CompareType.Equal";
                     case Operator.NotEqual: return "CompareType.NotEqual";
                     case Operator.GreaterEqual: return "CompareType.GreaterOrEqual";
-                    case Operator.Greater: return "CompareType.Greater";
-                    case Operator.LessEqual: return "CompareType.LessOrEqual";
-                    case Operator.Less: return "CompareType.Less";
-                    default: return "DADDY NO PLEASE!!!!";
+                    case Operator.Greater: return "CompareType.Greater";             // for the comparetype operators the mismatch only applys to the Less and LessOrEqual ops
+                    case Operator.Less: return "CompareType.LessOrEqual";
+                    case Operator.LessEqual: return "CompareType.Less";
+                    default: throw new Exception("Invalid operator type! This should not happen!");
                 }
             }
 
@@ -904,11 +952,11 @@ namespace JortPob
                 {
                     case Operator.Equal: return "==";
                     case Operator.NotEqual: return "!=";
-                    case Operator.GreaterEqual: return ">";
+                    case Operator.GreaterEqual: return ">";    // due to an issue with esd compiling >= and > are swapped. same issue with < and <= as well
                     case Operator.Greater: return ">=";
                     case Operator.LessEqual: return "<=";
                     case Operator.Less: return "<";
-                    default: return "DADDY NO PLEASE!!!!";
+                    default: throw new Exception("Invalid operator type! This should not happen!");
                 }
             }
         }

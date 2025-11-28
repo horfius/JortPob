@@ -28,12 +28,14 @@ namespace JortPob
         public readonly List<DoorContent> doors;
         public readonly List<LightContent> lights;
         public readonly List<EmitterContent> emitters;
+        public readonly List<ContainerContent> containers;
+        public readonly List<ItemContent> items;
 
         public Cell(ESM esm, JsonNode json)
         {
             /* Cell Data */
-            name = json["name"].ToString() == "" ? null : json["name"].ToString();
-            region = json["region"] != null ? json["region"].ToString() : "null";
+            name = json["name"]?.ToString();
+            region = json["region"]?.ToString();
 
             flags = new();
             string[] fs = json["data"]["flags"].GetValue<string>().ToLower().Split("|");
@@ -60,6 +62,8 @@ namespace JortPob
             doors = new();
             emitters = new();
             lights = new();
+            containers = new();
+            items = new();
 
             foreach (JsonNode reference in json["references"].AsArray())
             {
@@ -74,7 +78,6 @@ namespace JortPob
                 switch(record.type)
                 {
                     case ESM.Type.Static:
-                    case ESM.Type.Container:
                     case ESM.Type.Activator:
                         if (mesh != null) { assets.Add(new AssetContent(this, reference, record)); }
                         break;
@@ -92,6 +95,22 @@ namespace JortPob
                     case ESM.Type.LeveledCreature:
                         creatures.Add(new CreatureContent(this, reference, record));
                         break;
+                    case ESM.Type.Container:
+                        containers.Add(new ContainerContent(this, reference, record));
+                        break;
+                    case ESM.Type.Weapon:
+                    case ESM.Type.Armor:
+                    case ESM.Type.Clothing:
+                    case ESM.Type.Ingredient:
+                    case ESM.Type.Alchemy:
+                    case ESM.Type.Apparatus:
+                    case ESM.Type.Book:
+                    case ESM.Type.MiscItem:
+                    case ESM.Type.Lockpick:
+                    case ESM.Type.Probe:
+                    case ESM.Type.RepairItem:
+                        items.Add(new ItemContent(this, reference, record));
+                        break;
                 }
             }
 
@@ -101,6 +120,8 @@ namespace JortPob
             contents.AddRange(doors);
             contents.AddRange(emitters);
             contents.AddRange(lights);
+            contents.AddRange(containers);
+            contents.AddRange(items);
 
 
             /* Calculate bounding box */

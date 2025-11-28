@@ -1,5 +1,6 @@
 ﻿using JortPob.Common;
 using JortPob.Worker;
+using Microsoft.Scripting.Hosting;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ using System.Numerics;
 using System.Text.Json.Nodes;
 using WitchyFormats;
 using static JortPob.Override;
+using static SoulsFormats.MSBAC4.Event;
 
 namespace JortPob
 {
@@ -86,15 +88,23 @@ namespace JortPob
 
         public readonly Dictionary<ParamType, FsParam> param;
 
+        public Dictionary<string, int> interactActionButtons, itemActionButtons; // string is the text of the button prompt, int is the row id
+
         public short terrainDrawParamID;
         private Dictionary<int, int> lodPartDrawParamIDs; // first int is the index of the array from Const.ASSET_LOD_VALUES, second int is the param row id
-        private int nextMessageParam;
+        private int nextMessageParam, nextMapItemLotId, nextEnemyItemLotId, nextActionButtonId;
 
         public Paramanager(TextManager textManager)
         {
             this.textManager = textManager;
 
             nextMessageParam = 3000;
+            nextMapItemLotId = 120000;
+            nextEnemyItemLotId = 720000000;
+            nextActionButtonId = 300000;
+
+            interactActionButtons = new();
+            itemActionButtons = new();
 
             SoulsFormats.BND4 paramBnd = SoulsFormats.SFUtil.DecryptERRegulation(Utility.ResourcePath(@"misc\regulation.bin"));
             string[] files = Directory.GetFiles(Utility.ResourcePath(@"misc\paramdefs"));
@@ -152,6 +162,11 @@ namespace JortPob
             return clone;
         }
 
+        public FsParam.Row GetRow(FsParam param, int row)
+        {
+            return param[row];
+        }
+
         public void Write()
         {
             Lort.Log($"Binding {param.Count()} PARAMs...", Lort.Type.Main);
@@ -206,7 +221,7 @@ namespace JortPob
             foreach (ModelInfo asset in assets)
             {
                 /* Dynamic */
-                if (asset.IsDynamic())
+                if (asset.IsDynamic() || !asset.HasCollision())
                 {
                     // Clone a specific row as our baseline
                     FsParam.Row row = CloneRow(electedStoneBuildingRow, asset.name, asset.AssetRow());   // 7077 is a big stone building part in the overworld
@@ -406,7 +421,6 @@ namespace JortPob
             {
                 this.name = name;
                 this.match = match;
-                for (int i = 0; i < match.Count(); i++) { match[i] = match[i].Trim().ToLower(); }
                 this.MapInfoParamId = MapInfoParamId;
                 this.MapRegionParamId = MapRegionParamId;
                 this.rem = rem;
@@ -414,15 +428,29 @@ namespace JortPob
         }
 
         // @TODO: maybe move weatherdata to layout or its own class since its used by multiple toher thingsthingso
+        public static WeatherData GetWeatherData(string region)
+        {
+            string regionLower = region.ToLower().Trim();
+            foreach (WeatherData wd in EXTERIOR_WEATHER_DATA_LIST)
+            {
+                foreach(string m in wd.match)
+                {
+                    if (m.ToLower().Trim() == regionLower) { return wd; }
+                }
+            }
+            return null;
+        }
 
         public static List<WeatherData> EXTERIOR_WEATHER_DATA_LIST = new()
-        {
-            new WeatherData("Limgrave", new(){ "West Gash Region", "Ascadian Isles Region", "Grazelands Region" }, 60423600, 99999901, EnvManager.Rem.Forest), // 0
+        {       // default region is the result when an area has literally no region value set. just a big fat null
+            new WeatherData("Limgrave", new(){ "Default Region", "West Gash Region", "Ascadian Isles Region", "Grazelands Region" }, 60423600, 99999901, EnvManager.Rem.Forest), // 0
             new WeatherData("Liurnia", new(){ "Bitter Coast Region", "Sheogorad", "Azura's Coast Region" }, 60374200, 60365000, EnvManager.Rem.Forest), // 10
             new WeatherData("Altus", new(){ }, 60395000, 60395000, EnvManager.Rem.Forest), // 20
             new WeatherData("Gelmir", new(){ "Ashlands Region", "Molag Mar Region" }, 60355200, 60355200, EnvManager.Rem.Mountain), // 21
             new WeatherData("Caelid", new(){ }, 60473700, 60473700, EnvManager.Rem.Mountain), // 30
             new WeatherData("Caelid Desert", new(){ "Red Mountain Region" }, 60533800, 60533800, EnvManager.Rem.Mountain), // 31
+            new WeatherData("Mountaintop of Giants", new() { "Brodir Grove Region", "Felsaad Coast Region", "Hirstaang Forest Region", "Isinfier Plains Region", "Thirsk Region" }, 60505700, 60505700, EnvManager.Rem.Snowfield),
+            new WeatherData("Consecrated Snowfield", new() { "Moesring Mountains Region" }, 60495500, 60495500, EnvManager.Rem.Snowfield)
         };
 
         public static List<WeatherData> INTERIOR_WEATHER_DATA_LIST = new()
@@ -443,14 +471,7 @@ namespace JortPob
                 if (tile.IsEmpty()) { continue; } // skip empty tiles
 
                 string region = tile.GetRegion();
-                WeatherData weatherData = null;
-                foreach (WeatherData w in EXTERIOR_WEATHER_DATA_LIST)
-                {
-                    if (w.match.Contains(region))
-                    {
-                        weatherData = w; break;
-                    }
-                }
+                WeatherData weatherData = GetWeatherData(region);
 
                 int id = int.Parse($"60{tile.coordinate.x.ToString("D2")}{tile.coordinate.y.ToString("D2")}00");
 
@@ -529,31 +550,113 @@ namespace JortPob
             }
         }
 
-        public void GenerateNpcParam(int id, NpcContent npc)
+        public void GenerateNpcParam(ItemManager itemManager, Script script, NpcContent npc, int id)
         {
+            // It seems like special poses are tied to npcparam in some way so i need to copy lanya to get the 'dead body' pose
+            int rowToCopy;
+            if (npc.dead) { rowToCopy = 523150020; } // lanya dead on the ground in the peter griffin pose
+            else { rowToCopy = 523010000; }          // white mask varre
+
             FsParam npcParam = param[ParamType.NpcParam];
-            FsParam.Row row = CloneRow(npcParam[523010000], npc.name, id); // 523010000 is white mask varre
+            FsParam.Row row = CloneRow(npcParam[rowToCopy], npc.name, id); // 523010000 is white mask varre
+
+            int itemLotRow;
+            List<ItemManager.ItemInfo> inv = itemManager.GetInventory(npc);
+            if (!npc.dead && inv.Count() > 0) {
+                itemLotRow = GenerateInventoryItemLot(script, npc, inv);
+            }
+            else { itemLotRow = -1; }
 
             int textId = textManager.AddNpcName(npc.name);
             row.Cells[5].SetValue(textId); // nameId
             row.Cells[105].SetValue((byte)(npc.hostile ? 27 : 26)); // team type (hostile=27, friendly=26)
+            row["itemLotId_enemy"].Value.SetValue(itemLotRow);
 
-            AddRow(npcParam, row);
+             AddRow(npcParam, row);
         }
 
-        public void GenerateActionButtonParam(int id, string text)
+        public int GenerateActionButtonItemParam(string text)
         {
+            if (itemActionButtons.ContainsKey(text)) { return itemActionButtons[text]; } // already exists, return row to it
+
+            int rowId = nextActionButtonId++;
+
             FsParam actionParam = param[ParamType.ActionButtonParam];
-            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is pick up runes prompt
+            FsParam.Row row = CloneRow(actionParam[4000], text, rowId); // 4000 is default pickup item prompt
 
             int textId = textManager.AddActionButton(text);
 
-            row.Cells[5].SetValue(2f);   // radius
-            row.Cells[9].SetValue(1.5f); // hegiht high
-            row.Cells[10].SetValue(-1.5f); // height low
-            row.Cells[23].SetValue(textId);
+            row["radius"].Value.SetValue(1f); // radius
+            row["angle"].Value.SetValue(180); // angle from dmy
+            row["depth"].Value.SetValue(0f);
+            row["width"].Value.SetValue(0f);
+            row["height"].Value.SetValue(1.75f);
+            row["baseHeightOffset"].Value.SetValue(-1.25f);
+            row["angleCheckType"].Value.SetValue((byte)0);
+            row["allowAngle"].Value.SetValue(180);  // player look angle
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(0f); // cooldown
 
             AddRow(actionParam, row);
+            itemActionButtons.Add(text, rowId);
+
+            return rowId;
+        }
+
+        public int GenerateActionButtonInteractParam(string text)
+        {
+            if (interactActionButtons.ContainsKey(text)) { return interactActionButtons[text]; } // already exists, return row to it
+
+            int rowId = nextActionButtonId++;
+
+            FsParam actionParam = param[ParamType.ActionButtonParam];
+            FsParam.Row row = CloneRow(actionParam[6000], text, rowId); // 6000 is talk prompt
+
+            int textId = textManager.AddActionButton(text);
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(3f); // cooldown
+
+            AddRow(actionParam, row);
+            interactActionButtons.Add(text, rowId);
+
+            return rowId;
+        }
+
+        public int GenerateActionButtonDoorParam(ModelInfo modelInfo, string text)
+        {
+            int rowId = nextActionButtonId++;
+
+            FLVER2 flver = FLVER2.Read($"{Const.CACHE_PATH}{modelInfo.path}"); // load flver of this door so we can look at its bounding box
+            float x = flver.Nodes[0].BoundingBoxMax.X - flver.Nodes[0].BoundingBoxMin.X;
+            float z = flver.Nodes[0].BoundingBoxMax.Z - flver.Nodes[0].BoundingBoxMin.Z;
+            float width = x > z ? x : z;
+            float top = Math.Max(0, flver.Nodes[0].BoundingBoxMax.Y);
+            float bottom = Math.Abs(flver.Nodes[0].BoundingBoxMin.Y);
+
+            FsParam actionParam = param[ParamType.ActionButtonParam];
+            FsParam.Row row = CloneRow(actionParam[1000], text, rowId); // 1000 is pick up runes prompt
+
+            int textId = textManager.AddActionButton(text);
+
+            row["regionType"].Value.SetValue((byte)0); // cylinder
+            row["dummyPoly1"].Value.SetValue(-1); // these seem to be broken in ER so setting -1
+            row["dummyPoly2"].Value.SetValue(-1);
+            row["radius"].Value.SetValue(width); // radius
+            row["angle"].Value.SetValue(180); // angle from dmy
+            row["depth"].Value.SetValue(0f);
+            row["width"].Value.SetValue(0f);
+            row["height"].Value.SetValue(top + bottom);
+            row["baseHeightOffset"].Value.SetValue(-bottom - 0.25f);
+            row["angleCheckType"].Value.SetValue((byte)0);
+            row["allowAngle"].Value.SetValue(90);  // player look angle
+            row["textId"].Value.SetValue(textId);
+            row["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+            row["execInvalidTime"].Value.SetValue(3f); // cooldown
+
+            AddRow(actionParam, row);
+            return rowId;
         }
 
         /* Set all map placenames to "Morrowind" for now. Later we can edit the map mask and setup the regions properly */
@@ -743,6 +846,259 @@ namespace JortPob
                 //keepsakeRow["captionId"].Value.SetValue(textManager.AddMenuText("Sexy Item", "Select sexy item")); // dont actually wanna change this rn so guh
                 baseRow["captionId"].Value.SetValue(textManager.AddMenuText("Race", "Select race"));
             }
+        }
+
+        /* Generates an itemlot with a single item and no flag */
+        public int GenerateAddItemLot(ItemManager.ItemInfo itemInfo)
+        {
+            FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
+            FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, repeatable, scripted, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+
+            int lotItemCategory;
+            switch(itemInfo.type)
+            {
+                case ItemManager.Type.Weapon:
+                    lotItemCategory = 2;
+                    break;
+                case ItemManager.Type.Armor:
+                    lotItemCategory = 3;
+                    break;
+                case ItemManager.Type.Goods:
+                    lotItemCategory = 1;
+                    break;
+                case ItemManager.Type.Accessory:
+                    lotItemCategory = 4;
+                    break;
+                case ItemManager.Type.Enchant:
+                    lotItemCategory = 5;
+                    break;
+                case ItemManager.Type.CustomWeapon:
+                    lotItemCategory = 6;
+                    break;
+                default:
+                    throw new Exception("Item had invalid type! This should NEVER happen!");
+            }
+
+            row["getItemFlagId"].Value.SetValue((uint)0);
+            row["lotItemCategory01"].Value.SetValue(lotItemCategory);
+            row["lotItemId01"].Value.SetValue(itemInfo.row);
+            row["lotItemNum01"].Value.SetValue((byte)1);
+
+            AddRow(itemLotParam, row);
+            nextMapItemLotId += 10;
+            return row.ID;
+        }
+
+        /* Generates an itemlot with a single item with a flag. For item objects placed in the overworld that you can pick up as treasure. */
+        public int GenerateContentItemLot(Script script, ItemContent itemContent, ItemManager.ItemInfo itemInfo)
+        {
+            FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
+            FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, not repeatable, map treasure, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+            Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"TreasureItem::{itemInfo.type}:{itemInfo.row}");
+            itemContent.treasure = itemLotFlag;
+
+            int lotItemCategory;
+            switch (itemInfo.type)
+            {
+                case ItemManager.Type.Weapon:
+                    lotItemCategory = 2;
+                    break;
+                case ItemManager.Type.Armor:
+                    lotItemCategory = 3;
+                    break;
+                case ItemManager.Type.Goods:
+                    lotItemCategory = 1;
+                    break;
+                case ItemManager.Type.Accessory:
+                    lotItemCategory = 4;
+                    break;
+                case ItemManager.Type.Enchant:
+                    lotItemCategory = 5;
+                    break;
+                case ItemManager.Type.CustomWeapon:
+                    lotItemCategory = 6;
+                    break;
+                default:
+                    throw new Exception("Item had invalid type! This should NEVER happen!");
+            }
+
+            row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
+            row["lotItemCategory01"].Value.SetValue(lotItemCategory);
+            row["lotItemId01"].Value.SetValue(itemInfo.row);
+            row["lotItemNum01"].Value.SetValue((byte)1);
+
+            script.RegisterItemAsset(itemContent);
+
+            AddRow(itemLotParam, row);
+            nextMapItemLotId += 10;
+            return row.ID;
+        }
+
+        /* Generates a map item lot from the inventory of an npccontent with a flag. This is for dead npcs that are just bodies that you loot NOT LIVING ONES! */
+        public int GenerateDeadBodyItemLot(Script script, NpcContent npc, List<ItemManager.ItemInfo> items)
+        {
+            FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
+            if (items.Count() > 9) { Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {npc.id}", Lort.Type.Debug); }
+
+            int i = 0;
+            int baseRow = nextMapItemLotId;
+            foreach (ItemManager.ItemInfo item in items)
+            {
+                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
+
+                Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"DeadBody::{npc.id}:{0}");
+                if (i == 0) { npc.treasure = itemLotFlag; }
+                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"deadbody, not repeatable, {npc.id}:{item.id}:{i}", baseRow+i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
+
+                int lotItemCategory;
+                switch (item.type)
+                {
+                    case ItemManager.Type.Weapon:
+                        lotItemCategory = 2;
+                        break;
+                    case ItemManager.Type.Armor:
+                        lotItemCategory = 3;
+                        break;
+                    case ItemManager.Type.Goods:
+                        lotItemCategory = 1;
+                        break;
+                    case ItemManager.Type.Accessory:
+                        lotItemCategory = 4;
+                        break;
+                    case ItemManager.Type.Enchant:
+                        lotItemCategory = 5;
+                        break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
+                        break;
+                    default:
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
+                }
+
+                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
+                row[$"lotItemId01"].Value.SetValue(item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
+
+                i++;
+                AddRow(itemLotParam, row);
+            }
+
+            nextMapItemLotId += 10;
+            return baseRow;
+        }
+
+        /* Generates a map item lot from the inventory of a container with a flag. Barrels, chests, boxes, etc... */
+        public int GenerateContainerItemLot(Script script, ContainerContent container, List<ItemManager.ItemInfo> items)
+        {
+            FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
+            if (items.Count() > 9) { Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {container.id}", Lort.Type.Debug); }
+
+            int i = 0;
+            int baseRow = nextMapItemLotId;
+            foreach (ItemManager.ItemInfo item in items)
+            {
+                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
+
+                Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"Container::{container.id}:{0}");
+                if(i==0) { container.treasure = itemLotFlag; } 
+                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"container, not repeatable, {container.id}:{i}", baseRow + i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
+
+                int lotItemCategory;
+                switch (item.type)
+                {
+                    case ItemManager.Type.Weapon:
+                        lotItemCategory = 2;
+                        break;
+                    case ItemManager.Type.Armor:
+                        lotItemCategory = 3;
+                        break;
+                    case ItemManager.Type.Goods:
+                        lotItemCategory = 1;
+                        break;
+                    case ItemManager.Type.Accessory:
+                        lotItemCategory = 4;
+                        break;
+                    case ItemManager.Type.Enchant:
+                        lotItemCategory = 5;
+                        break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
+                        break;
+                    default:
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
+                }
+
+                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
+                row[$"lotItemId01"].Value.SetValue(item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
+
+                i++;
+                AddRow(itemLotParam, row);
+            }
+
+            script.RegisterContainerAsset(container);
+
+            nextMapItemLotId += 10;
+            return baseRow;
+        }
+
+        /* Generates an enemy item lot from the inventory of an npccontent with no flag. This is for LIVING npcs when the player kills them */
+        public int GenerateInventoryItemLot(Script script, NpcContent npc, List<ItemManager.ItemInfo> items)
+        {
+            FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_enemy];
+
+            if (items.Count() <= 0) { return -1; } // skip empty inv or inv with no items we actually want to generate
+            if (items.Count() > 9) { items.RemoveRange(8, items.Count()-8); Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {npc.id}", Lort.Type.Debug); }
+
+            int i = 0;
+            int baseRow = nextEnemyItemLotId;
+            foreach (ItemManager.ItemInfo item in items)
+            {
+                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
+
+                FsParam.Row row = CloneRow(itemLotParam[584000500], $"npc inventory, repeatable, {npc.id}:{i}", baseRow + i); // 584000500 is a blankish one i found that looked good as a base
+                row["getItemFlagId"].Value.SetValue((uint)0);
+
+                int lotItemCategory;
+                switch (item.type)
+                {
+                    case ItemManager.Type.Weapon:
+                        lotItemCategory = 2;
+                        break;
+                    case ItemManager.Type.Armor:
+                        lotItemCategory = 3;
+                        break;
+                    case ItemManager.Type.Goods:
+                        lotItemCategory = 1;
+                        break;
+                    case ItemManager.Type.Accessory:
+                        lotItemCategory = 4;
+                        break;
+                    case ItemManager.Type.Enchant:
+                        lotItemCategory = 5;
+                        break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
+                        break;
+                    default:
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
+                }
+
+                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
+                row[$"lotItemId01"].Value.SetValue(item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
+
+                i++;
+                AddRow(itemLotParam, row);
+            }
+
+            nextEnemyItemLotId += 10;
+            return baseRow;
         }
 
         /* Die */ // @TODO: maybe move all row removal into the constructor since it can just *happen*

@@ -109,10 +109,10 @@ namespace JortPob.Worker
         {
             ESDLang.Script.ESDOptions.CmdType talkDocType = ESDLang.Script.ESDOptions.CmdType.Talk;
             ESDLang.EzSemble.EzSembleContext context = ESDLang.EzSemble.EzSembleContext.LoadFromXml(
-                $@"dist\ESDScriptingDocumentation_{talkDocType}.xml"
+                Utility.ResourcePath($"esd\\ESDScriptingDocumentation_{talkDocType}.xml")
             );
             context.Doc = ESDLang.Doc.ESDDocumentation.DeserializeFromFile(
-                $@"dist\ESDScriptingDocumentation_{talkDocType}.json",
+                Utility.ResourcePath($"esd\\ESDScriptingDocumentation_{talkDocType}.json"),
                 new ESDLang.Doc.ESDDocumentation.DocOptions { Game = GameSpec.FromGame.ER.ToString().ToLowerInvariant() }
             );
             return context;

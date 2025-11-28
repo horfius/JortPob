@@ -1,9 +1,12 @@
 ﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using static JortPob.InteriorGroup;
+using static JortPob.NpcContent;
 
 namespace JortPob
 {
@@ -176,13 +179,13 @@ namespace JortPob
                 if (terrain != null)
                 {
                     if (huge != null) { huge.AddTerrain(cell.center, terrain); }
-                    else { Lort.Log($" ## WARNING ## Terrain fell outside of reality {cell.coordinate} -- {cell.region}", Lort.Type.Debug); }
+                    else { Lort.Log($" ## WARNING ## Terrain fell outside of reality [{cell.coordinate.x}, {cell.coordinate.y}] -- {cell.region} :: B02", Lort.Type.Debug); }
                 }
-
-                huge.AddCell(cell);
 
                 if (huge != null)
                 {
+                    huge.AddCell(cell);
+
                     foreach (Content content in cell.contents)
                     {
                         Content c = EmitterConversionCheck(content); // checks if we need to convert an assetcontent into an emittercontent due to it having emitter nodes but no light data
@@ -190,8 +193,25 @@ namespace JortPob
                         huge.AddContent(cache, cell, c);
                     }
                 }
-                else { Lort.Log($" ## WARNING ## Cell fell outside of reality {cell.coordinate} -- {cell.name}", Lort.Type.Debug); }
+                else { Lort.Log($" ## WARNING ## Cell fell outside of reality [{cell.coordinate.x}, {cell.coordinate.y}] -- {cell.name} :: B02", Lort.Type.Debug); }
                 Lort.TaskIterate(); // Progress bar update
+            }
+
+            /* Render an ASCII image of the tiles for verification! */
+            Lort.Log("Drawing ASCII art of worldspace map...", Lort.Type.Debug);
+            for (int y = 28; y < 66; y++)
+            {
+                string line = "";
+                for (int x = 30; x < 64; x++)
+                {
+                    Tile tile = GetTile(new Int2(x, y));
+                    if (tile == null) { line += "-"; }
+                    else
+                    {
+                        line += tile.assets.Count > 0 ? "X" : "~";
+                    }
+                }
+                Lort.Log(line, Lort.Type.Debug);
             }
 
 
@@ -212,7 +232,7 @@ namespace JortPob
                 end += partition;
             }
 
-            /* Resolve load doors */
+            /* Resolve load doors and travel npcs */
             InteriorGroup.Chunk FindChunk(string name) // find a chunk that contains the named cell
             {
                 foreach(InteriorGroup group in interiors)
@@ -239,6 +259,13 @@ namespace JortPob
                 return null; // may happen if debug options are enabled to build only some cells
             }
 
+            Cell FindCell(Vector3 position)  // getting an ext cell by morrowind coordinates. used to find exterior cell name
+            {
+                int x = (int)Math.Floor(position.X / Const.CELL_SIZE);
+                int y = (int)Math.Floor(position.Z / Const.CELL_SIZE);
+                return esm.GetCellByGrid(new Int2(x,y));
+            }
+
             void HandleDoor(DoorContent door)
             {
                 if (door.warp != null)
@@ -253,6 +280,10 @@ namespace JortPob
                         door.warp.y = to.group.unk;
                         door.warp.block = to.group.block;
                         door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->{door.warp.cell}");
+                        string areaName;
+                        if (to.cell.name.Contains(",")) { areaName = to.cell.name.Split(",")[^1].Trim(); }
+                        else { areaName = to.cell.name; }
+                        door.warp.prompt = $"Enter {areaName}";
                         to.AddWarp(door.warp);
                     }
                     // Door goes to exterior cell
@@ -265,7 +296,56 @@ namespace JortPob
                         door.warp.y = to.coordinate.y;
                         door.warp.block = to.block;
                         door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]");
+                        door.warp.prompt = $"Exit";
                         to.AddWarp(door.warp);
+                    }
+                }
+            }
+
+            void HandleTravel(NpcContent npc, Tile from = null)
+            {
+                if (npc.travel.Count() > 0)
+                {
+                    // Travel goes to interior cell
+                    for (int i = 0; i < npc.travel.Count; i++)
+                    {
+                        NpcContent.Travel travel = npc.travel[i];
+                        if (travel.cell != null)
+                        {
+                            InteriorGroup.Chunk to = FindChunk(travel.cell);
+                            if (to == null) { npc.travel.RemoveAt(i--); continue; }      // caused by debug sometimes
+                            travel.map = to.group.map;
+                            travel.x = to.group.area;
+                            travel.y = to.group.unk;
+                            travel.block = to.group.block;
+                            travel.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region, $"TravelDestination::{npc.cell.name}->{travel.cell}");
+                            travel.name = to.cell.name;
+                            travel.cost = Const.TRAVEL_DEFAULT_COST;
+
+                            to.AddWarp(travel);
+                        }
+                        // Travel goes to exterior cell
+                        else
+                        {
+                            Tile to = FindTile(travel.position);  // does not respect cell borders in tile msbs. likely a non-issue but kinda sketch ... @TODO:
+                            Cell cell = FindCell(travel.position);
+                            if (to == null || cell == null) { npc.travel.RemoveAt(i--); continue; }     // caused by debug sometimes
+                            travel.map = to.map;
+                            travel.x = to.coordinate.x;
+                            travel.y = to.coordinate.y;
+                            travel.block = to.block;
+                            travel.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region, $"TravelDestination::{npc.cell.name}->exterior[{travel.x},{travel.y}]");
+                            travel.name = cell.name;
+                            // calculate distance for cost of travel
+                            if (from != null)
+                            {
+                                Vector2 a = new(from.coordinate.x, from.coordinate.y);
+                                Vector2 b = new(to.coordinate.x, to.coordinate.y);
+                                travel.cost = (int)(Const.TRAVEL_DISTANCE_COST * Math.Max(1, Vector2.Distance(a, b)));
+                            }
+                            else { travel.cost = Const.TRAVEL_DEFAULT_COST; }
+                                to.AddWarp(travel);
+                        }
                     }
                 }
             }
@@ -279,6 +359,11 @@ namespace JortPob
                         HandleDoor(door);
                         if(door.warp != null) { door.entity = scriptManager.GetScript(group).CreateEntity(Script.EntityType.Asset, $"DoorEntry::{door.cell.name}->{door.warp.cell}"); }
                     }
+
+                    foreach(NpcContent npc in chunk.npcs)
+                    {
+                        HandleTravel(npc);
+                    }
                 }
             }
 
@@ -288,6 +373,11 @@ namespace JortPob
                 {
                     HandleDoor(door);
                     if (door.warp != null) { door.entity = scriptManager.GetScript(tile).CreateEntity(Script.EntityType.Asset, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]"); }
+                }
+
+                foreach (NpcContent npc in tile.npcs)
+                {
+                    HandleTravel(npc, tile);
                 }
             }
 
@@ -348,7 +438,8 @@ namespace JortPob
                 {
                     Script.Flag countFlag = GetTypeCountFlag(npc.id);
                     npc.entity = script.CreateEntity(Script.EntityType.Enemy, $"NPC::{npc.id}");
-                    script.RegisterNpc(param, npc, countFlag);
+                    if (npc.dead) { script.RegisterDeadNpc(npc); }
+                    else { script.RegisterNpc(param, npc, countFlag); }
                 }
             }
 
@@ -381,23 +472,6 @@ namespace JortPob
                     HandleNpcFlags(script, chunk.npcs);
                     HandleCreatureFlags(script, chunk.creatures);
                 }
-            }
-
-            /* Render an ASCII image of the tiles for verification! */
-            Lort.Log("Drawing ASCII art of worldspace map...", Lort.Type.Debug);
-            for (int y = 66; y >= 28; y--)
-            {
-                string line = "";
-                for (int x = 30; x < 64; x++)
-                {
-                    Tile tile = GetTile(new Int2(x, y));
-                    if(tile == null) { line += "-"; }
-                    else
-                    {
-                        line += tile.assets.Count > 0 ? "X" : "~";
-                    }
-                }
-                Lort.Log(line, Lort.Type.Debug);
             }
         }
 

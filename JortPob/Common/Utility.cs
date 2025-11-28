@@ -1,10 +1,15 @@
 ﻿using HKLib.hk2018.hkaiCollisionAvoidance;
+using HKX2;
 using SoulsFormats;
 using SoulsIds;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Linq;
 using WitchyFormats;
+using Xbrz;
 
 namespace JortPob.Common
 {
@@ -129,11 +134,24 @@ namespace JortPob.Common
             return recombined;
         }
 
-        public static string[] StringAwareSplit(string text)
+        public static string StringAwareLower(string s)
+        {
+            bool inQuote = false;
+            string text = s;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '"') { inQuote = !inQuote; }
+                else if (char.IsUpper(c) && !inQuote) { text = text.Remove(i, 1).Insert(i, $"{char.ToLower(c)}"); }
+            }
+            return text;
+        }
+
+        public static string[] StringAwareSplit(string text, char on)
         {
             if(text.Trim() == "") { return new string[0]; } // empty string = emptry array
 
-            List<string> split = text.Split(" ").ToList();
+            List<string> split = text.Split(on).ToList();
             List<string> recomb = new();
             for (int i = 0; i < split.Count(); i++)
             {
@@ -156,6 +174,19 @@ namespace JortPob.Common
                 recomb.Add(s);
             }
             return recomb.ToArray();
+        }
+
+        public static string StringAwareReplace(string s, char find, char replace)
+        {
+            bool inQuote = false;
+            string text = s;
+            for(int i=0;i<text.Length;i++)
+            {
+                char c = text[i];
+                if (c == '"') { inQuote = !inQuote; }
+                else if (c == find && !inQuote) { text = text.Remove(i, 1).Insert(i, $"{replace}"); }
+            }
+            return text;
         }
       
         public static string SanitizeTextForComment(string text)
@@ -186,6 +217,96 @@ namespace JortPob.Common
             }
 
             return true;
+        }
+
+        public static Bitmap XbrzUpscale(Bitmap bitmap, int factor)
+        {
+            // Convert to ARGB int[] array
+            int width = bitmap.Width, height = bitmap.Height;
+            int[] srcPixels = new int[width * height];
+            var rect = new Rectangle(0, 0, width, height);
+            var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            System.Runtime.InteropServices.Marshal.Copy(data.Scan0, srcPixels, 0, srcPixels.Length);
+            bitmap.UnlockBits(data);
+
+            // Perform scaling
+            var scaler = new XbrzScaler(factor, withAlpha: true);
+            int[] scaledPixels = scaler.ScaleImage(srcPixels, null, width, height);
+
+            // Convert back to Bitmap
+            int scaledWidth = width * factor, scaledHeight = height * factor;
+            var scaledBitmap = new Bitmap(scaledWidth, scaledHeight, PixelFormat.Format32bppArgb);
+            var scaledRect = new Rectangle(0, 0, scaledWidth, scaledHeight);
+            var scaledData = scaledBitmap.LockBits(scaledRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            System.Runtime.InteropServices.Marshal.Copy(scaledPixels, 0, scaledData.Scan0, scaledPixels.Length);
+            scaledBitmap.UnlockBits(scaledData);
+
+            return scaledBitmap;
+        }
+
+        /* Converts a linear color space to SRGB */
+        public static Bitmap LinearToSRGB(Bitmap bitmap)
+        {
+            Bitmap linearBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
+
+            float ConvertValue(float colorValue)
+            {
+                if (colorValue <= 0.0031308f)
+                {
+                    return colorValue * 12.92f;
+                }
+                else
+                {
+                    return 1.055f * ((float)Math.Pow(colorValue, 1.0f / 2.4f)) - 0.055f;
+                }
+            }
+
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    Color srgbColor = bitmap.GetPixel(x, y);
+                    // Convert each channel from sRGB to linear
+                    float r = ConvertValue(srgbColor.R / 255f);
+                    float g = ConvertValue(srgbColor.G / 255f);
+                    float b = ConvertValue(srgbColor.B / 255f);
+                    float a = srgbColor.A / 255f; // Alpha remains the same
+                    Color linearColor = Color.FromArgb(
+                        (int)(a * 255),
+                        (int)(r * 255),
+                        (int)(g * 255),
+                        (int)(b * 255)
+                    );
+                    linearBitmap.SetPixel(x, y, linearColor);
+                }
+            }
+            return linearBitmap;
+        }
+
+        /* Code borrowed from https://stackoverflow.com/questions/1922040/how-to-resize-an-image-c-sharp */
+        public static Bitmap ResizeBitmap(Image image, int width, int height)
+        {
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
         }
 
         /* Sort binderfiles by id */

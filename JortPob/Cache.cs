@@ -191,7 +191,7 @@ namespace JortPob
                             return model;
                         }
                     }
-                    PreModel m = new(content.mesh, content.type == ESM.Type.Static);
+                    PreModel m = new(content.mesh, content.type == ESM.Type.Static, content is ItemContent || content is ContainerContent);
                     meshes.Add(m);
                     return m;
                 }
@@ -656,12 +656,14 @@ namespace JortPob
         public string mesh;
         public Dictionary<int, int> scales;
         public bool forceCollision;           // some morrowind nifs dont have collision meshes despite needing them. in SOME cases we use the visual mesh as collision
+        public bool forceDynamic;
 
-        public PreModel(string mesh, bool forceCollision)
+        public PreModel(string mesh, bool forceCollision, bool forceDynamic)
         {
             this.mesh = mesh.Trim().ToLower();
             scales = new();
             this.forceCollision = forceCollision;
+            this.forceDynamic = forceDynamic;
         }
     }
 }
