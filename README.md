@@ -48,6 +48,6 @@ https://cdn.discordapp.com/attachments/1410970950895403040/1411525175802990794/r
 
 15. Run the project in your IDE. It will take a while to build.
 
-16. Double click the `elden-scrolls.me3` file to run the game. Go to the church of elleh and you will be transports to Morrowwind.
+16. Double click the `elden-scrolls.me3` file to run the game. There is a debug warp area in the Stranded Graveyard. You can create a new character and do the tutorial to get there. Using existing characters probably won't work well.
 
-You can use [Elden Ring Debug Tool](https://github.com/Nordgaren/Elden-Ring-Debug-Tool) or the [TGA Table](https://github.com/The-Grand-Archives/Elden-Ring-CT-TGA) to warp to the Church of Elleh and spawn items in. The latter requires Cheat Engine.
+You can use [Elden Ring Debug Tool](https://github.com/Nordgaren/Elden-Ring-Debug-Tool) or the [TGA Table](https://github.com/The-Grand-Archives/Elden-Ring-CT-TGA) to warp to the Stranded Graveyard and spawn items in. The latter requires Cheat Engine.
