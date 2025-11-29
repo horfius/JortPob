@@ -19,73 +19,83 @@ namespace JortPob.Common
             string wavPath = $"{lineDir}{hashName}.wav";
             string wemPath = $"{lineDir}{hashName}.wem";
 
-            try
+            for (int retry = 0; retry < Const.SAM_MAX_RETRY; retry++)
             {
-                // Create synth
-                using (SpeechSynthesizer synthesizer = new())
+                try
                 {
-                    // Check if this audio file exists in the cache already // @TODO: ideally we generate a voice cache later but guh w/e filesystem check for now
-                    if (System.IO.File.Exists(wemPath)) { return wemPath; }
+                    // Create synth
+                    using (SpeechSynthesizer synthesizer = new())
+                    {
+                        // Check if this audio file exists in the cache already // @TODO: ideally we generate a voice cache later but guh w/e filesystem check for now
+                        if (System.IO.File.Exists(wemPath)) { return wemPath; }
 
-                    if (npc.sex == NpcContent.Sex.Female) { synthesizer.SelectVoice("Microsoft Zira Desktop"); }
-                    else { synthesizer.SelectVoice("Microsoft David Desktop"); }
+                        if (npc.sex == NpcContent.Sex.Female) { synthesizer.SelectVoice("Microsoft Zira Desktop"); }
+                        else { synthesizer.SelectVoice("Microsoft David Desktop"); }
 
-                    // Make folder if doesn't exist (this is so ugly lmao)
-                    if (!System.IO.Directory.Exists(lineDir)) { System.IO.Directory.CreateDirectory(lineDir); }
+                        // Make folder if doesn't exist (this is so ugly lmao)
+                        if (!System.IO.Directory.Exists(lineDir)) { System.IO.Directory.CreateDirectory(lineDir); }
 
-                    // Write 32bit 44100hz wav file (required format for wem)
-                    synthesizer.SetOutputToWaveFile(wavPath, new SpeechAudioFormatInfo(44100, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
-                    synthesizer.Speak(line);
-                }
+                        // Write 32bit 44100hz wav file (required format for wem)
+                        synthesizer.SetOutputToWaveFile(wavPath, new SpeechAudioFormatInfo(44100, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+                        synthesizer.Speak(line);
+                    }
 
-                // Convert wav to wem
-                // Setup paths, make folders
-                string wwiseConsolePath = $"{Const.WWISE_PATH}WwiseConsole.exe";
-                string xmlName = $"{hashName}.wsources";
-                string xmlPath = $"{lineDir}{xmlName}";
-                string xmlRelative = $"..\\dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{xmlName}";
-                string projectDir = $"{Const.CACHE_PATH}wwise\\";
-                string projectPath = $"{projectDir}wwise.wproj";
+                    // Convert wav to wem
+                    // Setup paths, make folders
+                    string wwiseConsolePath = $"{Const.WWISE_PATH}WwiseConsole.exe";
+                    string xmlName = $"{hashName}.wsources";
+                    string xmlPath = $"{lineDir}{xmlName}";
+                    string xmlRelative = $"..\\dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{xmlName}";
+                    string projectDir = $"{Const.CACHE_PATH}wwise\\";
+                    string projectPath = $"{projectDir}wwise.wproj";
 
-                // Create XML file
-                string xmlRaw = $""""
+                    // Create XML file
+                    string xmlRaw = $""""
                                 <?xml version='1.0' encoding='UTF-8'?>
                                 <ExternalSourcesList SchemaVersion="1" Root="{lineDir}"><Source Path="{hashName}.wav" Conversion="Vorbis Quality High" /></ExternalSourcesList>
                                 """";
-                File.WriteAllText(xmlPath, xmlRaw);
+                    File.WriteAllText(xmlPath, xmlRaw);
 
-                // Create project if it doesn't exist
-                if (!File.Exists(projectPath))
-                {
-                    if(Directory.Exists(projectDir)) { Directory.Delete(projectDir); } // creating a wwise proj requires the folder to not exist
-                    ProcessStartInfo startInfo = new(wwiseConsolePath)
+                    // Create project if it doesn't exist
+                    if (!File.Exists(projectPath))
                     {
-                        WorkingDirectory = Const.CACHE_PATH,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    startInfo.ArgumentList.AddRange(new string[] {"create-new-project", $"\"{projectPath}\"", "--platform", "Windows" });
-                    using var process = Process.Start(startInfo);
-                    process.WaitForExit();
+                        if (Directory.Exists(projectDir)) { Directory.Delete(projectDir); } // creating a wwise proj requires the folder to not exist
+                        ProcessStartInfo startInfo = new(wwiseConsolePath)
+                        {
+                            WorkingDirectory = Const.CACHE_PATH,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        startInfo.ArgumentList.AddRange(new string[] { "create-new-project", $"\"{projectPath}\"", "--platform", "Windows" });
+                        using var process = Process.Start(startInfo);
+                        process.WaitForExit();
+                    }
+
+                    // Call wwise console to convert wav to wem
+                    {
+                        ProcessStartInfo startInfo = new(wwiseConsolePath)
+                        {
+                            RedirectStandardOutput = true,
+                            WorkingDirectory = lineDir,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        startInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
+                        using var process = Process.Start(startInfo);
+                        process.WaitForExit();
+                    }
+                }
+                catch
+                {
+                    Lort.Log($"## ERROR ## Failed to generate dialog {wavPath}", Lort.Type.Debug);
                 }
 
-                // Call wwise console to convert wav to wem
-                {
-                    ProcessStartInfo startInfo = new(wwiseConsolePath)
-                    {
-                        RedirectStandardOutput = true,
-                        WorkingDirectory = lineDir,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    startInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
-                    using var process = Process.Start(startInfo);
-                    process.WaitForExit();
-                }
+                if (File.Exists(wemPath)) { break; } // if the file is created successfully we don't need to retry.
             }
-            catch
+
+            if (!File.Exists(wemPath))
             {
-                Lort.Log($"## ERROR ## Failed to generate dialog {wavPath}", Lort.Type.Debug);
+                throw new System.Exception($"Failed to generated line {wemPath} despite {Const.SAM_MAX_RETRY} retry attempts.");
             }
 
             // Return wem path

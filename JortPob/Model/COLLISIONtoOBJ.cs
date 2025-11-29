@@ -102,33 +102,25 @@ namespace JortPob.Model
             {
                 var mesh = collisions[mIdx];
                 ObjG g = new();
+
                 g.name = material.ToString();
                 g.mtl = $"hkm_{g.name}_Safe1";
-
-                Matrix4x4 mt = Matrix4x4.CreateTranslation(mesh.Transform.Translation.ToVector3());
-                Matrix4x4 mr = Matrix4x4.CreateFromQuaternion(mesh.Transform.Rotation.ToQuaternion());
-                Matrix4x4 ms = Matrix4x4.CreateScale(mesh.Transform.Scale);
 
                 for (int tIdx = 0; tIdx < mesh.Triangles.Count; tIdx++)
                 {
                     var tri = mesh.Triangles[tIdx];
-
                     ObjV[] V = new ObjV[3];
 
-                    int[] tris = new int[3] { tri.v0, tri.v1, tri.v2 };
-
-                    foreach (int idx in tris)
+                    for (int i = 0; i < 3; i++)
                     {
-
-                        // Position
-                        Vector3 pos = mesh.Vertices[idx].ToNumeric();
-                        Vector3 norm = mesh.Normals[idx].ToNumeric();
-
-                        pos = Vector3.Transform(pos, ms * mr * mt);
-                        norm = Vector3.TransformNormal(norm, mr);
-
-                        pos = pos * Const.GLOBAL_SCALE;
+                        int idx = (i == 0) ? tri.v0 : (i == 1 ? tri.v1 : tri.v2);
+                        Vector3 pos = mesh.Vertices[idx].ToNumeric() * Const.GLOBAL_SCALE;
                         pos.X *= -1f;
+
+                        // Normals
+                        Vector3 norm = (mesh.Normals != null && idx < mesh.Normals.Count)
+                            ? mesh.Normals[idx].ToNumeric()
+                            : Vector3.UnitY;
                         norm.X *= -1f;
 
                         // UVs
@@ -136,36 +128,24 @@ namespace JortPob.Model
                         if (mesh.UvSet0 != null && idx < mesh.UvSet0.Count)
                         {
                             var uv = mesh.UvSet0[idx];
-                            uvw = new Vector3(uv.x, 1 - uv.y, 0); // flip V
+                            uvw = new Vector3(uv.x, 1 - uv.y, 0);
                         }
                         else
                         {
                             uvw = Vector3.Zero;
                         }
 
-                        Matrix4x4 rotateY180Matrix = Matrix4x4.CreateRotationY((float)Math.PI);
-                        Matrix4x4 rotateX90Matrix = Matrix4x4.CreateRotationX((float)Math.PI/2.0f);
-                        var fixedRotation = rotateY180Matrix * rotateX90Matrix;
-
-                        pos = Vector3.Transform(pos, fixedRotation);
-                        norm = Vector3.Transform(norm, fixedRotation);
-
-                        // Push into OBJ arrays
                         obj.vs.Add(pos);
                         obj.vns.Add(norm);
                         obj.vts.Add(uvw);
-
-                        V[idx] = new ObjV(obj.vs.Count - 1, obj.vts.Count - 1, obj.vns.Count - 1);
+                        V[i] = new ObjV(obj.vs.Count - 1, obj.vts.Count - 1, obj.vns.Count - 1);
                     }
 
-                    // Reverse winding order like original code
                     ObjF F = new ObjF(V[2], V[1], V[0]);
                     g.fs.Add(F);
                 }
-
                 obj.gs.Add(g);
             }
-
             return obj;
         }
     }

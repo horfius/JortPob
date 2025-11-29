@@ -105,6 +105,7 @@ namespace JortPob.Common
 
         #region Dialog
         public static readonly bool USE_SAM = true; // very ultra mega hyper slow, only for stress testing dialog
+        public static readonly int SAM_MAX_RETRY = 10; // generating voice synth is slightly inconsistent. it occasionally fails for no real reason.
         public static readonly string DEFAULT_DIALOG_WEM = Utility.ResourcePath(@"sound\page_turn.wem");
         public static readonly int MAX_CHAR_PER_TALK = 160;  // character limit in a line of dialog. prevents subtitle cutting off
         public static readonly int MAX_ESD_PER_VCBNK = 10;
