@@ -3,6 +3,7 @@ using SharpAssimp;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using static IronPython.Modules._ast;
 
 namespace JortPob.Model
 {
@@ -98,6 +99,8 @@ namespace JortPob.Model
         {
             Obj obj = new();
 
+            Matrix4x4 desiredRotation = Matrix4x4.CreateRotationY((float)Math.PI) * Matrix4x4.CreateRotationX((float)Math.PI / 2);
+
             for (int mIdx = 0; mIdx < collisions.Count; mIdx++)
             {
                 var mesh = collisions[mIdx];
@@ -134,6 +137,12 @@ namespace JortPob.Model
                         {
                             uvw = Vector3.Zero;
                         }
+
+                        /* Rotate Y 180 degrees because... */
+                        pos = Vector3.Transform(pos, desiredRotation);
+
+                        /* Rotate normals/tangents to match */
+                        norm = Vector3.Normalize(Vector3.TransformNormal(norm, desiredRotation));
 
                         obj.vs.Add(pos);
                         obj.vns.Add(norm);
