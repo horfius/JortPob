@@ -561,9 +561,9 @@ namespace JortPob
             FsParam.Row row = CloneRow(npcParam[rowToCopy], npc.name, id); // 523010000 is white mask varre
 
             int itemLotRow;
-            List<ItemManager.ItemInfo> inv = itemManager.GetInventory(npc);
-            if (!npc.dead && inv.Count() > 0) {
-                itemLotRow = GenerateInventoryItemLot(script, npc, inv);
+            List<(ItemManager.ItemInfo item, int quantity)> inventory = itemManager.ResolveInventory(npc);
+            if (!npc.dead && inventory.Count() > 0) {
+                itemLotRow = GenerateInventoryItemLot(script, npc, inventory);
             }
             else { itemLotRow = -1; }
 
@@ -854,33 +854,8 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, repeatable, scripted, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
 
-            int lotItemCategory;
-            switch(itemInfo.type)
-            {
-                case ItemManager.Type.Weapon:
-                    lotItemCategory = 2;
-                    break;
-                case ItemManager.Type.Armor:
-                    lotItemCategory = 3;
-                    break;
-                case ItemManager.Type.Goods:
-                    lotItemCategory = 1;
-                    break;
-                case ItemManager.Type.Accessory:
-                    lotItemCategory = 4;
-                    break;
-                case ItemManager.Type.Enchant:
-                    lotItemCategory = 5;
-                    break;
-                case ItemManager.Type.CustomWeapon:
-                    lotItemCategory = 6;
-                    break;
-                default:
-                    throw new Exception("Item had invalid type! This should NEVER happen!");
-            }
-
             row["getItemFlagId"].Value.SetValue((uint)0);
-            row["lotItemCategory01"].Value.SetValue(lotItemCategory);
+            row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
             row["lotItemId01"].Value.SetValue(itemInfo.row);
             row["lotItemNum01"].Value.SetValue((byte)1);
 
@@ -897,33 +872,8 @@ namespace JortPob
             Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"TreasureItem::{itemInfo.type}:{itemInfo.row}");
             itemContent.treasure = itemLotFlag;
 
-            int lotItemCategory;
-            switch (itemInfo.type)
-            {
-                case ItemManager.Type.Weapon:
-                    lotItemCategory = 2;
-                    break;
-                case ItemManager.Type.Armor:
-                    lotItemCategory = 3;
-                    break;
-                case ItemManager.Type.Goods:
-                    lotItemCategory = 1;
-                    break;
-                case ItemManager.Type.Accessory:
-                    lotItemCategory = 4;
-                    break;
-                case ItemManager.Type.Enchant:
-                    lotItemCategory = 5;
-                    break;
-                case ItemManager.Type.CustomWeapon:
-                    lotItemCategory = 6;
-                    break;
-                default:
-                    throw new Exception("Item had invalid type! This should NEVER happen!");
-            }
-
             row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
-            row["lotItemCategory01"].Value.SetValue(lotItemCategory);
+            row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
             row["lotItemId01"].Value.SetValue(itemInfo.row);
             row["lotItemNum01"].Value.SetValue((byte)1);
 
@@ -935,50 +885,24 @@ namespace JortPob
         }
 
         /* Generates a map item lot from the inventory of an npccontent with a flag. This is for dead npcs that are just bodies that you loot NOT LIVING ONES! */
-        public int GenerateDeadBodyItemLot(Script script, NpcContent npc, List<ItemManager.ItemInfo> items)
+        public int GenerateDeadBodyItemLot(Script script, NpcContent npc, List<(ItemManager.ItemInfo item, int quantity)> inventory)
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
-            if (items.Count() > 9) { Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {npc.id}", Lort.Type.Debug); }
+            if (inventory.Count() <= 0) { return -1; } // skip empty inv
+            if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
-            foreach (ItemManager.ItemInfo item in items)
+            foreach ((ItemManager.ItemInfo item, int quantity) entry in inventory)
             {
-                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
-
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"DeadBody::{npc.id}:{0}");
                 if (i == 0) { npc.treasure = itemLotFlag; }
-                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"deadbody, not repeatable, {npc.id}:{item.id}:{i}", baseRow+i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"deadbody, not repeatable, {npc.id}:{entry.item.id}:{i}", baseRow+i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
-
-                int lotItemCategory;
-                switch (item.type)
-                {
-                    case ItemManager.Type.Weapon:
-                        lotItemCategory = 2;
-                        break;
-                    case ItemManager.Type.Armor:
-                        lotItemCategory = 3;
-                        break;
-                    case ItemManager.Type.Goods:
-                        lotItemCategory = 1;
-                        break;
-                    case ItemManager.Type.Accessory:
-                        lotItemCategory = 4;
-                        break;
-                    case ItemManager.Type.Enchant:
-                        lotItemCategory = 5;
-                        break;
-                    case ItemManager.Type.CustomWeapon:
-                        lotItemCategory = 6;
-                        break;
-                    default:
-                        throw new Exception("Item had invalid type! This should NEVER happen!");
-                }
-
-                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
-                row[$"lotItemId01"].Value.SetValue(item.row);
-                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemCategory01"].Value.SetValue(entry.item.ItemLotCategory());
+                row[$"lotItemId01"].Value.SetValue(entry.item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)entry.quantity);
                 row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
 
                 i++;
@@ -990,50 +914,24 @@ namespace JortPob
         }
 
         /* Generates a map item lot from the inventory of a container with a flag. Barrels, chests, boxes, etc... */
-        public int GenerateContainerItemLot(Script script, ContainerContent container, List<ItemManager.ItemInfo> items)
+        public int GenerateContainerItemLot(Script script, ContainerContent container, List<(ItemManager.ItemInfo item, int quantity)> inventory)
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
-            if (items.Count() > 9) { Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {container.id}", Lort.Type.Debug); }
+            if (inventory.Count() <= 0) { return -1; } // skip empty inv
+            if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
-            foreach (ItemManager.ItemInfo item in items)
+            foreach ((ItemManager.ItemInfo item, int quantity) entry in inventory)
             {
-                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
-
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"Container::{container.id}:{0}");
                 if(i==0) { container.treasure = itemLotFlag; } 
-                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"container, not repeatable, {container.id}:{i}", baseRow + i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"container, not repeatable, {container.id}:{i}:{entry.item.id}", baseRow + i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+                
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
-
-                int lotItemCategory;
-                switch (item.type)
-                {
-                    case ItemManager.Type.Weapon:
-                        lotItemCategory = 2;
-                        break;
-                    case ItemManager.Type.Armor:
-                        lotItemCategory = 3;
-                        break;
-                    case ItemManager.Type.Goods:
-                        lotItemCategory = 1;
-                        break;
-                    case ItemManager.Type.Accessory:
-                        lotItemCategory = 4;
-                        break;
-                    case ItemManager.Type.Enchant:
-                        lotItemCategory = 5;
-                        break;
-                    case ItemManager.Type.CustomWeapon:
-                        lotItemCategory = 6;
-                        break;
-                    default:
-                        throw new Exception("Item had invalid type! This should NEVER happen!");
-                }
-
-                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
-                row[$"lotItemId01"].Value.SetValue(item.row);
-                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemCategory01"].Value.SetValue(entry.item.ItemLotCategory());
+                row[$"lotItemId01"].Value.SetValue(entry.item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)entry.quantity);
                 row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
 
                 i++;
@@ -1047,50 +945,22 @@ namespace JortPob
         }
 
         /* Generates an enemy item lot from the inventory of an npccontent with no flag. This is for LIVING npcs when the player kills them */
-        public int GenerateInventoryItemLot(Script script, NpcContent npc, List<ItemManager.ItemInfo> items)
+        public int GenerateInventoryItemLot(Script script, NpcContent npc, List<(ItemManager.ItemInfo item, int quantity)> inventory)
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_enemy];
-
-            if (items.Count() <= 0) { return -1; } // skip empty inv or inv with no items we actually want to generate
-            if (items.Count() > 9) { items.RemoveRange(8, items.Count()-8); Lort.Log($" ## CRTICAL! ## INVENTORY ITEMLOT GENERATION EXCEEDED ITEM LIMIT :: {npc.id}", Lort.Type.Debug); }
+            if (inventory.Count() <= 0) { return -1; } // skip empty inv
+            if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
 
             int i = 0;
             int baseRow = nextEnemyItemLotId;
-            foreach (ItemManager.ItemInfo item in items)
+            foreach ((ItemManager.ItemInfo item, int quantity) entry in inventory)
             {
-                if (i >= 9) { break; } // can't have more than 8 entries per itemlot award so just skip if we go over for now. fix this later @TODO!
-
-                FsParam.Row row = CloneRow(itemLotParam[584000500], $"npc inventory, repeatable, {npc.id}:{i}", baseRow + i); // 584000500 is a blankish one i found that looked good as a base
+                FsParam.Row row = CloneRow(itemLotParam[584000500], $"npc inventory, repeatable, {npc.id}:{i}:{entry.item.id}", baseRow + i); // 584000500 is a blankish one i found that looked good as a base
+                
                 row["getItemFlagId"].Value.SetValue((uint)0);
-
-                int lotItemCategory;
-                switch (item.type)
-                {
-                    case ItemManager.Type.Weapon:
-                        lotItemCategory = 2;
-                        break;
-                    case ItemManager.Type.Armor:
-                        lotItemCategory = 3;
-                        break;
-                    case ItemManager.Type.Goods:
-                        lotItemCategory = 1;
-                        break;
-                    case ItemManager.Type.Accessory:
-                        lotItemCategory = 4;
-                        break;
-                    case ItemManager.Type.Enchant:
-                        lotItemCategory = 5;
-                        break;
-                    case ItemManager.Type.CustomWeapon:
-                        lotItemCategory = 6;
-                        break;
-                    default:
-                        throw new Exception("Item had invalid type! This should NEVER happen!");
-                }
-
-                row[$"lotItemCategory01"].Value.SetValue(lotItemCategory);
-                row[$"lotItemId01"].Value.SetValue(item.row);
-                row[$"lotItemNum01"].Value.SetValue((byte)1);
+                row[$"lotItemCategory01"].Value.SetValue(entry.item.ItemLotCategory());
+                row[$"lotItemId01"].Value.SetValue(entry.item.row);
+                row[$"lotItemNum01"].Value.SetValue((byte)entry.quantity);
                 row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
 
                 i++;

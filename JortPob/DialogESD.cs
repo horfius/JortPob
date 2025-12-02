@@ -158,7 +158,7 @@ namespace JortPob
             defs.Add(State_x40(id, attack));
             defs.Add(State_x41(id, hit));
             defs.Add(State_x42(id, talkActionButtonId));
-            defs.Add(State_x44(id, npcContent.services, talk));
+            defs.Add(State_x44(id, talk));
 
             foreach (string genState in generatedStates)
             {
@@ -722,11 +722,10 @@ namespace JortPob
         // Some ESD calls have custom state machine calls because they are complex
         // These are hardcoded in Const the Papyrus region
         // All states 50 and beyond are Choice calls
-        private string State_x44(uint id, bool hasShop, List<NpcManager.TopicData> topics)
+        private string State_x44(uint id, List<NpcManager.TopicData> topics)
         {
             string id_s = id.ToString("D9");
-            int shop1 = 100625;
-            int shop2 = 100649;
+            int barterShopId = itemManager.CreateShop(npcContent.barter); // returns -1 if no barter shop
 
             StringBuilder s = new();
 
@@ -743,7 +742,7 @@ namespace JortPob
             }
 
             int listCount = 1; // starts at 1 because guh
-            if(hasShop)
+            if(barterShopId > 0)
             {
                 s.Append($"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
@@ -789,9 +788,9 @@ namespace JortPob
 
             string ifopA = "if";
             listCount = 1; // reset
-            if (hasShop)
+            if (barterShopId > 0)
             {
-                s.Append($"        if GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 6\"\"\"\r\n            OpenRegularShop({shop1}, {shop2})\r\n            \"\"\"State 7\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 9\"\"\"\r\n            OpenSellShop(-1, -1)\r\n            \"\"\"State 8\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        if GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 6\"\"\"\r\n            OpenRegularShop({barterShopId}, {barterShopId+99})\r\n            \"\"\"State 7\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 9\"\"\"\r\n            OpenSellShop(-1, -1)\r\n            \"\"\"State 8\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 

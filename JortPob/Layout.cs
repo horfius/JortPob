@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using static IronPython.Modules._ast;
 using static JortPob.InteriorGroup;
 using static JortPob.NpcContent;
 
@@ -409,6 +410,96 @@ namespace JortPob
             foreach (Tile tile in tiles) { CheckWitnesses(tile.npcs); }
             foreach (InteriorGroup group in interiors) {
                 foreach (InteriorGroup.Chunk chunk in group.chunks) { CheckWitnesses(chunk.npcs); }
+            }
+
+            /* Statically resolve shop inventories for npcs */
+            void ResolveShop(NpcContent npc)
+            {
+                if (!npc.HasBarter()) { return; } // nope!
+
+                bool WillBarter(NpcContent npc, ESM.Type type)
+                {
+                    switch(type)
+                    {
+                        case ESM.Type.Armor:
+                            return npc.services.Contains(NpcContent.Service.BartersArmor);
+                        case ESM.Type.Book:
+                            return npc.services.Contains(NpcContent.Service.BartersBooks);
+                        case ESM.Type.Clothing:
+                            return npc.services.Contains(NpcContent.Service.BartersClothing);
+                        case ESM.Type.Ingredient:
+                            return npc.services.Contains(NpcContent.Service.BartersIngredients);
+                        case ESM.Type.Light:
+                            return npc.services.Contains(NpcContent.Service.BartersLights);
+                        case ESM.Type.MiscItem:
+                            return npc.services.Contains(NpcContent.Service.BartersMiscItems);
+                        case ESM.Type.Weapon:
+                            return npc.services.Contains(NpcContent.Service.BartersWeapons);
+                        case ESM.Type.Probe:
+                            return npc.services.Contains(NpcContent.Service.BartersProbes);
+                        case ESM.Type.Lockpick:
+                            return npc.services.Contains(NpcContent.Service.BartersLockpicks);
+                        case ESM.Type.RepairItem:
+                            return npc.services.Contains(NpcContent.Service.BartersRepairItems);
+                        case ESM.Type.Alchemy:
+                            return npc.services.Contains(NpcContent.Service.BartersAlchemy);
+                        case ESM.Type.Apparatus:
+                            return npc.services.Contains(NpcContent.Service.BartersApparatus);
+                        default:
+                            return false;
+                    }
+                }
+
+                Cell cell = npc.cell;
+                List<(string id, int quantity)> shopInv = new();
+
+                void AddOrIncrement(List<(string id, int quantity)> list, (string id, int quantity) tuple)
+                {
+                    for(int i=0;i<list.Count();i++)
+                    {
+                        (string id, int quantity) entry = list[i];
+                        if(entry.id.ToLower() == tuple.id.ToLower()) { entry.quantity += tuple.quantity; return; }
+                    }
+                    list.Add(tuple);
+                }
+
+                foreach(ItemContent item in cell.items)
+                {
+                    if(item.ownerNpc == npc.id)
+                    {
+                        if (WillBarter(npc, item.type))
+                        {
+                            AddOrIncrement(shopInv, (item.id, 1));
+                        }
+                    }
+                }
+                foreach (ContainerContent container in cell.containers)
+                {
+                    if (container.ownerNpc == npc.id)
+                    {
+                        foreach((string id, int quantity) tuple in container.inventory)
+                        {
+                            Record record = esm.FindRecordById(tuple.id);
+                            if (WillBarter(npc, record.type))
+                            {
+                                AddOrIncrement(shopInv, tuple);
+                            }
+                        }
+                    }
+                }
+                if (shopInv.Count() > 0) { npc.barter = shopInv; }
+            }
+
+            foreach (Tile tile in tiles)
+            {
+                foreach (NpcContent npc in tile.npcs) { ResolveShop(npc); }
+            }
+            foreach (InteriorGroup group in interiors)
+            {
+                foreach (InteriorGroup.Chunk chunk in group.chunks)
+                {
+                    foreach (NpcContent npc in chunk.npcs) { ResolveShop(npc); }
+                }
             }
 
             /* Handling npc/creature death and respawn flags */

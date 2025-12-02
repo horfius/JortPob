@@ -1,4 +1,5 @@
-﻿using JortPob.Common;
+﻿using HKLib.hk2018.hkaiWorldCommands;
+using JortPob.Common;
 using Microsoft.Scripting.Metadata;
 using Newtonsoft.Json.Converters;
 using System;
@@ -12,6 +13,8 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using WitchyFormats;
+using static IronPython.Modules._ast;
+using static SoulsAssetPipeline.Audio.Wwise.WwiseBlock;
 
 namespace JortPob
 {
@@ -45,13 +48,14 @@ namespace JortPob
         }
 
         public readonly List<ItemInfo> items; // string is record if of item from MW. int is the row id of the item in Elden Ring, type is type of item in ER
+        public readonly List<LeveledList> lists; // leveled lists for items
 
         private Paramanager paramanager;
         private SpeffManager speffManager;
         private IconManager iconManager;
         private TextManager textManager;
 
-        private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId, nextCustomWeaponId;
+        private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId, nextCustomWeaponId, nextShopId;
 
         public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
         {
@@ -67,6 +71,7 @@ namespace JortPob
             nextGoodsId = 30000;
             nextAccessoryId = 8500;
             nextCustomWeaponId = 15000;
+            nextShopId = 1700000;
 
             /* Search all scripts for references to items. Items used by scripts are critical and must be created */
             List<Papyrus.Call> itemCalls = new();
@@ -79,15 +84,15 @@ namespace JortPob
             }
 
             /* Search all dialog papyrus calls and filters as well */
-            foreach(Dialog.DialogRecord dialog in esm.dialog)
+            foreach (Dialog.DialogRecord dialog in esm.dialog)
             {
                 foreach (Dialog.DialogInfoRecord info in dialog.infos)
                 {
-                    if(info.script != null)
+                    if (info.script != null)
                     {
                         foreach (Papyrus.Call call in info.script.calls)
                         {
-                            switch(call.type)
+                            switch (call.type)
                             {
                                 case Papyrus.Call.Type.RemoveItem:
                                 case Papyrus.Call.Type.AddItem:
@@ -97,7 +102,7 @@ namespace JortPob
                         }
                     }
 
-                    foreach(Dialog.DialogFilter filter in info.filters)
+                    foreach (Dialog.DialogFilter filter in info.filters)
                     {
                         if (filter.type == Dialog.DialogFilter.Type.Item)
                         {
@@ -108,9 +113,9 @@ namespace JortPob
             }
 
             /* Grab item record ids from calls */
-            foreach(Papyrus.Call itemCall in itemCalls)
+            foreach (Papyrus.Call itemCall in itemCalls)
             {
-                switch(itemCall.type)
+                switch (itemCall.type)
                 {
                     case Papyrus.Call.Type.GetItemCount:
                     case Papyrus.Call.Type.RemoveItem:
@@ -151,6 +156,12 @@ namespace JortPob
                     /* Item id has a corresponding definition json file from overrides/items */   // this creates a new item for this id that is defined by data in the json file
                     if (def != null)
                     {
+                        /* Check if we have the field for value set, if we don't then add the morrowind field for value */
+                        if(!def.data.ContainsKey("sellValue"))
+                        {
+                            def.data.Add("sellValue", ((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE)).ToString());
+                        }
+
                         switch (def.type)
                         {
                             case Type.Weapon:
@@ -223,7 +234,8 @@ namespace JortPob
                                 ItemInfo armor = new(def.id, Type.Armor, nextArmorId, value, scriptItem);
                                 SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamProtector, def.id, def.row, nextArmorId, def.data);
                                 textManager.AddArmor(armor.row, def.text.name, def.text.summary, def.text.description);
-                                if (def.useIcon) {
+                                if (def.useIcon)
+                                {
                                     SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextArmorId, "iconIdM", iconManager.GetIconByRecord(id).id);
                                     SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextArmorId, "iconIdF", iconManager.GetIconByRecord(id).id);
                                 }
@@ -289,6 +301,23 @@ namespace JortPob
                                     throw new Exception($"Item remap for id {id} has invalid type {def.type}");
                             }
                         }
+
+                        /* Adjust price of item froms shops */  // @TODO: this is a quick and dirty. should average value across all remaps pointing at same item
+                        switch (remap.type)
+                        {
+                            case Type.Weapon:
+                                SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, it.row, "sellValue", (int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
+                                break;
+                            case Type.Armor:
+                                SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, it.row, "sellValue", (int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
+                                break;
+                            case Type.Accessory:
+                                SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamAccessory, it.row, "sellValue", (int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
+                                break;
+                            case Type.Goods:
+                                SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamGoods, it.row, "sellValue", (int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
+                                break;
+                        }
                     }
                     /* Item id has no matches so we just generate an item from data in the ESM. This can be bad for some things but fine for others. Really just depends! */
                     else if (scriptItem)
@@ -297,7 +326,7 @@ namespace JortPob
                         GenerateItem(recordType, json);
                     }
                     /* Depending on debug settings, generate this non-essential item */
-                    else if(!Const.DEBUG_SKIP_NON_ESSENTIAL_ITEMS && !Override.CheckSkipItem(id))
+                    else if (!Const.DEBUG_SKIP_NON_ESSENTIAL_ITEMS && !Override.CheckSkipItem(id))
                     {
                         GenerateItem(recordType, json);
                     }
@@ -316,6 +345,27 @@ namespace JortPob
             HandleItemsByRecord(ESM.Type.Lockpick);
             HandleItemsByRecord(ESM.Type.RepairItem);
 
+
+            /* Now that all items are generated, let's create leveled lists as well */
+            lists = new();
+
+            foreach (JsonNode json in esm.GetAllRecordsByType(ESM.Type.LeveledItem))
+            {
+                string id = json["id"].GetValue<string>().ToLower();
+                int chance = json["chance_none"].GetValue<int>();
+                LeveledList list = new(id, chance);
+
+                foreach (JsonNode node in json["items"].AsArray())
+                {
+                    string itemId = node.AsArray()[0].GetValue<string>().ToLower();
+                    int levelReq = node.AsArray()[1].GetValue<int>();
+                    ItemInfo item = GetItem(itemId);
+
+                    list.Add(item, levelReq); // null is a valid entry. the reason we add null is because if an item is not generated we dont wanna exclude it as it would modify odds of rolling other items
+                }
+
+                lists.Add(list);
+            }
         }
 
         private int GenerateCustomWeapon(Override.ItemRemap remap)
@@ -463,6 +513,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon!=null?icon.id:((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(weaponParam, row);
@@ -486,6 +537,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(weaponParam, row);
@@ -535,6 +587,7 @@ namespace JortPob
             row["iconIdM"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["iconIdF"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(armorParam, row);
@@ -581,6 +634,7 @@ namespace JortPob
             row["iconIdM"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["iconIdF"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             if (speff != null) { row["residentSpEffectId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(armorParam, row);
@@ -620,6 +674,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             if (speff != null) { row["refId"].Value.SetValue(speff.row); }
 
             paramanager.AddRow(accessoryParam, row);
@@ -640,6 +695,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));
@@ -660,8 +716,8 @@ namespace JortPob
 
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
-            row["sellValue"].Value.SetValue(json["data"]["value"].GetValue<int>());
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
             row["maxNum"].Value.SetValue((short)5);
             row["refId_default"].Value.SetValue(speff.row);
 
@@ -683,6 +739,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));
@@ -702,6 +759,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));
@@ -721,6 +779,7 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));
@@ -740,41 +799,221 @@ namespace JortPob
             IconManager.IconInfo icon = iconManager.GetIconByRecord(id);
             row["iconId"].Value.SetValue(icon != null ? icon.id : ((ushort)0));
             row["rarity"].Value.SetValue((byte)0);
+            row["sellValue"].Value.SetValue((int)Math.Max(1, value * Const.MERCANTILE_SELL_SCALE));
 
             paramanager.AddRow(goodsParam, row);
             items.Add(new(id, Type.Goods, row.ID, value, hasScriptReference));
             nextGoodsId += 10;
         }
 
+        /* Returns true if the given record id goes to a leveled list, otherwise false */
+        public bool IsList(string id)
+        {
+            foreach (LeveledList list in lists)
+            {
+                if (list.id.ToLower() == id.ToLower()) { return true; }
+            }
+            return false;
+        }
+
         public ItemInfo GetItem(string id)
         {
+            /* First search for a regular item */
             foreach(ItemInfo item in items)
             {
                 if(item.id.ToLower() == id.ToLower()) { return item; }
             }
+
+            /* If no result, search for a leveled list, if we find one resolve it for an item */
+            foreach(LeveledList list in lists)
+            {
+                if(list.id.ToLower() == id.ToLower()) { return list.Get(); }
+            }
+
+            /* No match! */
             return null;
         }
 
-        public List<ItemInfo> GetInventory(NpcContent npc)
+        public List<(ItemInfo item, int quantity)> ResolveInventory(NpcContent npc)
         {
-            List<ItemInfo> inv = new();
-            foreach ((string id, int quantity) invItem in npc.inventory)
-            {
-                ItemInfo item = GetItem(invItem.id);
-                if (item != null) { inv.Add(item); }
-            }
-            return inv;
+            return ResolveInventory(npc.inventory);
         }
 
-        public List<ItemInfo> GetInventory(ContainerContent container)
+        public List<(ItemInfo item, int quantity)> ResolveInventory(ContainerContent container)
         {
-            List<ItemInfo> inv = new();
-            foreach ((string id, int quantity) invItem in container.inventory)
+            return ResolveInventory(container.inventory);
+        }
+
+        /* Resolves a contents inventory (record id and quanity) to actual ItemInfo objects */
+        public List<(ItemInfo item, int quantity)> ResolveInventory(List<(string id, int quantity)> inv)
+        {
+            const int MAX_INV = 10;
+
+            if (inv == null || inv.Count() <= 0) { return new(); }
+
+            List<(ItemInfo item, int quantity)> inventory = new();
+
+            // A regular contains/map check won't cut it here. Need to check values. Multiple ItemInfo objects can point at the same param row */
+            void AddOrIncrement(List<(ItemInfo item, int quantity)> list, ItemInfo itemInfo)
             {
-                ItemInfo item = GetItem(invItem.id);
-                if (item != null) { inv.Add(item); }
+                if (itemInfo == null) { return; } // skip blank entries
+                for(int i=0;i<list.Count();i++)
+                {
+                    (ItemInfo item, int quantity) entry = list[i];
+                    if (entry.item.type == itemInfo.type && entry.item.row == itemInfo.row)
+                    {
+                        list.RemoveAt(i);
+                        list.Add((entry.item, entry.quantity + 1));  // can't increment value in a tuple because fuck
+                        return;
+                    }
+                }
+                list.Add((itemInfo, 1));
             }
-            return inv;
+
+            foreach ((string id, int quantity) entry in inv)
+            {
+                for (int i = 0; i < entry.quantity; i++)
+                {
+                    ItemInfo itemInfo = GetItem(entry.id); // getitem resolves leveled lists so a single record id CAN return multiple different items!
+                    AddOrIncrement(inventory, itemInfo);
+                }
+            }
+
+            /* Convert gold_001 to rune items, @TODO: create custom sized ones flavored as "coin pouch" later */
+            for (int i = 0; i < inventory.Count(); i++)
+            {
+                (ItemInfo item, int quantity) entry = inventory[i];
+                if (entry.item.id.ToLower() == "gold_001") {
+                    inventory.RemoveAt(i--);
+                    ItemInfo rune = new ItemInfo("TEMP_HACK_TODO_GOLDEN_RUNE_ONE", Type.Goods, 2900, 200, false);
+                    inventory.Add((rune, 1)); // @TODO: temporary. see above
+                    break;
+                }
+            }
+
+            /* Truncate inventory if it exceeds max size */
+            /* We prioritize quest items (script referenced item records) first, then randomly choose from remaining pool what gets included */
+            if (inventory.Count() > MAX_INV)
+            {
+                List<(ItemInfo item, int quantity)> truncated = new();
+
+                for(int i=0;i<inventory.Count();i++)
+                {
+                    (ItemInfo item, int quantity) entry = inventory[i];
+                    if (entry.item.quest) { truncated.Add(entry); inventory.RemoveAt(i--); }
+                }
+
+                while(truncated.Count() < MAX_INV && inventory.Count() > 0)
+                {
+                    int roll = Utility.RandomRange(0, inventory.Count());
+                    (ItemInfo item, int quantity) entry = inventory[roll];
+                    inventory.RemoveAt(roll);
+                    truncated.Add(entry);
+                }
+
+                inventory = truncated;
+            }
+
+            return inventory;
+        }
+
+        /* Creates params for a shop from a list of item record ids and returns the base row */
+        public int CreateShop(List<(string id, int quantity)> inventory)
+        {
+            if (inventory == null || inventory.Count() < 0) { return -1; } // no shop!
+
+            /* Resolve inventory to a list of ItemInfo objects. This has to be done before creating rows because of Leveled Lists of quanties > 1 resolving to an unknown number of rows */
+            List<ItemInfo> itemsToSell = new();
+
+            // A regular contains check won't cut it here. Need to check values. Multiple ItemInfo objects can point at the same param row */
+            void AddExclusive(List<ItemInfo> list, ItemInfo entry)
+            {
+                if (entry == null) { return; } // skip blank entries
+                if (entry.id.ToLower() == "gold_001") { return; } // blacklist gold from shops (lol)
+                foreach (ItemInfo ii in list)
+                {
+                    if(ii.type == entry.type && ii.row == entry.row)
+                    {
+                        return;
+                    }
+                }
+                list.Add(entry);
+            }
+
+            foreach((string id, int quantity) invItem in inventory)
+            {
+                for(int i=0;i<invItem.quantity;i++)
+                {
+                    ItemInfo itemInfo = GetItem(invItem.id);  // getitem resolves leveled lists so a single record id CAN return multiple different items!
+                    AddExclusive(itemsToSell, itemInfo);
+                }
+            }
+
+            if (itemsToSell.Count >= 99) { throw new Exception($"ShopParam excceded max possible size [{itemsToSell.Count}/99]!"); } // uh-oh!
+
+            int baseRow = nextShopId;
+            FsParam shopParam = paramanager.param[Paramanager.ParamType.ShopLineupParam];
+            int j = 0;
+            foreach(ItemInfo item in itemsToSell)
+            {
+                FsParam.Row row = paramanager.CloneRow(shopParam[1], $"Shop::{item.type}::{item.id}", baseRow + j); // 1 is something default-ish idk. we just filling this out fully
+
+                row["equipId"].Value.SetValue(item.row);
+                row["equipType"].Value.SetValue((byte)item.EquipType());
+                row["value"].Value.SetValue((int)Math.Max(1, item.value * Const.MERCANTILE_BUY_SCALE));
+
+                paramanager.AddRow(shopParam, row);
+
+                j++;
+            }
+
+            nextShopId += 100;
+            return baseRow;
+        }
+
+        /* Item leveled list */
+        [DebuggerDisplay("Leveled List :: {id}")]
+        public class LeveledList
+        {
+            public readonly string id;  // morrowind record id
+            public readonly int chance; // chance for no item at all
+
+            private int weight; // total weight of all entries
+            private List<(ItemInfo item, int level)> list;  // item and level requirement to roll it
+
+            public LeveledList(string id, int chance)
+            {
+                this.id = id;
+                this.chance = chance;
+                list = new();
+
+                weight = 0;
+            }
+
+            public void Add(ItemInfo item, int level)
+            {
+                int corrected = Math.Min(Math.Max(1, level), 30);
+                weight += corrected;
+                list.Add((item, corrected));
+            }
+
+            /* Resolves the leveled list statically using level requirements as weighting for chance */
+            public ItemInfo Get()
+            {
+                if (list.Count <= 0) { return null; }  // empty lists are a theoretical possibility
+                if (Utility.RandomRange(0, 100) < chance) { return null; }  // chance is a chance for no item at all so resolve that first
+
+                int w = 0;
+                int roll = Utility.RandomRange(0, weight);
+                foreach((ItemInfo item, int level) entry in list)
+                {
+                    w += entry.level;
+
+                    if (roll < w) { return entry.item; }
+                }
+
+                return list[^1].item; // return last entry, i think this is unreachable but good fallback incase
+            }
         }
 
         /* Stores info on an item */
@@ -794,6 +1033,49 @@ namespace JortPob
                 this.row = row;
                 this.value = value;
                 this.quest = quest;
+            }
+
+            /* Returns the correct int value for an equipType param field. */
+            public int EquipType()
+            {
+                switch (type)
+                {
+                    case ItemManager.Type.Weapon:
+                        return 0;
+                    case ItemManager.Type.Armor:
+                        return 1;
+                    case ItemManager.Type.Accessory:
+                        return 2;
+                    case ItemManager.Type.Goods:
+                        return 3;
+                    case ItemManager.Type.Enchant:
+                        return 4;
+                    case ItemManager.Type.CustomWeapon:
+                        return 5;
+                    default:
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
+                }
+            }
+
+            public int ItemLotCategory()
+            {
+                switch (type)
+                {
+                    case ItemManager.Type.Weapon:
+                        return 2;
+                    case ItemManager.Type.Armor:
+                        return 3;
+                    case ItemManager.Type.Goods:
+                        return 1;
+                    case ItemManager.Type.Accessory:
+                        return 4;
+                    case ItemManager.Type.Enchant:
+                        return 5;
+                    case ItemManager.Type.CustomWeapon:
+                        return 6;
+                    default:
+                        throw new Exception("Item had invalid type! This should NEVER happen!");
+                }
             }
         }
     }

@@ -4,6 +4,7 @@ using SoulsFormats.Formats.Morpheme.MorphemeBundle;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
@@ -105,6 +106,11 @@ namespace JortPob
     {
         public enum Race { Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
         public enum Sex { Any, Male, Female };
+        public enum Service {
+            OffersTraining, BartersIngredients, BartersApparatus, BartersAlchemy, BartersClothing, OffersSpells, BartersWeapons,
+            BartersArmor, BartersBooks, BartersMiscItems, BartersEnchantedItems, OffersEnchanting, OffersSpellmaking, BartersRepairItems,
+            OffersRepairs, BartersLockpicks, BartersProbes, BartersLights
+        };
 
         public readonly string job, faction; // class is job, cant used reserved word
         public readonly Race race;
@@ -116,11 +122,13 @@ namespace JortPob
 
         public readonly bool essential; // player gets called dumb if they kill this dood
 
-        public readonly bool services; // @TODO: STUB! NEED TO ACTUALLY PARSE AND USE THE INDIVIDUAL SERVICE TYPES
+        public readonly List<Service> services;
 
         public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
 
         public List<(string id, int quantity)> inventory;
+
+        public List<(string id, int quantity)> barter; // can be null
 
         public List<Travel> travel;  // travel destinations for silt strider people, mage guild teles, etc...
 
@@ -160,7 +168,18 @@ namespace JortPob
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
 
-            services = record.json["ai_data"]["services"].ToString().Trim() != "";
+            string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
+            services = new();
+            foreach (string s in serviceFlags)
+            {
+                string trim = s.Trim().ToLower().Replace("_", "");
+                try
+                {
+                    Service service = (Service)System.Enum.Parse(typeof(Service), trim, true);
+                    services.Add(service);
+                }
+                catch { }
+            }
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
 
@@ -169,7 +188,7 @@ namespace JortPob
             foreach(JsonNode node in invJson)
             {
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
             }
 
             travel = new();
@@ -182,6 +201,25 @@ namespace JortPob
 
         /* Return true if this npc is a generic guard that can arrest the player for crimes */
         public bool IsGuard() { return job == "Guard" || job == "Ordinator Guard"; }
+
+        /* Return true if this npc has any barter service */
+        public bool HasBarter()
+        {
+            return
+                services.Contains(Service.BartersWeapons) ||
+                services.Contains(Service.BartersArmor) ||
+                services.Contains(Service.BartersClothing) ||
+                services.Contains(Service.BartersIngredients) ||
+                services.Contains(Service.BartersApparatus) ||
+                services.Contains(Service.BartersAlchemy) ||
+                services.Contains(Service.BartersBooks) ||
+                services.Contains(Service.BartersMiscItems) ||
+                services.Contains(Service.BartersEnchantedItems) ||
+                services.Contains(Service.BartersRepairItems) ||
+                services.Contains(Service.BartersLockpicks) ||
+                services.Contains(Service.BartersProbes) ||
+                services.Contains(Service.BartersLights);
+        }
     }
 
     /* creatures, both leveled and non-leveled */
@@ -307,7 +345,7 @@ namespace JortPob
             foreach (JsonNode node in invJson)
             {
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), item[0].GetValue<int>()));  // get item record id and quantity from json
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));  // get item record id and quantity from json
             }
         }
 

@@ -132,7 +132,7 @@ namespace JortPob
                 }
                 else
                 {
-                        recordsByType[type].Add(record["id"].ToString(), record);
+                    recordsByType[type].Add(record["id"].GetValue<string>().ToLower(), record);
                 }
             }
 
@@ -245,7 +245,7 @@ namespace JortPob
             foreach (var type in VALID_CONTENT_TYPES)
             {
                 var recordsById = recordsByType[type];
-                if (recordsById.TryGetValue(id, out var value))
+                if (recordsById.TryGetValue(id.ToLower(), out var value))
                 {
                     return new Record(type, value);
                 }
