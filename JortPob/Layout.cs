@@ -458,12 +458,16 @@ namespace JortPob
                     for(int i=0;i<list.Count();i++)
                     {
                         (string id, int quantity) entry = list[i];
-                        if(entry.id.ToLower() == tuple.id.ToLower()) { entry.quantity += tuple.quantity; return; }
+                        if(entry.id.ToLower() == tuple.id.ToLower()) {
+                            list.RemoveAt(i);
+                            list.Add((entry.id, entry.quantity + tuple.quantity)); // can't increment value in a tuple because fuck
+                            return;
+                        }
                     }
                     list.Add(tuple);
                 }
 
-                foreach(ItemContent item in cell.items)
+                foreach(ItemContent item in cell.items) // add loose items this npc owns
                 {
                     if(item.ownerNpc == npc.id)
                     {
@@ -473,7 +477,7 @@ namespace JortPob
                         }
                     }
                 }
-                foreach (ContainerContent container in cell.containers)
+                foreach (ContainerContent container in cell.containers) // add containers this npc owns
                 {
                     if (container.ownerNpc == npc.id)
                     {
@@ -485,6 +489,14 @@ namespace JortPob
                                 AddOrIncrement(shopInv, tuple);
                             }
                         }
+                    }
+                }
+                foreach((string id, int quantity) tuple in npc.inventory) // add own inventory to potential barter
+                {
+                    Record record = esm.FindRecordById(tuple.id);
+                    if (WillBarter(npc, record.type))
+                    {
+                        AddOrIncrement(shopInv, tuple);
                     }
                 }
                 if (shopInv.Count() > 0) { npc.barter = shopInv; }
