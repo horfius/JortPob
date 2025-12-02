@@ -744,7 +744,8 @@ namespace JortPob
             int listCount = 1; // starts at 1 because guh
             if(barterShopId > 0)
             {
-                s.Append($"        # action:20000010:\"Purchase\"\r\n        AddTalkListData({listCount++}, 20000010, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
+                int barterMenuTopicId = textManager.GetTopic("Barter");
+                s.Append($"        # action:{barterMenuTopicId}:\"Barter\"\r\n        AddTalkListData({listCount++}, {barterMenuTopicId}, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
             // Add travel option
