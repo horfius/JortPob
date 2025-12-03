@@ -1,4 +1,6 @@
-﻿using SoulsFormats;
+﻿using HKLib.hk2018.hknpRagdollState;
+using HKX2;
+using SoulsFormats;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -20,6 +22,8 @@ namespace JortPob.Common
         #endregion
 
         #region General
+        public static readonly int RANDOM_SEED = 42;  // When doing anything random we use this as our seed so results are consistent between builds
+
         public static readonly float GLOBAL_SCALE = 0.0129f;   // new global scale calculated from approx measurements of player height in both games
         public static readonly int CELL_EXTERIOR_BOUNDS = 30;
         public static readonly float CELL_SIZE = 8192f * GLOBAL_SCALE;
@@ -80,6 +84,11 @@ namespace JortPob.Common
         public static readonly int FXR_START_ID = 900000000;
         #endregion
 
+        #region Gameplay
+        public static readonly float MERCANTILE_BUY_SCALE = 1.1f;
+        public static readonly float MERCANTILE_SELL_SCALE = 0.45f;
+        #endregion
+
         #region Papyrus
         public static readonly int ESD_STATE_HARDCODE_MODDISPOSITION = 45;
         public static readonly int ESD_STATE_HARDCODE_MODFACREP = 46;
@@ -127,7 +136,7 @@ namespace JortPob.Common
         public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = false; // slow as shit, skipping this saves about a minute per build
         public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
-        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -3, -10, -1, -8 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
+        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -4, -3, -2, -1 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }
         // balmora area (small) = new int[] {-4, -3, -2, -1}
@@ -144,7 +153,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] { "Seyda Neen" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] { "Balmora" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

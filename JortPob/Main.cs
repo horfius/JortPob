@@ -227,11 +227,11 @@ namespace JortPob
                     enemy.Rotation = npc.rotation;
 
                     // If the npc is a deadbody we create a treasure on their body
-                    List<ItemManager.ItemInfo> inv = item.GetInventory(npc);
-                    if (npc.dead && inv.Count() > 0)
+                    List<(ItemManager.ItemInfo item, int quantity)> inventory = item.ResolveInventory(npc);
+                    if (npc.dead && inventory.Count() > 0)
                     {
                         MSBE.Event.Treasure treasure = MakePart.Treasure();
-                        treasure.ItemLotID = param.GenerateDeadBodyItemLot(script, npc, inv);
+                        treasure.ItemLotID = param.GenerateDeadBodyItemLot(script, npc, inventory);
 
                         MSBE.Part.Asset treasurePart = MakePart.TreasureAsset();
                         treasurePart.Position = enemy.Position;
@@ -306,7 +306,7 @@ namespace JortPob
                     if (Override.CheckDoNotPlace(content.mesh)) { continue; } // skip any meshes listed in the do_not_place override json
 
                     /* Grab ModelInfo + iteminfo */
-                    List<ItemManager.ItemInfo> inventory = item.GetInventory(content);
+                    List<(ItemManager.ItemInfo item, int quantity)> inventory = item.ResolveInventory(content);
                     ModelInfo modelInfo;
                     if (inventory.Count() > 0) { modelInfo = cache.GetModel(content.mesh, Const.DYNAMIC_ASSET); } // if we have a treasure for this assset it MUST be dynamic
                     else { modelInfo = cache.GetModel(content.mesh, content.scale); }  // otherwise it doesn't matter. treasure events can only work on dynamic assets for whatever reason
@@ -551,11 +551,11 @@ namespace JortPob
                         enemy.Rotation = npc.rotation;
 
                         // If the npc is a deadbody we create a treasure on their body
-                        List<ItemManager.ItemInfo> inv = item.GetInventory(npc);
-                        if (npc.dead && inv.Count() > 0)
+                        List<(ItemManager.ItemInfo item, int quantity)> inventory = item.ResolveInventory(npc);
+                        if (npc.dead && inventory.Count() > 0)
                         {
                             MSBE.Event.Treasure treasure = MakePart.Treasure();
-                            treasure.ItemLotID = param.GenerateDeadBodyItemLot(script, npc, inv);
+                            treasure.ItemLotID = param.GenerateDeadBodyItemLot(script, npc, inventory);
 
                             MSBE.Part.Asset treasurePart = MakePart.TreasureAsset();
                             treasurePart.Position = enemy.Position;
@@ -638,7 +638,7 @@ namespace JortPob
                         if (Override.CheckDoNotPlace(content.mesh)) { continue; } // skip any meshes listed in the do_not_place override json
 
                         /* Grab ModelInfo + iteminfo */
-                        List<ItemManager.ItemInfo> inventory = item.GetInventory(content);
+                        List<(ItemManager.ItemInfo item, int quantity)> inventory = item.ResolveInventory(content);
                         ModelInfo modelInfo;
                         if (inventory.Count() > 0) { modelInfo = cache.GetModel(content.mesh, Const.DYNAMIC_ASSET); } // if we have a treasure for this assset it MUST be dynamic
                         else { modelInfo = cache.GetModel(content.mesh, content.scale); }  // otherwise it doesn't matter. treasure events can only work on dynamic assets for whatever reason

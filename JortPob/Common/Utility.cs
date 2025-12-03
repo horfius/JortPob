@@ -219,6 +219,14 @@ namespace JortPob.Common
             return true;
         }
 
+        private static Random random;
+        public static int RandomRange(int min, int max)
+        {
+            if(random == null) { random = new(Const.RANDOM_SEED); }
+
+            return random.Next(min, max);
+        }
+
         public static Bitmap XbrzUpscale(Bitmap bitmap, int factor)
         {
             // Convert to ARGB int[] array
