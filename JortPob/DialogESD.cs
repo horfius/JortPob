@@ -751,6 +751,13 @@ namespace JortPob
                 s.Append($"        # action:{barterMenuTopicId}:\"Barter\"\r\n        AddTalkListData({listCount++}, {barterMenuTopicId}, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
+            // Add smithing if npc offers it
+            if(npcContent.OffersSmithing())
+            {
+                int smithingMenuTopicId = textManager.GetTopic("Smith Weapons");
+                s.Append($"        # action:{smithingMenuTopicId}:\"Smith Weapons\"\r\n        AddTalkListData({listCount++}, {smithingMenuTopicId}, -1)\r\n");
+            }
+
             // Add tailoring if npc offers it
             if(npcContent.OffersTailoring())
             {
@@ -773,12 +780,12 @@ namespace JortPob
             }
 
             // Add enchanting if npc offers it
-            if (npcContent.DoesEnchanting())
+            if (npcContent.OffersEnchanting())
             {
                 int learnEnchantMenuTopicId = textManager.GetTopic("Learn Enchantment");
-                int createEnchantMenuTopicId = textManager.GetTopic("Create Enchantment");
+                int createEnchantMenuTopicId = textManager.GetTopic("Enchant Weapons");
                 s.Append($"        # action:{learnEnchantMenuTopicId}:\"Learn Enchantment\"\r\n        AddTalkListData({listCount++}, {learnEnchantMenuTopicId}, -1)\r\n");
-                s.Append($"        # action:{createEnchantMenuTopicId}:\"Create Enchantment\"\r\n        AddTalkListData({listCount++}, {createEnchantMenuTopicId}, -1)\r\n");
+                s.Append($"        # action:{createEnchantMenuTopicId}:\"Enchant Weapons\"\r\n        AddTalkListData({listCount++}, {createEnchantMenuTopicId}, -1)\r\n");
             }
 
             // Add travel option if npc offers it
@@ -829,8 +836,15 @@ namespace JortPob
                 ifopA = "elif";
             }
 
+            // smithing options
+            if (npcContent.OffersSmithing())
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEnhanceShop(EnhanceType.UnlimitedRange)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
             // tailoring options
-            if(npcContent.OffersTailoring())
+            if (npcContent.OffersTailoring())
             {
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenTailoringShop(111000, 111399)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
@@ -851,7 +865,7 @@ namespace JortPob
             }
 
             // enchanting options
-            if (npcContent.DoesEnchanting())
+            if (npcContent.OffersEnchanting())
             {
                 int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(Stats.Skill.Enchant));
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({enchantShopId}, {enchantShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");

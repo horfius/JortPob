@@ -342,7 +342,7 @@ namespace JortPob
                 OffersTraining(Stats.Skill.Restoration);
         }
 
-        public bool DoesEnchanting()
+        public bool OffersEnchanting()
         {
             return services.Contains(Service.OffersEnchanting) || OffersTraining(Stats.Skill.Enchant);
         }
@@ -360,6 +360,11 @@ namespace JortPob
         public bool OffersTailoring()
         {
             return job.ToLower() == "clothier";
+        }
+
+        public bool OffersSmithing()
+        {
+            return job.ToLower() == "smith" || OffersTraining(Stats.Skill.Armorer);
         }
     }
 
