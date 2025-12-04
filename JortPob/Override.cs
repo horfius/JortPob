@@ -114,6 +114,11 @@ namespace JortPob
             return s;
         }
 
+        public static List<AlchemyInfo> GetAlchemy()
+        {
+            return ALCHEMY_INFOS;
+        }
+
         /* load all the override jsons into this class */
         public static void Initialize()
         {

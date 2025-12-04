@@ -188,6 +188,7 @@ namespace JortPob
                         if(model.mesh == content.mesh)
                         {
                             if (content.type == ESM.Type.Static) { model.forceCollision = true; }
+                            if (content is ItemContent || content is ContainerContent) { model.forceDynamic = true; }
                             return model;
                         }
                     }

@@ -166,45 +166,39 @@ namespace JortPob
                 attributes = new();
                 skills = new();
 
-                JsonArray attr = json["attributes"].AsArray();
-                JsonArray skil = json["skills"].AsArray();
+                /* Stats are defined */
+                if (json != null)
+                {
+                    JsonArray attr = json["attributes"].AsArray();
+                    JsonArray skil = json["skills"].AsArray();
 
-                attributes.Add(Attribute.Strength, attr[0].GetValue<int>());
-                attributes.Add(Attribute.Intelligence, attr[1].GetValue<int>());
-                attributes.Add(Attribute.Willpower, attr[2].GetValue<int>());
-                attributes.Add(Attribute.Agility, attr[3].GetValue<int>());
-                attributes.Add(Attribute.Speed, attr[4].GetValue<int>());
-                attributes.Add(Attribute.Endurance, attr[5].GetValue<int>());
-                attributes.Add(Attribute.Personality, attr[6].GetValue<int>());
-                attributes.Add(Attribute.Luck, attr[7].GetValue<int>());
+                    int i = 0;
+                    foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                    {
+                        attributes.Add(attribute, attr[i++].GetValue<int>());
+                    }
 
-                skills.Add(Skill.Acrobatics, skil[0].GetValue<int>());
-                skills.Add(Skill.Alchemy, skil[1].GetValue<int>());
-                skills.Add(Skill.Alteration, skil[2].GetValue<int>());
-                skills.Add(Skill.Armorer, skil[3].GetValue<int>());
-                skills.Add(Skill.Athletics, skil[4].GetValue<int>());
-                skills.Add(Skill.Axe, skil[5].GetValue<int>());
-                skills.Add(Skill.Block, skil[6].GetValue<int>());
-                skills.Add(Skill.BluntWeapon, skil[7].GetValue<int>());
-                skills.Add(Skill.Conjuration, skil[8].GetValue<int>());
-                skills.Add(Skill.Destruction, skil[9].GetValue<int>());
-                skills.Add(Skill.Enchant, skil[10].GetValue<int>());
-                skills.Add(Skill.HandToHand, skil[11].GetValue<int>());
-                skills.Add(Skill.HeavyArmor, skil[12].GetValue<int>());
-                skills.Add(Skill.Illusion, skil[13].GetValue<int>());
-                skills.Add(Skill.LightArmor, skil[14].GetValue<int>());
-                skills.Add(Skill.LongBlade, skil[15].GetValue<int>());
-                skills.Add(Skill.Marksman, skil[16].GetValue<int>());
-                skills.Add(Skill.MediumArmor, skil[17].GetValue<int>());
-                skills.Add(Skill.Mercantile, skil[18].GetValue<int>());
-                skills.Add(Skill.Mysticism, skil[19].GetValue<int>());
-                skills.Add(Skill.Restoration, skil[20].GetValue<int>());
-                skills.Add(Skill.Security, skil[21].GetValue<int>());
-                skills.Add(Skill.ShortBlade, skil[22].GetValue<int>());
-                skills.Add(Skill.Sneak, skil[23].GetValue<int>());
-                skills.Add(Skill.Spear, skil[24].GetValue<int>());
-                skills.Add(Skill.Speechcraft, skil[25].GetValue<int>());
-                skills.Add(Skill.Unarmored, skil[26].GetValue<int>());
+                    i = 0;
+                    foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                    {
+                        skills.Add(skill, skil[i++].GetValue<int>());
+                    }
+                }
+                /* Stats are not defined and are being auto calculated */ // @TODO: DESIGN A FUNCTION FOR AUTO GENERATING STATS BASED ON CLASS OR SOMETHING
+                else
+                {
+                    int i = 0;
+                    foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                    {
+                        attributes.Add(attribute, 30);
+                    }
+
+                    i = 0;
+                    foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                    {
+                        skills.Add(skill, 30);
+                    }
+                }
             }
 
             public int Get(Skill skill) { return skills[skill]; }
@@ -259,7 +253,7 @@ namespace JortPob
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
 
-            stats = new(json["data"]["stats"]);
+            stats = new(record.json["data"]["stats"]);
 
             string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
             services = new();

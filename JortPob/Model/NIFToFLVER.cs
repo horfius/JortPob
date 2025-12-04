@@ -13,10 +13,10 @@ namespace JortPob.Model
     public partial class ModelConverter
     {
         public static ModelInfo NIFToFLVER(MaterialContext materialContext,
-            ModelInfo modelInfo,
-            bool forceCollision,
-            string modelPath,
-            string outputPath)
+                    ModelInfo modelInfo,
+                    bool forceCollision,
+                    string modelPath,
+                    string outputPath)
         {
             var loadResult = Interop.LoadScene(Utf8String.From(modelPath));
 
@@ -152,7 +152,7 @@ namespace JortPob.Model
             //{
             //    var emmiter = nif.Emitters[emmitterIndex];
 
-                
+
             //}
 
             /* Add Dummy Polys */
@@ -201,10 +201,17 @@ namespace JortPob.Model
 
             /* Load overrides list for collision */
             JsonNode json = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\static_collision.json")));
-            HashSet<string> nodeNames = json.AsArray().ToList().Select(node => node.ToString().ToLower()).ToHashSet();
+            bool CheckOverride(string name)
+            {
+                foreach (JsonNode node in json.AsArray())
+                {
+                    if (node.ToString().ToLower() == name.ToLower()) { return true; }
+                }
+                return false;
+            }
 
             /* Generate collision obj if the model contains a collision mesh */
-            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !nodeNames.Contains(modelInfo.name))
+            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !CheckOverride(modelInfo.name))
             {
                 /* Best guess for collision material */
                 Obj.CollisionMaterial matguess = Obj.CollisionMaterial.None;
@@ -264,7 +271,7 @@ namespace JortPob.Model
             return modelInfo;
         }
     }
-    public static class Tes3Extensions
+        public static class Tes3Extensions
     {
         public static Vec3 Multiply(this Vec3 vec, float value)
         {

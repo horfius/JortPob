@@ -1,20 +1,10 @@
-﻿using HKLib.hk2018.hkaiWorldCommands;
-using JortPob.Common;
-using Microsoft.Scripting.Metadata;
-using Newtonsoft.Json.Converters;
+﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using WitchyFormats;
-using static IronPython.Modules._ast;
-using static SoulsAssetPipeline.Audio.Wwise.WwiseBlock;
 
 namespace JortPob
 {
@@ -51,16 +41,19 @@ namespace JortPob
         public readonly List<LeveledList> lists; // leveled lists for items
 
         private Paramanager paramanager;
+        private ScriptManager scriptManager;
         private SpellManager spellManager;
+        public RecipeManager recipeManager;
         private SpeffManager speffManager;
         private IconManager iconManager;
         private TextManager textManager;
 
         private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId, nextCustomWeaponId, nextShopId;
 
-        public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
+        public ItemManager(ESM esm, Paramanager paramanager, ScriptManager scriptManager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
         {
             this.paramanager = paramanager;
+            this.scriptManager = scriptManager;
             this.spellManager = new SpellManager(esm, paramanager, textManager);
             this.speffManager = speffManager;
             this.iconManager = iconManager;
@@ -378,6 +371,9 @@ namespace JortPob
                     textManager.RenameGem(skillInfo.row, skillInfo.text.name, skillInfo.text.description);
                 }
             }
+
+            /* Okay I lied, for real lastly we create recipemanager which handles alchemy recipe stuff */
+            recipeManager = new RecipeManager(paramanager, scriptManager, this, textManager);
         }
 
         private int GenerateCustomWeapon(Override.ItemRemap remap)
@@ -828,6 +824,13 @@ namespace JortPob
             return false;
         }
 
+        public List<ItemInfo> GetItems(List<string> ids)
+        {
+            List<ItemInfo> itemInfos = new();
+            foreach(string id in ids) { itemInfos.Add(GetItem(id)); }
+            return itemInfos;
+        }
+
         public ItemInfo GetItem(string id)
         {
             /* First search for a regular item */
@@ -1044,7 +1047,16 @@ namespace JortPob
         {
             /* Randomly select skills to provide based on tier */
             List<Override.SkillInfo> skillPool = Override.GetSkills(tier); // this method creates a new list so we can modify it without issue
-            int numItems = Math.Min((int)tier, skillPool.Count()); // clamp!
+            int numItems;
+            switch(tier)
+            {
+                case NpcContent.Stats.Tier.Novice: numItems = Utility.RandomRange(1, 2); break;
+                case NpcContent.Stats.Tier.Apprentice: numItems = Utility.RandomRange(3, 4); break;
+                case NpcContent.Stats.Tier.Journeyman: numItems = Utility.RandomRange(5, 7); break;
+                case NpcContent.Stats.Tier.Expert: numItems = Utility.RandomRange(8, 11); break;
+                case NpcContent.Stats.Tier.Master: numItems = Utility.RandomRange(13, 18); break;
+                default: throw new Exception($"Invalid skill tier: {tier}"); // can't happen
+            }
 
             while(skillPool.Count() > numItems)
             {

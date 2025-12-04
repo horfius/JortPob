@@ -143,6 +143,25 @@ namespace JortPob
                 talkParam.AddRow(row);
             }
 
+            /* Clear out recipe and recipe material params */
+            FsParam recipeParam = param[Paramanager.ParamType.ShopLineupParam_Recipe];
+            FsParam materialParam = param[Paramanager.ParamType.EquipMtrlSetParam];
+            List<FsParam.Row> keepRecipes = new();
+            List<FsParam.Row> keepMaterials = new();
+            keepRecipes.Add(recipeParam.Rows[0]); // just the one template row
+            foreach(FsParam.Row row in materialParam.Rows)
+            {
+                if(row.ID >= 300000 && row.ID < 400000)
+                {
+                    continue;
+                }
+                keepMaterials.Add(row);
+            }
+            recipeParam.ClearRows();
+            materialParam.ClearRows();
+            foreach(FsParam.Row row in keepRecipes) { recipeParam.AddRow(row); }
+            foreach(FsParam.Row row in keepMaterials) { materialParam.AddRow(row); }
+
             GC.Collect(); // maybe fixes a bug with fsparam. 80% sure
         }
 

@@ -26,6 +26,7 @@ namespace JortPob
 
         public List<Flag> flags;
         private Dictionary<Flag.Category, uint> flagUsedCounts;
+        private Dictionary<EntityType, uint> entityUsedCounts;
 
         public enum Event
         {
@@ -63,6 +64,16 @@ namespace JortPob
                 { Flag.Category.Event, 0 },
                 { Flag.Category.Saved, 0 },
                 { Flag.Category.Temporary, 0 }
+            };
+
+            entityUsedCounts = new()
+            {
+                { EntityType.Enemy, 0 },
+                { EntityType.Asset, 0 },
+                { EntityType.Region, 0 },
+                { EntityType.Event, 0 },
+                { EntityType.Collision, 0 },
+                { EntityType.Group, 0 }
             };
 
             events = new();
@@ -479,6 +490,15 @@ namespace JortPob
         public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)
         {
             return flagsByLookupKey.GetValueOrDefault(key);
+        }
+
+        /* Create a unique entity id, this is primarily used as an overflow for other msbs when they run out of room. */
+        public uint CreateEntity(EntityType type, string name)
+        {
+            uint rawCount = entityUsedCounts[type]++;
+            uint newid = COMMON_FLAG_BASES[(rawCount / 1000)] + ((uint)type) + rawCount;
+
+            return newid;
         }
 
         public void Write()

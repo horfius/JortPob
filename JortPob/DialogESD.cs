@@ -788,6 +788,13 @@ namespace JortPob
                 s.Append($"        # action:{createEnchantMenuTopicId}:\"Enchant Weapons\"\r\n        AddTalkListData({listCount++}, {createEnchantMenuTopicId}, -1)\r\n");
             }
 
+            // Add alchemy recipe book shop if npc offers it
+            if (npcContent.OffersAlchemy())
+            {
+                int alchemyMenuTopicId = textManager.GetTopic("Learn Alchemy Recipes");
+                s.Append($"        # action:{alchemyMenuTopicId}:\"\"Learn Alchemy Recipes\"\r\n        AddTalkListData({listCount++}, {alchemyMenuTopicId}, -1)\r\n");
+            }
+
             // Add travel option if npc offers it
             if (npcContent.travel.Count() > 0)
             {
@@ -870,6 +877,14 @@ namespace JortPob
                 int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(Stats.Skill.Enchant));
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({enchantShopId}, {enchantShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEquipmentChangeOfPurposeShop()\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
+            // alchemy options
+            if (npcContent.OffersAlchemy())
+            {
+                int alchemyShopId = itemManager.recipeManager.GetShop();
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({alchemyShopId}, {alchemyShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
