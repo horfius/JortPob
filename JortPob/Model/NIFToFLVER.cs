@@ -99,7 +99,7 @@ namespace JortPob.Model
                         bitang = Vector3.TransformNormal(bitang, mr);
 
                         // Fromsoftware lives in the mirror dimension. I do not know why.
-                        pos = pos * Const.GLOBAL_SCALE;
+                        pos *= Const.GLOBAL_SCALE;
                         pos.X *= -1f;
                         norm.X *= -1f;
                         tang.X *= -1f;
@@ -148,13 +148,6 @@ namespace JortPob.Model
                 flver.Meshes.Add(flverMesh);
             }
 
-            //for (int emmitterIndex = 0; emmitterIndex < nif.Emitters.Count; emmitterIndex++)
-            //{
-            //    var emmiter = nif.Emitters[emmitterIndex];
-
-
-            //}
-
             /* Add Dummy Polys */
             short nextRef = 500; // idk why we start at 500, i'm copying old code from DS3 portjob here
             List<Tuple<string, Vector3>> nodes = [
@@ -168,7 +161,7 @@ namespace JortPob.Model
                 short refid = modelInfo.dummies.ContainsKey(name) ? modelInfo.dummies[name] : nextRef++;
 
                 // correct position using same math as we use for vertices above
-                position = position * Const.GLOBAL_SCALE;
+                //position = position * Const.GLOBAL_SCALE;
                 position.X *= -1f;
                 Matrix4x4 rotateY180Matrix = Matrix4x4.CreateRotationY((float)Math.PI);
                 position = Vector3.Transform(position, rotateY180Matrix);
@@ -256,17 +249,6 @@ namespace JortPob.Model
 
                 obj = obj.optimize();
                 obj.write(objPath);
-
-                // check for bounding box difference between visual and collision meshes
-                //obj.GetBounds(out var min, out var max);
-                //var result = CompareBoundingBoxes(rootNode.BoundingBoxMax, rootNode.BoundingBoxMin, max, min);
-                //if (result > 0)
-                //{
-                //    Lort.Log($"{Path.GetFileNameWithoutExtension(modelPath)} has a bigger bb, by: {result}", Lort.Type.Debug);
-                //} else
-                //{
-                //    Lort.Log($"{Path.GetFileNameWithoutExtension(modelPath)} has a smaller bb, by: {result}", Lort.Type.Debug);
-                //}
             }
             return modelInfo;
         }
