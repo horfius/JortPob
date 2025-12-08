@@ -138,10 +138,10 @@ namespace JortPob.Common
         public static readonly bool DEBUG_DONT_WRITE_BLANK_MSBS = true; // if true we don't overwrite base game overworld tiles with blanks. probably no reason to set this to true but it's here
         public static readonly bool DEBUG_DISCARD_ANIMATED_DOORS = true; // disables all doors that are NOT load doors
         public static readonly bool DEBUG_SKIP_FMG_PARAM_SORTING = false;
-        public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
+        public static readonly bool DEBUG_SKIP_ESD = true; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = true; // slow as shit, skipping this saves about a minute per build
         public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
-        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -5, -15, 5, -5 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
+        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = null; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }
         // balmora area (small) = new int[] {-4, -3, -2, -1}
@@ -158,7 +158,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] { "Seyda Neen" };
+            string[] MATCHES = null; // new[] { "Seyda Neen" };
 
             if (MATCHES == null) { return true; }
 
