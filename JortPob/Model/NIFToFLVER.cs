@@ -148,6 +148,20 @@ namespace JortPob.Model
                 flver.Meshes.Add(flverMesh);
             }
 
+            Vector3 center = Vector3.Lerp(flver.Nodes[0].BoundingBoxMin, flver.Nodes[0].BoundingBoxMax, .5f);
+            {
+                FLVER.Dummy dmy = new();
+                dmy.Position = center;
+                dmy.Forward = new(0, 0, 1);
+                dmy.Upward = new(0, 1, 0);
+                dmy.Color = System.Drawing.Color.White;
+                dmy.ReferenceID = 90;
+                dmy.ParentBoneIndex = 0;
+                dmy.AttachBoneIndex = 0;
+                dmy.UseUpwardVector = true;
+                flver.Dummies.Add(dmy);
+            }
+
             /* Add Dummy Polys */
             short nextRef = 500; // idk why we start at 500, i'm copying old code from DS3 portjob here
             List<Tuple<string, Vector3>> nodes = [

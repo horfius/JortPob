@@ -824,6 +824,15 @@ namespace JortPob
             return false;
         }
 
+        public LeveledList GetList(string id)
+        {
+            foreach (LeveledList list in lists)
+            {
+                if (list.id.ToLower() == id.ToLower()) { return list; }
+            }
+            return null;
+        }
+
         public List<ItemInfo> GetItems(List<string> ids)
         {
             List<ItemInfo> itemInfos = new();
@@ -1093,7 +1102,7 @@ namespace JortPob
             public readonly int chance; // chance for no item at all
 
             private int weight; // total weight of all entries
-            private List<(ItemInfo item, int level)> list;  // item and level requirement to roll it
+            private readonly List<(ItemInfo item, int level)> list;  // item and level requirement to roll it
 
             public LeveledList(string id, int chance)
             {
@@ -1127,6 +1136,13 @@ namespace JortPob
                 }
 
                 return list[^1].item; // return last entry, i think this is unreachable but good fallback incase
+            }
+
+            public List<ItemInfo> Possibilites()
+            {
+                List<ItemInfo> ret = new();
+                foreach ((ItemInfo item, int level) tuple in list) { ret.Add(tuple.item); }
+                return ret;
             }
         }
 

@@ -300,6 +300,25 @@ namespace JortPob
                     msb.Parts.Assets.Add(asset);
                 }
 
+                /* Add pickables */
+                foreach (PickableContent content in tile.pickables)
+                {
+                    if (Override.CheckDoNotPlace(content.mesh)) { continue; } // skip any meshes listed in the do_not_place override json
+
+                    /* Grab ModelInfo */
+                    PickableInfo pickableInfo = cache.GetPickableModel(content);
+
+                    /* Make part */
+                    MSBE.Part.Asset asset = MakePart.Asset(pickableInfo);
+                    asset.Position = content.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
+                    asset.Rotation = content.rotation;
+                    asset.Scale = new Vector3(content.scale * 0.01f);
+
+                    asset.EntityID = content.entity;
+
+                    msb.Parts.Assets.Add(asset);
+                }
+
                 /* Add container */
                 foreach (ContainerContent content in tile.containers)
                 {
@@ -771,6 +790,7 @@ namespace JortPob
             param.GeneratePartDrawParams();
             param.GenerateAssetRows(cache.assets);
             param.GenerateAssetRows(cache.emitters);
+            param.GeneratePickableAssetRows(item, cache.pickables);
             param.GenerateAssetRows(cache.liquids);
             param.GenerateMapInfoParam(layout);
             param.SetAllMapLocation();
@@ -796,6 +816,7 @@ namespace JortPob
             Lort.NewTask("Binding Assets", cache.assets.Count);
             Bind.BindAssets(cache);
             Bind.BindEmitters(cache);
+            Bind.BindPickables(cache);
             foreach (LiquidInfo water in cache.liquids)  // bind up them waters toooooo
             {
                 Bind.BindAsset(water, $"{Const.OUTPUT_PATH}asset\\aeg\\{water.AssetPath()}.geombnd.dcx");

@@ -561,6 +561,31 @@ namespace JortPob
         }
     }
 
+    /* PickableContent */    // plants you can pick for alchemy ingredients. EX: rowa berry bushes
+    public class PickableContent : Content
+    {
+        public List<(string id, int quantity)> inventory;
+
+        public PickableContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        {
+            mesh = record.json["mesh"].ToString().ToLower();
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach (JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));  // get item record id and quantity from json
+            }
+        }
+
+        // Generates button prompt text for looting this container
+        public string ActionText()
+        {
+            return $"Harvest {name}";
+        }
+    }
+
     /* static mesh of an item placed in the world that can **CAN** (but not always) be pickupable */
     public class ItemContent : Content
     {

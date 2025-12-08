@@ -376,6 +376,88 @@ namespace JortPob
             }
         }
 
+        /* Generates assetparam rows for pickable (harvestable) plants */
+        public void GeneratePickableAssetRows(ItemManager itemManager, List<PickableInfo> pickables)
+        {
+            FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
+            FsParam lotParam = param[ParamType.ItemLotParam_map];
+            FsParam actionParam = param[ParamType.ActionButtonParam];
+
+            foreach (PickableInfo pickable in pickables)
+            {
+                // Resolve inventory to something we can actually use here
+                List<(ItemManager.ItemInfo item, int max)> possibleItems = new();
+                foreach((string id, int quantity) tuple in pickable.inventory)
+                {
+                    ItemManager.LeveledList list = itemManager.GetList(tuple.id);
+                    ItemManager.ItemInfo item = itemManager.GetItem(tuple.id);
+                    if(list != null)
+                    {
+                        foreach(ItemManager.ItemInfo entry in list.Possibilites())
+                        {
+                            possibleItems.Add((entry, Math.Min(8, tuple.quantity + 1)));
+                        }
+                    }
+                    else if(item != null)
+                    {
+                        possibleItems.Add((item, Math.Min(8, tuple.quantity + 1)));
+                    }
+                }
+
+                // Setup itemlot param
+                for (int i = 0; i < possibleItems.Count; i++)
+                {
+                    (ItemManager.ItemInfo item, int max) tuple = possibleItems[i];
+
+                    FsParam.Row lotRow = CloneRow(lotParam[0], $"Pickable->{pickable.name}::{tuple.item.id}", nextMapItemLotId + i);
+                    lotRow["getItemFlagId"].Value.SetValue((uint)0);
+
+                    int k = tuple.max;
+                    for (int j=0;j<8&&k>0;j++)
+                    {
+                        (ItemManager.ItemInfo item, int max) possibility = possibleItems[i];
+
+                        lotRow[$"lotItemCategory{j+1:D2}"].Value.SetValue(possibility.item.ItemLotCategory());
+                        lotRow[$"lotItemId{j+1:D2}"].Value.SetValue(possibility.item.row);
+                        lotRow[$"enableLuck{j+1:D2}"].Value.SetValue((ushort)(k==tuple.max?1:0));
+                        lotRow[$"lotItemNum{j+1:D2}"].Value.SetValue((byte)k--);
+                        lotRow[$"lotItemBasePoint{j+1:D2}"].Value.SetValue((ushort)(1000/tuple.max));
+                    }
+
+                    AddRow(lotParam, lotRow);
+                }
+
+                // Setup action param
+                FsParam.Row actionRow = CloneRow(actionParam[7817], pickable.ActionText(), nextActionButtonId++); // 7817 is rowa berry harvest prompt
+                int textId = textManager.AddActionButton(pickable.ActionText());
+
+                actionRow["radius"].Value.SetValue(1f); // radius
+                actionRow["angle"].Value.SetValue(180); // angle from dmy
+                actionRow["depth"].Value.SetValue(0f);
+                actionRow["width"].Value.SetValue(0f);
+                actionRow["height"].Value.SetValue(1.75f);
+                actionRow["baseHeightOffset"].Value.SetValue(-1.25f);
+                actionRow["angleCheckType"].Value.SetValue((byte)0);
+                actionRow["allowAngle"].Value.SetValue(180);  // player look angle
+                actionRow["textId"].Value.SetValue(textId);
+                actionRow["isGrayoutForRide"].Value.SetValue((byte)1); // don't allow while riding torrent
+                actionRow["execInvalidTime"].Value.SetValue(0f); // cooldown
+
+                AddRow(actionParam, actionRow);
+
+                // Setup asset param
+                FsParam.Row assetRow = CloneRow(assetParam[99680], $"Pickable->{pickable.name}", pickable.AssetRow()); // 99680 is an erdleaf flower
+
+                assetRow["refDrawParamId"].Value.SetValue(AssetPartDrawParamBySize(pickable.model));        // DrawParamID
+                assetRow["pickUpActionButtonParamId"].Value.SetValue(actionRow.ID);
+                assetRow["pickUpItemLotParamId"].Value.SetValue(nextMapItemLotId);
+
+                AddRow(assetParam, assetRow);
+
+                nextMapItemLotId += 10;
+            }
+        }
+
         public void GenerateAssetRows(List<LiquidInfo> assets)
         {
             FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
