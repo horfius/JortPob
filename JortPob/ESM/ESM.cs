@@ -419,8 +419,8 @@ namespace JortPob
             }
         }
 
-        public int Get(NpcContent.Sex sex, NpcContent.Stats.Attribute attribute) { return attributes[attribute][sex]; }
-        public int Get(NpcContent.Stats.Skill skill) { if (skills.ContainsKey(skill)) { return skills[skill]; } else { return 0; } }
+        public int GetAttribute(NpcContent.Sex sex, NpcContent.Stats.Attribute attribute) { return attributes[attribute][sex]; }
+        public int GetSkill(NpcContent.Stats.Skill skill) { if (skills.ContainsKey(skill)) { return skills[skill]; } else { return 0; } }
     }
 
     public class JobInfo
@@ -457,7 +457,7 @@ namespace JortPob
             }
         }
 
-        public bool Has(NpcContent.Stats.Attribute attribute) { return attributes.Contains(attribute); }
+        public bool HasAttribute(NpcContent.Stats.Attribute attribute) { return attributes.Contains(attribute); }
         public bool HasMajor(NpcContent.Stats.Skill skill) { return major.Contains(skill); }
         public bool HasMinor(NpcContent.Stats.Skill skill) { return minor.Contains(skill); }
         public bool HasSpecialization(NpcContent.Stats.Skill skill)

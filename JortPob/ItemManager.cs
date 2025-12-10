@@ -1140,9 +1140,7 @@ namespace JortPob
 
             public List<ItemInfo> Possibilites()
             {
-                List<ItemInfo> ret = new();
-                foreach ((ItemInfo item, int level) tuple in list) { ret.Add(tuple.item); }
-                return ret;
+                return list.Select(tuple => tuple.item).ToList();
             }
         }
 

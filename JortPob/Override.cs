@@ -106,12 +106,7 @@ namespace JortPob
 
         public static List<SkillInfo> GetSkills(NpcContent.Stats.Tier tier)
         {
-            List<SkillInfo> s = new();
-            foreach(SkillInfo skill in SKILL_INFOS)
-            {
-                if(skill.tier <= tier) { s.Add(skill); }
-            }
-            return s;
+            return SKILL_INFOS.Where(skill => skill.tier <= tier).ToList();
         }
 
         public static List<AlchemyInfo> GetAlchemy()

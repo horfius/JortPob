@@ -182,9 +182,9 @@ namespace JortPob
 
                 foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
                 {
-                    float baseVal = raceInfo.Get(sex, attribute);  // base racial value for attribute
+                    float baseVal = raceInfo.GetAttribute(sex, attribute);  // base racial value for attribute
                     float bonus = 0;
-                    if(jobInfo.Has(attribute)) { baseVal += 10f; }
+                    if(jobInfo.HasAttribute(attribute)) { baseVal += 10f; }
                     foreach(Skill skill in Enum.GetValues(typeof(Skill)))
                     {
                         if(attribute == GetParent(skill))
@@ -201,7 +201,7 @@ namespace JortPob
 
                 foreach (Skill skill in Enum.GetValues(typeof(Skill)))
                 {
-                    float baseVal = raceInfo.Get(skill);
+                    float baseVal = raceInfo.GetSkill(skill);
                     float bonus;
                     if (jobInfo.HasMajor(skill)) { baseVal += 30f; bonus = 1f; }
                     else if (jobInfo.HasMinor(skill)) { baseVal += 15f; bonus = 1f; }

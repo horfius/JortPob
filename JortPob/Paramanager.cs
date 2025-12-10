@@ -128,9 +128,6 @@ namespace JortPob
 
             param = ParamWorker.Go(paramBnd, paramdefs);
 
-            FsParam test = FsParam.Read(@"I:\SteamLibrary\steamapps\common\ELDEN RING\param.txt");
-            test.ApplyParamdef(paramdefs[ParamDefType.ITEMLOT_PARAM_ST]); // @TODO DELETE ME
-
             /* Clear out most of the talk params to make room for our custom ones */
             /* Just keeping some important ones for opening cutscene */
             FsParam talkParam = param[ParamType.TalkParam];
