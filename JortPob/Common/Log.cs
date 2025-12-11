@@ -24,7 +24,13 @@ namespace JortPob.Common
             total = 0;
             current = 0;
             update = false;
-            logFilePath = Const.OUTPUT_PATH + $"jortpob-log-{DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "")}.txt";
+
+            if (!Directory.Exists(Const.OUTPUT_PATH + "\\logs"))
+            {
+                Directory.CreateDirectory(Const.OUTPUT_PATH + "\\logs");
+            }
+
+            logFilePath = Const.OUTPUT_PATH + $"logs\\jortpob-log-{DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "")}.txt";
             File.WriteAllText(logFilePath, "");
         }
 

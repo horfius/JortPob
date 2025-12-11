@@ -1,19 +1,12 @@
-﻿using KokoroSharp;
-using KokoroSharp.Core;
-using KokoroSharp.Utilities;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.Scripting.Utils;
-using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
-using SoulsFormats;
+﻿using Microsoft.Scripting.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Speech.AudioFormat;
-using System.Speech.Recognition;
 using System.Speech.Synthesis;
 using System.Text;
+using System.Text.RegularExpressions;
 
 /* This exists for me to test if full voice acting will work properly before we get voice actors involved */
 namespace JortPob.Common
@@ -109,100 +102,232 @@ namespace JortPob.Common
             // Return wem path
             return wemPath;
         }
-    
+
+
         public static string GenerateAlt(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
-            // Get the exact location this file will be in
-            string lineDir = $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\";
-            string wavPath = $"{lineDir}{hashName}.wav";
-            string wemPath = $"{lineDir}{hashName}.wem";
+            // Define paths
+            string lineDir = Path.Combine(Const.CACHE_PATH, "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName);
+            string wavPath = Path.Combine(lineDir, $"{hashName}.wav");
+            string wemPath = Path.Combine(lineDir, $"{hashName}.wem");
+            string flitePath = Path.Combine(Environment.CurrentDirectory, "Resources", "tts", "flite.exe");
 
-            var flitePath = $"{Environment.CurrentDirectory}\\Resources\\tts\\flite.exe";
+            // Use a loop to handle retries
             for (int retry = 0; retry < Const.SAM_MAX_RETRY; retry++)
             {
+                if (File.Exists(wemPath))
+                {
+                    // Audio file already exists in cache, no need to retry
+                    return wemPath;
+                }
+
                 try
                 {
-                    // Check if this audio file exists in the cache already // @TODO: ideally we generate a voice cache later but guh w/e filesystem check for now
-                    if (System.IO.File.Exists(wemPath)) { return wemPath; }
-
-                    // Make folder if doesn't exist (this is so ugly lmao)
-                    if (!System.IO.Directory.Exists(lineDir)) { System.IO.Directory.CreateDirectory(lineDir); }
-
-                    var l = $"<speak>{line}<break time='500ms'/></speak>";
-                    var voice = npc.sex == NpcContent.Sex.Female ? "slt" : "rms";
+                    // 1. Setup Environment
+                    if (!Directory.Exists(lineDir))
                     {
-                        ProcessStartInfo startInfo = new(flitePath)
-                        {
-                            Arguments = $"-ssml \"{l}\" -voice {voice} \"{wavPath}\"",
-                            RedirectStandardOutput = true,
-                            WorkingDirectory = lineDir,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                        using var process = Process.Start(startInfo);
-                        process.WaitForExit();
+                        Directory.CreateDirectory(lineDir);
                     }
 
-                    // Convert wav to wem
-                    // Setup paths, make folders
-                    string wwiseConsolePath = $"{Const.WWISE_PATH}WwiseConsole.exe";
-                    string xmlName = $"{hashName}.wsources";
-                    string xmlPath = $"{lineDir}{xmlName}";
-                    string xmlRelative = $"..\\dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{xmlName}";
-                    string projectDir = $"{Const.CACHE_PATH}wwise\\";
-                    string projectPath = $"{projectDir}wwise.wproj";
+                    // 2. Generate WAV (Text-to-Speech)
+                    // string ssmlLine = $"<speak>{line}<break time='500ms'/></speak>";
+                    string voice = npc.sex == NpcContent.Sex.Female ? "slt" : "rms";
+                    string args = $"-t \"{MakeSafe(line)}\" -voice {voice} \"{wavPath}\"";
 
+                    ProcessStartInfo fliteStartInfo = new(flitePath)
+                    {
+                        Arguments = args,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true, // Added for better error capture
+                        WorkingDirectory = lineDir,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    // The helper method handles the execution, timeout, kill, and exit code check
+                    ExecuteProcess(fliteStartInfo);
+
+                    // --- 3. Convert WAV to WEM (Wwise Console) ---
+                    
+                    string wwiseConsolePath = Path.Combine(Const.WWISE_PATH, "WwiseConsole.exe");
+                    string xmlName = $"{hashName}.wsources";
+                    string xmlPath = Path.Combine(lineDir, xmlName);
+                    string projectDir = Path.Combine(Const.CACHE_PATH, "wwise");
+                    string projectPath = Path.Combine(projectDir, "wwise.wproj");
+                    
                     // Create XML file
-                    string xmlRaw = $""""
-                                <?xml version='1.0' encoding='UTF-8'?>
-                                <ExternalSourcesList SchemaVersion="1" Root="{lineDir}"><Source Path="{hashName}.wav" Conversion="Vorbis Quality High" /></ExternalSourcesList>
-                                """";
+                    string xmlRaw = $"""
+                        <?xml version='1.0' encoding='UTF-8'?>
+                        <ExternalSourcesList SchemaVersion="1" Root="{lineDir}"><Source Path="{hashName}.wav" Conversion="Vorbis Quality High" /></ExternalSourcesList>
+                        """;
                     File.WriteAllText(xmlPath, xmlRaw);
 
-                    // Create project if it doesn't exist
+                    // Create Wwise project if it doesn't exist
                     if (!File.Exists(projectPath))
                     {
-                        if (Directory.Exists(projectDir)) { Directory.Delete(projectDir); } // creating a wwise proj requires the folder to not exist
-                        ProcessStartInfo startInfo = new(wwiseConsolePath)
+                        // Wwise requires the folder to not exist for project creation
+                        if (Directory.Exists(projectDir)) { Directory.Delete(projectDir, true); }
+                        
+                        ProcessStartInfo createProjectInfo = new(wwiseConsolePath)
                         {
                             WorkingDirectory = Const.CACHE_PATH,
                             UseShellExecute = false,
                             CreateNoWindow = true
                         };
-                        startInfo.ArgumentList.AddRange(new string[] { "create-new-project", $"\"{projectPath}\"", "--platform", "Windows" });
-                        using var process = Process.Start(startInfo);
-                        process.WaitForExit();
+                        createProjectInfo.ArgumentList.AddRange(new string[] { "create-new-project", $"\"{projectPath}\"", "--platform", "Windows" });
+                        ExecuteProcess(createProjectInfo);
                     }
 
-                    // Call wwise console to convert wav to wem
+                    // Convert wav to wem
+                    ProcessStartInfo convertInfo = new(wwiseConsolePath)
                     {
-                        ProcessStartInfo startInfo = new(wwiseConsolePath)
-                        {
-                            RedirectStandardOutput = true,
-                            WorkingDirectory = lineDir,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                        startInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
-                        using var process = Process.Start(startInfo);
-                        process.WaitForExit();
-                    }
-                }
-                catch
-                {
-                    Lort.Log($"## ERROR ## Failed to generate dialog {wavPath}", Lort.Type.Debug);
-                }
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        WorkingDirectory = lineDir,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    string xmlRelative = Path.Combine("..", "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName, xmlName);
+                    convertInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
+                    ExecuteProcess(convertInfo);
 
-                if (File.Exists(wemPath)) { break; } // if the file is created successfully we don't need to retry.
+                    // If we reach here, both processes completed successfully (ExitCode 0)
+                    if (File.Exists(wemPath))
+                    {
+                        return wemPath;
+                    }
+                    
+                    // If processes succeeded but the file isn't there, something is wrong, we retry
+                    throw new FileNotFoundException($"WEM file was not found after successful conversion: {wemPath}");
+                }
+                catch (Exception ex)
+                {
+                    // Log the detailed exception and retry
+                    Lort.Log($"## ERROR ## Failed to generate dialog {wavPath} on attempt {retry + 1}. Error: {ex.Message}", Lort.Type.Debug);
+                    // The loop continues to the next retry attempt
+                }
             }
 
+            // Final check after all retries
             if (!File.Exists(wemPath))
             {
                 throw new System.Exception($"Failed to generated line {wemPath} despite {Const.SAM_MAX_RETRY} retry attempts.");
             }
 
-            // Return wem path
+            // Should be unreachable if the File.Exists check above is correct, but included for completeness.
             return wemPath;
+        }
+
+        private static void ExecuteProcess(ProcessStartInfo startInfo)
+        {
+            using var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                throw new InvalidOperationException($"Failed to start process: {startInfo.FileName}");
+            }
+
+            bool exited = process.WaitForExit(5000);
+
+            if (!exited)
+            {
+                try
+                {
+                    // Forceful termination if timeout occurs
+                    process.Kill();
+                    process.WaitForExit(); // Wait for OS cleanup
+                    throw new TimeoutException($"Process timed out and was killed: {startInfo.FileName}");
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process may have just exited before Kill() was called.
+                    // We'll proceed to check the exit code below.
+                }
+            }
+
+            // VITAL: Check the process exit code after successful exit or timeout kill
+            if (process.ExitCode != 0)
+            {
+                // Optional: Read StandardError for better debugging info
+                string error = startInfo.RedirectStandardError ? process.StandardError.ReadToEnd() : "N/A (Error stream not redirected)";
+                
+                // Throw a specific exception indicating execution failure
+                throw new ApplicationException($"Process failed with exit code {process.ExitCode}. Error: {error}");
+            }
+        }
+
+        private static readonly Regex AnsiRegex =
+            new Regex("\u001b\\[[\\d;]*[A-HJ-NP-Zf-m]?", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Checks a string for safety and returns a sanitized version based on the specified mode.
+        /// </summary>
+        /// <param name="input">The string to be checked and fixed.</param>
+        /// <param name="mode">The level of safety required (ConsolePrintSafe or PathSafe).</param>
+        /// <returns>A safe string.</returns>
+        public static string MakeSafe(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
+
+            // 1. Strip ANSI/VT100 Escape Sequences (Always applied)
+            string sanitized = AnsiRegex.Replace(input, string.Empty);
+
+            // 2. Filter Control Characters (Always applied)
+            var sb = new StringBuilder(sanitized.Length);
+
+            foreach (char c in sanitized)
+            {
+                if (char.IsControl(c))
+                {
+                    // Allow common, non-disruptive formatting characters in the console context
+                    if (c == '\t' || c == '\n' || c == '\r')
+                    {
+                        sb.Append(c);
+                    }
+                    // All other control characters are skipped/removed
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            sanitized = sb.ToString();
+            sb.Clear();
+
+            // A. Remove Invalid File Name Characters
+            // These characters are illegal in file names on Windows and many other systems
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            
+            // Note: Path.GetInvalidFileNameChars() includes path separators ('\' and '/') 
+            // but we often need to allow them if the input is a full relative/absolute path. 
+            // Since the user asked to handle paths, we'll focus on the illegal chars for segments.
+
+            foreach (char c in sanitized)
+            {
+                if (Array.IndexOf(invalidChars, c) == -1)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    // Optionally replace illegal chars with an underscore for visibility
+                    // sb.Append('_');
+                }
+            }
+            sanitized = sb.ToString();
+            
+            // B. Remove Directory Traversal Attempts (e.g., "name/../secret.txt")
+            // This prevents an attacker from moving the file creation location.
+            // This is a simple but important check. More complex validation might be needed.
+            sanitized = sanitized
+                .Replace("..\\", "") // Windows
+                .Replace("../", "")  // Unix/Linux
+                .Replace("./", "")   // Current directory (optional cleanup)
+                .Replace(".\\", ""); 
+
+            return sanitized.Trim();
         }
     }
 }
