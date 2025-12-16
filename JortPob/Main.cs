@@ -49,6 +49,12 @@ namespace JortPob
             /* Create some needed text data that is ref'd later */
             for (int i = 0; i <= 100; i++) { text.AddTopic($"Disposition: {i}"); }
 
+            // Write custom map
+            if (!Const.DEBUG_SKIP_CUSTOM_MAP)
+            {
+                MapWorker.Go();
+            }
+
             /* Generate exterior msbs from layout */
             List<ResourcePool> msbs = new();
 
