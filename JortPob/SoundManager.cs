@@ -11,7 +11,7 @@ namespace JortPob
 {
     public class SoundManager
     {
-        private int nextBankId;
+        private volatile int nextBankId;
         private readonly List<SoundBankInfo> banks;
         private readonly SoundBankGlobals globals;
 
@@ -76,7 +76,7 @@ namespace JortPob
         {
             SAMData dat = new(dialog, info, line, hashName, npc);
             samQueue.Add(dat);
-            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem";
+            return @$"{Const.CACHE_PATH}dialog\{npc.race}\{npc.sex}\{dialog.id}\{hashName}\{hashName}.wem";
         }
 
         /* Writes all soundbanks to given dir */
@@ -98,21 +98,15 @@ namespace JortPob
         {
             private readonly uint[] usedHeaderIds, usedBnkIds, usedSourceIds;  // list of every single used bnk id (of the multiple id types) in stock elden ring. bnk ids are global so we want to avoid collisions
             private readonly List<uint> bnkCallIds; // list of every generating "play" or "stop" bnk id, these are not sequential like other ids so we track them here
-            private uint nextBnkId, nextHeaderId, nextSourceId;  // do not use directly, call NextID()
-            private uint nextRowId;  // increments by 10
+            private volatile uint nextBnkId, nextHeaderId, nextSourceId;  // do not use directly, call NextID()
+            private volatile uint nextRowId;  // increments by 10
 
             public SoundBankGlobals()
             {
                 uint[] LoadIdList(string path)
                 {
                     string[] lines = System.IO.File.ReadAllLines(path);
-                    uint[] ids = new uint[lines.Length];
-                    for (int i = 0; i < lines.Length; i++)
-                    {
-                        ids[i] = uint.Parse(lines[i]);
-                    }
-
-                    return ids;
+                    return lines.Select(uint.Parse).ToArray();
                 }
 
                 usedBnkIds = LoadIdList(Utility.ResourcePath(@"sound\all_used_bnk_ids.txt"));
