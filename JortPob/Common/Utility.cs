@@ -14,7 +14,7 @@ namespace JortPob.Common
 {
     public static class Utility
     {
-        private static byte[] LinSRGBArr = new byte[256];
+        private static byte[] LinSRGBLUT = new byte[256];
 
         public static void InitSRGBCache()
         {
@@ -30,9 +30,9 @@ namespace JortPob.Common
                 }
             }
 
-            for (var i = 0; i < LinSRGBArr.Length; i++)
+            for (var i = 0; i < LinSRGBLUT.Length; i++)
             {
-                LinSRGBArr[i] = (byte)(Math.Min(1f, ConvertValue(i / 255f)) * 255);
+                LinSRGBLUT[i] = (byte)(Math.Min(1f, ConvertValue(i / 255f)) * 255);
             }
         }
 
@@ -288,9 +288,9 @@ namespace JortPob.Common
             {
                 byte[] bitmapColors = BitmapUtilities.GetPixelValues(ref bitmapRgbVals, i * stride, bitmap.PixelFormat);
                 linearArgbVals[i * 4 + 3] = bitmapColors[0]; // alpha
-                linearArgbVals[i * 4 + 2] = LinSRGBArr[bitmapColors[1]]; // r
-                linearArgbVals[i * 4 + 1] = LinSRGBArr[bitmapColors[2]]; // g
-                linearArgbVals[i * 4] = LinSRGBArr[bitmapColors[3]]; // b
+                linearArgbVals[i * 4 + 2] = LinSRGBLUT[bitmapColors[1]]; // r
+                linearArgbVals[i * 4 + 1] = LinSRGBLUT[bitmapColors[2]]; // g
+                linearArgbVals[i * 4] = LinSRGBLUT[bitmapColors[3]]; // b
             }
 
             Marshal.Copy(linearArgbVals, 0, linearPtr, linearBytes);
