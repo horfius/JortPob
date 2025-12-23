@@ -790,7 +790,7 @@ namespace JortPob
             param.GeneratePartDrawParams();
             param.GenerateAssetRows(cache.assets);
             param.GenerateAssetRows(cache.emitters);
-            param.GeneratePickableAssetRows(item, cache.pickables);
+            param.GeneratePickableAssetRows(item, cache.GetPickables());
             param.GenerateAssetRows(cache.liquids);
             param.GenerateMapInfoParam(layout);
             param.SetAllMapLocation();
