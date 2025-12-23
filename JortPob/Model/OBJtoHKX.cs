@@ -5,6 +5,7 @@ using HKLib.Serialization.hk2018.Xml;
 using JortPob.Common;
 using SoulsFormats;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,6 +17,8 @@ namespace JortPob.Model
 {
     partial class ModelConverter
     {
+        private static readonly ConcurrentDictionary<string, HavokTypeRegistry> registryCache = new();
+
         public static void OBJtoHKX(string objPath, string hkxPath)
         {
             string tempDir = $"{AppDomain.CurrentDomain.BaseDirectory}Resources\\tools\\ER_OBJ2HKX\\";
@@ -90,7 +93,7 @@ namespace JortPob.Model
             var root = (HKX2.hkRootLevelContainer)des.Deserialize(new BinaryReaderEx(false, bytes));
 
             hkRootLevelContainer hkx = HkxUpgrader.UpgradehkRootLevelContainer(root);
-            HavokTypeRegistry registry = HavokTypeRegistry.Load($"{tempDir}HavokTypeRegistry20180100.xml");
+            HavokTypeRegistry registry = GetTypeRegistryForDirectory(tempDir);
 
             /* Absolute garbage code fix for materials */
             /* Somewhere in the process of dropoff -> 12av -> hork code chain the material ids get mutilated and so I have to repair them at the end */
@@ -120,6 +123,17 @@ namespace JortPob.Model
                 }
             }
             return bytes;
+        }
+
+        /**
+         * Helper to ensure we only need to initialize the Havok registry once per temp directory.
+         */
+        private static HavokTypeRegistry GetTypeRegistryForDirectory(string tempDir)
+        {
+            return registryCache.GetOrAdd(
+                Path.Combine(tempDir, "HavokTypeRegistry20180100.xml"),
+                HavokTypeRegistry.Load
+            );
         }
     }
 }
