@@ -13,11 +13,11 @@ namespace JortPob.Common
     /* The reason I made this it's own class is because generating parts is very bulky in Elden Ring and this is cleaner than doing it inline */
     public class MakePart
     {
-        public static ConcurrentDictionary<int, int> AssetInstances { get; } = new(); // counts instances of assets
-        public static ConcurrentDictionary<int, int> PickableInstances { get; } = new(); // counts instances of pickables
-        public static ConcurrentDictionary<int, int> EmitterInstances { get; } = new(); // counts instances of emitter assets
+        public static ConcurrentDictionary<ModelInfo, int> AssetInstances { get; } = new(); // counts instances of assets
+        public static ConcurrentDictionary<PickableInfo, int> PickableInstances { get; } = new(); // counts instances of pickables
+        public static ConcurrentDictionary<EmitterInfo, int> EmitterInstances { get; } = new(); // counts instances of emitter assets
         public static ConcurrentDictionary<string, int> EnemyInstances { get; } = new();      // counts instances of enemies
-        public static ConcurrentDictionary<int, int> WaterInstances { get; } = new();
+        public static ConcurrentDictionary<LiquidInfo, int> WaterInstances { get; } = new();
         public static ConcurrentDictionary<string, int> VanillaAssetInstances { get; } = new();
         public static int PlayerInstances = 9000;
 
@@ -28,7 +28,7 @@ namespace JortPob.Common
             MSBE.Part.Asset asset = new();
 
             /* Instance */
-            int inst = AssetInstances.AddOrUpdate(modelInfo.id, 0, (_, oldVal) => oldVal + 1);
+            int inst = AssetInstances.AddOrUpdate(modelInfo, 0, (_, oldVal) => oldVal + 1);
             asset.InstanceID = inst;
 
             /* Model Stuff */
@@ -116,7 +116,7 @@ namespace JortPob.Common
             MSBE.Part.Asset asset = Asset(pickableInfo.model);  // kind of lazy but it works guh
 
             /* Instance */
-            int inst = PickableInstances.AddOrUpdate(pickableInfo.id, 0, (_, oldVal) => oldVal + 1);
+            int inst = PickableInstances.AddOrUpdate(pickableInfo, 0, (_, oldVal) => oldVal + 1);
             asset.InstanceID = inst;
 
             /* Model Stuff */
@@ -138,7 +138,7 @@ namespace JortPob.Common
             MSBE.Part.Asset asset = new();
 
             /* Instance */
-            int inst = EmitterInstances.AddOrUpdate(emitterInfo.id, 0, (_, oldVal) => oldVal + 1);
+            int inst = EmitterInstances.AddOrUpdate(emitterInfo, 0, (_, oldVal) => oldVal + 1);
             asset.InstanceID = inst;
             
             /* Model Stuff */
@@ -231,7 +231,7 @@ namespace JortPob.Common
             MSBE.Part.Asset asset = new();
 
             /* Instance */
-            int inst = WaterInstances.AddOrUpdate(waterInfo.id, 0, (_, oldVal) => oldVal + 1);
+            int inst = WaterInstances.AddOrUpdate(waterInfo, 0, (_, oldVal) => oldVal + 1);
             asset.InstanceID = inst;
             
             /* Model Stuff */
