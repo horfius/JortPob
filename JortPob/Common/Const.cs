@@ -15,7 +15,7 @@ namespace JortPob.Common
         public static string ELDEN_PATH { get; } = Settable.Get("ELDEN_PATH");
         public static string OUTPUT_PATH { get; } = Settable.Get("OUTPUT_PATH");
         public static string WWISE_PATH { get; } = Settable.Get("WWISE_PATH");
-        public static string CACHE_PATH { get; } = Path.Combine(OUTPUT_PATH, $@"cache\");
+        public static string CACHE_PATH { get; } = Path.Combine(OUTPUT_PATH, @"cache\");
         public static string[] LOAD_ORDER { get; } = Settable.GetArray("LOAD_ORDER");
         #endregion
 

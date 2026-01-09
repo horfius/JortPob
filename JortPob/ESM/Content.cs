@@ -36,7 +36,7 @@ namespace JortPob
             type = record.type;
             entity = 0;
 
-            papyrus = record.json["script"] != null && !string.IsNullOrEmpty(record.json["script"].GetValue<string>()) ? record.json["script"].GetValue<string>() : null;
+            papyrus = string.IsNullOrEmpty(record.json["script"]?.GetValue<string>()) ? null : record.json["script"]!.GetValue<string>();
 
             float x = float.Parse(json["translation"][0].ToString());
             float z = float.Parse(json["translation"][1].ToString());
