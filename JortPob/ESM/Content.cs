@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using static JortPob.NpcContent;
 
 namespace JortPob
 {
@@ -30,7 +31,7 @@ namespace JortPob
         public Content(Cell cell, JsonNode json, Record record)
         {
             this.cell = cell;
-            id = json["id"].ToString();
+            id = record.json["id"].ToString();
             name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
@@ -428,11 +429,53 @@ namespace JortPob
     /* creatures, both leveled and non-leveled */
     public class CreatureContent : Content
     {
+        public readonly int level;
+        public readonly int hello, fight, flee, alarm;
+        public readonly bool hostile, dead;
+
+        public readonly bool essential; // player gets called dumb if they kill this dood
+
+        public List<(string id, int quantity)> inventory;
+
+        public readonly List<Service> services;
+
         public CreatureContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            // Kinda stubby for now
+            essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
+
+            level = int.Parse(record.json["data"]["level"].ToString());
+
+            hello = int.Parse(record.json["ai_data"]["hello"].ToString());
+            fight = int.Parse(record.json["ai_data"]["fight"].ToString());
+            flee = int.Parse(record.json["ai_data"]["flee"].ToString());
+            alarm = int.Parse(record.json["ai_data"]["alarm"].ToString());
+
+            hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
+            dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
+
+
+            string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
+            services = new();
+            foreach (string s in serviceFlags)
+            {
+                string trim = s.Trim().ToLower().Replace("_", "");
+                try
+                {
+                    Service service = (Service)System.Enum.Parse(typeof(Service), trim, true);
+                    services.Add(service);
+                }
+                catch { }
+            }
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
+
+            inventory = new();
+            JsonArray invJson = record.json["inventory"].AsArray();
+            foreach (JsonNode node in invJson)
+            {
+                JsonArray item = node.AsArray();
+                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
+            }
         }
     }
 

@@ -36,6 +36,7 @@ namespace JortPob
         public List<RaceInfo> races;
         public List<JobInfo> jobs;  // classes, but we cant really use that word so 'job'
         public List<FactionInfo> factions;
+        public List<LeveledCreature> leveled; // leveled creature lists
         public List<Cell> exterior, interior;
         public List<Papyrus> scripts;
 
@@ -217,6 +218,13 @@ namespace JortPob
                 jobs.Add(new(jsonNode));
             }
 
+            /* Load leveled creature lists so we can resolve them to creatures while processing cells */
+            leveled = new();
+            foreach(JsonNode jsonNode in GetAllRecordsByType(ESM.Type.LeveledCreature))
+            {
+                leveled.Add(new(jsonNode));
+            }
+
             /* Multi threading to speed this up... */
             (exterior, interior) = CellWorker.Go(this);
             landscapesByCoordinate = new();
@@ -348,6 +356,8 @@ namespace JortPob
 
         public Papyrus? GetPapyrus(string id) => scripts.FirstOrDefault(script => script.id == id.ToLower());
 
+        public LeveledCreature? GetLeveledCreature(string id) => leveled.FirstOrDefault(lc => lc.id == id.ToLower());
+
         /* Get dialog and character data for building esd */
         public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, NpcContent npc)
         {
@@ -379,6 +389,13 @@ namespace JortPob
             }
 
             return ds;
+        }
+
+        public Record ResolveLeveledCreature(string id)
+        {
+            LeveledCreature leveledCreatureList = GetLeveledCreature(id);
+            string creature = leveledCreatureList.Get();
+            return FindRecordById(creature);
         }
     }
 
@@ -534,6 +551,38 @@ namespace JortPob
                 this.level = level;
                 this.reputation = reputation;
             }
+        }
+    }
+
+    public class LeveledCreature
+    {
+        public readonly string id;
+        public readonly int chance;
+
+        public readonly List<(string id, int level)> creatures;
+
+        public LeveledCreature(JsonNode json)
+        {
+            id = json["id"].GetValue<string>().ToLower();
+            chance = json["chance_none"].GetValue<int>();
+
+            creatures = new();
+            foreach (JsonNode entry in json["creatures"].AsArray())
+            {
+                JsonArray data = entry.AsArray();
+
+                string creature = data[0].GetValue<string>().ToLower();
+                int level = data[1].GetValue<int>();
+
+                creatures.Add((creature, level));
+            }
+        }
+
+        /* @TODO: better selection code. currently just using a starndard random draw */
+        public string Get()
+        {
+            int rand = Utility.RandomRange(0, creatures.Count());
+            return creatures[rand].id;
         }
     }
 

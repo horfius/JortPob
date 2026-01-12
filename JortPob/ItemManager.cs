@@ -863,6 +863,11 @@ namespace JortPob
             return ResolveInventory(npc.inventory);
         }
 
+        public List<(ItemInfo item, int quantity)> ResolveInventory(CreatureContent creature)
+        {
+            return ResolveInventory(creature.inventory);
+        }
+
         public List<(ItemInfo item, int quantity)> ResolveInventory(ContainerContent container)
         {
             return ResolveInventory(container.inventory);

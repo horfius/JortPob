@@ -252,8 +252,10 @@ namespace JortPob
                         //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
                     }
 
+                    (int npc, int think) paramRows = character.GetParams(item, script, npc); // creates/gets and returns both an NpcParam and NpcThinkParam
                     enemy.TalkID = character.GetESD(tile.IdList(), npc); // creates and returns a character esd
-                    enemy.NPCParamID = character.GetParam(item, script, npc); // creates and returns an npcparam
+                    enemy.NPCParamID = paramRows.npc;
+                    enemy.ThinkParamID = paramRows.think;
                     enemy.EntityID = npc.entity;
 
                     msb.Parts.Enemies.Add(enemy);
@@ -360,12 +362,18 @@ namespace JortPob
                     msb.Parts.Assets.Add(asset);
                 }
 
-                /* TEST Creatures */ // make some goats where enemies would spawn just as a test
+                /* Creatures */
                 foreach (CreatureContent creature in tile.creatures)
                 {
-                    MSBE.Part.Enemy enemy = MakePart.Creature();
+                    Override.EnemyRemap remap = Override.GetEnemyRemap(creature.id);
+
+                    MSBE.Part.Enemy enemy = MakePart.Creature(remap.character);
                     enemy.Position = creature.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                     enemy.Rotation = creature.rotation;
+
+                    (int npc, int think) paramRows = character.GetParams(item, script, creature, remap); // creates/gets and returns both an NpcParam and NpcThinkParam
+                    enemy.NPCParamID = paramRows.npc;
+                    enemy.ThinkParamID = paramRows.think;
                     enemy.EntityID = creature.entity;
 
                     msb.Parts.Enemies.Add(enemy);
@@ -595,8 +603,10 @@ namespace JortPob
                                                                                                                                          //PapyrusESD esdScript = new PapyrusESD(esm, scriptManager, param, text, script, npc, papyrusScript, 99999);
                         }
 
+                        (int npc, int think) paramRows = character.GetParams(item, script, npc); // creates/gets and returns both an NpcParam and NpcThinkParam
                         enemy.TalkID = character.GetESD(group.IdList(), npc); // creates and returns a character esd
-                        enemy.NPCParamID = character.GetParam(item, script, npc); // creates and returns an npcparam
+                        enemy.NPCParamID = paramRows.npc;
+                        enemy.ThinkParamID = paramRows.think;
                         enemy.EntityID = npc.entity;
 
                         enemy.Unk1.DisplayGroups[0] = 0;
@@ -697,15 +707,21 @@ namespace JortPob
                         msb.Parts.Assets.Add(asset);
                     }
 
-                    /* TEST Creatures */ // make some goats where enemies would spawn just as a test
+                    /* Creatures */
                     foreach (CreatureContent creature in chunk.creatures)
                     {
-                        MSBE.Part.Enemy enemy = MakePart.Creature();
+                        Override.EnemyRemap remap = Override.GetEnemyRemap(creature.id);
+
+                        MSBE.Part.Enemy enemy = MakePart.Creature(remap.character);
                         enemy.Position = creature.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                         enemy.Rotation = creature.rotation;
 
                         enemy.Unk1.DisplayGroups[0] = 0;
                         enemy.CollisionPartName = rootCollision.Name;
+
+                        (int npc, int think) paramRows = character.GetParams(item, script, creature, remap); // creates/gets and returns both an NpcParam and NpcThinkParam
+                        enemy.NPCParamID = paramRows.npc;
+                        enemy.ThinkParamID = paramRows.think;
                         enemy.EntityID = creature.entity;
 
                         msb.Parts.Enemies.Add(enemy);

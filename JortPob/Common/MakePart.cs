@@ -469,19 +469,19 @@ namespace JortPob.Common
         }
 
         /* makes a goat */
-        public static MSBE.Part.Enemy Creature()
+        public static MSBE.Part.Enemy Creature(string character)
         {
             MSBE.Part.Enemy enemy = new();
 
             /* Instance */
             int inst;
-            if (EnemyInstances.ContainsKey("c0000")) { inst = ++EnemyInstances["c0000"]; }
-            else { inst = 0; EnemyInstances.Add("c0000", inst); }
+            if (EnemyInstances.ContainsKey(character)) { inst = ++EnemyInstances[character]; }
+            else { inst = 0; EnemyInstances.Add(character, inst); }
             enemy.InstanceID = inst;
 
             /* Model and Enemy Stuff */
-            enemy.Name = $"c6060_{inst.ToString("D4")}";
-            enemy.ModelName = "c6060";
+            enemy.Name = $"{character}_{inst.ToString("D4")}";
+            enemy.ModelName = character;
             enemy.NPCParamID = 60600010;
             enemy.EntityID = 0;
             enemy.PlatoonID = 0;

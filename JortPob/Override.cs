@@ -32,6 +32,7 @@ namespace JortPob
         private static List<SpellRemap> SPELL_REMAPS;
         private static List<SkillInfo> SKILL_INFOS;
         private static List<AlchemyInfo> ALCHEMY_INFOS;
+        private static List<EnemyRemap> ENEMY_REMAPS;
 
         public static bool CheckDoNotPlace(string id)
         {
@@ -112,6 +113,15 @@ namespace JortPob
         public static List<AlchemyInfo> GetAlchemy()
         {
             return ALCHEMY_INFOS;
+        }
+
+        public static EnemyRemap GetEnemyRemap(string id)
+        {
+            foreach (EnemyRemap remap in ENEMY_REMAPS)
+            {
+                if (remap.id == id.ToLower().Trim()) { return remap; }
+            }
+            return new();
         }
 
         /* load all the override jsons into this class */
@@ -197,6 +207,16 @@ namespace JortPob
             foreach (string speffFile in speffFiles)
             {
                 SPEFF_DEFINITIONS.Add(new SpeffDefinition(speffFile));
+            }
+
+            /* Load enemy remap list */
+            ENEMY_REMAPS = new();
+            JsonNode jsonEnemyRemaps = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\enemy_remap.json")));
+            foreach (var property in jsonEnemyRemaps.AsObject())
+            {
+                JsonNode jsonNode = property.Value;
+                EnemyRemap enemyRemap = new(property.Key, jsonNode);
+                ENEMY_REMAPS.Add(enemyRemap);
             }
         }
 
@@ -434,6 +454,56 @@ namespace JortPob
                 foreach(var property in json["data"].AsObject())
                 {
                     data.Add(property.Key, property.Value.ToString());
+                }
+            }
+        }
+
+        public class EnemyRemap
+        {
+            public readonly string id, comment, character;
+            public readonly EnemyRemapData npc, think;
+
+            public EnemyRemap(string id, JsonNode json)
+            {
+                this.id = id.ToLower().Trim();
+                character = json["character"]?.GetValue<string>();
+                comment = json["comment"]?.GetValue<string>();
+
+                npc = new(json["npc"]);
+                think = new(json["think"]);
+            }
+
+            /* Default constructor, points to a Goat */
+            public EnemyRemap()
+            {
+                id = "DEFAULT";
+                character = "c6060";
+                comment = "Default constructor, used when no remap found. Creates a goat.";
+
+                npc = new(60600010);
+                think = new(60600000);
+            }
+
+            public class EnemyRemapData
+            {
+                public readonly int row;
+                public readonly Dictionary<string, string> data;
+
+                public EnemyRemapData(JsonNode json)
+                {
+                    row = json["row"].GetValue<int>();
+
+                    data = new();
+                    foreach (var property in json["data"].AsObject())
+                    {
+                        data.Add(property.Key, property.Value.ToString());
+                    }
+                }
+
+                public EnemyRemapData(int row)
+                {
+                    this.row = row;
+                    data = new();
                 }
             }
         }

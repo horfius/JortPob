@@ -15,7 +15,6 @@ namespace JortPob
         private readonly List<SoundBankInfo> banks;
         private readonly SoundBankGlobals globals;
 
-        private readonly SAM sam;
         private readonly List<SAMData> samQueue;
         public class SAMData
         {
