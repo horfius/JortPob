@@ -23,7 +23,6 @@ namespace JortPob.Worker
             try
             {
                 Lort.Log("Loading UI map resources... ", Lort.Type.Main);
-
                 Bitmap image = new Bitmap(Utility.ResourcePath("menu\\map\\map_v1.png"));
                 Bitmap map = Utility.LinearToSRGBAlt(image);
 
