@@ -46,21 +46,27 @@ namespace JortPob
         public SoundBankInfo GetBank(NpcContent npc)
         {
             bool useCustom = Override.CheckCustomVoice(npc.id);
+            bool isCreature = npc.race == NpcContent.Race.Creature;
 
             foreach (SoundBankInfo bankInfo in banks)
             {
-                if (!useCustom && bankInfo.race == npc.race && bankInfo.sex == npc.sex && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
+                if(useCustom && bankInfo.race == NpcContent.Race.Custom && bankInfo.custom == npc.id && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
                 {
                     return bankInfo;
                 }
-                if(useCustom && bankInfo.race == NpcContent.Race.Custom && bankInfo.custom == npc.id && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
+                else if (isCreature && bankInfo.race == NpcContent.Race.Creature && bankInfo.custom == npc.id && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
+                {
+                    return bankInfo;
+                }
+                else if (bankInfo.race == npc.race && bankInfo.sex == npc.sex && bankInfo.uses <= Const.MAX_ESD_PER_VCBNK)
                 {
                     return bankInfo;
                 }
             }
             SoundBankInfo bnk;
-            if (!useCustom) { bnk = new(nextBankId++, npc.race, npc.sex, new SoundBank(globals)); }
-            else { bnk = new(nextBankId++, NpcContent.Race.Custom, npc.sex, new SoundBank(globals), npc.id); }
+            if (useCustom) { bnk = new(nextBankId++, NpcContent.Race.Custom, npc.sex, new SoundBank(globals), npc.id); }
+            else if(isCreature) { bnk = new(nextBankId++, NpcContent.Race.Creature, npc.sex, new SoundBank(globals), npc.id); }
+            else { bnk = new(nextBankId++, npc.race, npc.sex, new SoundBank(globals)); }
             banks.Add(bnk);
             return bnk;
         }
@@ -68,12 +74,24 @@ namespace JortPob
         public SoundBank.Sound FindSound(NpcContent npc, int dialogInfo)
         {
             bool useCustom = Override.CheckCustomVoice(npc.id);
+            bool isCreature = npc.race == NpcContent.Race.Creature;
 
-            if (!useCustom)
+            if (useCustom)
             {
                 foreach (SoundBankInfo bankInfo in banks)
                 {
-                    if (bankInfo.race != npc.race || bankInfo.sex != npc.sex) { continue; } // not a match
+                    if (bankInfo.race != NpcContent.Race.Custom || bankInfo.custom != npc.id) { continue; } // not a match
+                    foreach (SoundBank.Sound snd in bankInfo.bank.sounds)
+                    {
+                        if (snd.dialogInfo == dialogInfo) { return snd; }
+                    }
+                }
+            }
+            else if(isCreature)
+            {
+                foreach (SoundBankInfo bankInfo in banks)
+                {
+                    if (bankInfo.race != NpcContent.Race.Creature || bankInfo.custom != npc.id) { continue; } // not a match
                     foreach (SoundBank.Sound snd in bankInfo.bank.sounds)
                     {
                         if (snd.dialogInfo == dialogInfo) { return snd; }
@@ -84,7 +102,7 @@ namespace JortPob
             {
                 foreach (SoundBankInfo bankInfo in banks)
                 {
-                    if (bankInfo.race != NpcContent.Race.Custom || bankInfo.custom != npc.id) { continue; } // not a match
+                    if (bankInfo.race != npc.race || bankInfo.sex != npc.sex) { continue; } // not a match
                     foreach (SoundBank.Sound snd in bankInfo.bank.sounds)
                     {
                         if (snd.dialogInfo == dialogInfo) { return snd; }
@@ -98,12 +116,14 @@ namespace JortPob
         public string GenerateLine(DialogRecord dialog, DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
             bool useCustom = Override.CheckCustomVoice(npc.id);
+            bool isCreature = npc.race == NpcContent.Race.Creature;
 
             SAMData dat = new(dialog, info, line, hashName, npc);
             samQueue.Add(dat);
 
-            if (!useCustom) { return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem"; }
-            else { return $"{Const.CACHE_PATH}dialog\\{NpcContent.Race.Custom}\\{npc.id}\\{dialog.id}\\{hashName}\\{hashName}.wem"; }
+            if (useCustom) { return $"{Const.CACHE_PATH}dialog\\{NpcContent.Race.Custom}\\{npc.id}\\{dialog.id}\\{hashName}\\{hashName}.wem"; }
+            else if(isCreature) { return $"{Const.CACHE_PATH}dialog\\{NpcContent.Race.Creature}\\{npc.id}\\{dialog.id}\\{hashName}\\{hashName}.wem"; }
+            else { return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem"; }
         }
 
         /* Writes all soundbanks to given dir */

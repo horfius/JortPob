@@ -50,21 +50,21 @@ namespace JortPob
 
             // Split up talk data by type
             NpcManager.TopicData greeting = GetTalk(topicData, DialogRecord.Type.Greeting)[0];
-            NpcManager.TopicData hit = GetTalk(topicData, DialogRecord.Type.Hit)[0];
-            NpcManager.TopicData attack = GetTalk(topicData, DialogRecord.Type.Attack)[0];
-            NpcManager.TopicData thief = GetTalk(topicData, DialogRecord.Type.Thief)[0];
-            NpcManager.TopicData idle = GetTalk(topicData, DialogRecord.Type.Idle)[0];
-            NpcManager.TopicData hello = GetTalk(topicData, DialogRecord.Type.Hello)[0];
+            NpcManager.TopicData hit = GetTalk(topicData, DialogRecord.Type.Hit).FirstOrDefault() ?? new();
+            NpcManager.TopicData attack = GetTalk(topicData, DialogRecord.Type.Attack).FirstOrDefault() ?? new();
+            NpcManager.TopicData thief = GetTalk(topicData, DialogRecord.Type.Thief).FirstOrDefault() ?? new();
+            NpcManager.TopicData idle = GetTalk(topicData, DialogRecord.Type.Idle).FirstOrDefault() ?? new(); ;
+            NpcManager.TopicData hello = GetTalk(topicData, DialogRecord.Type.Hello).FirstOrDefault() ?? new();
             List<NpcManager.TopicData> talk = GetTalk(topicData, DialogRecord.Type.Topic);
 
-            NpcManager.TopicData admireSuccess = GetTalk(topicData, DialogRecord.Type.AdmireSuccess)[0];
-            NpcManager.TopicData admireFail = GetTalk(topicData, DialogRecord.Type.AdmireFail)[0];
-            NpcManager.TopicData intimidateSuccess = GetTalk(topicData, DialogRecord.Type.IntimidateSuccess)[0];
-            NpcManager.TopicData intimidateFail = GetTalk(topicData, DialogRecord.Type.IntimidateFail)[0];
-            NpcManager.TopicData tauntSuccess = GetTalk(topicData, DialogRecord.Type.TauntSuccess)[0];
-            NpcManager.TopicData tauntFail = GetTalk(topicData, DialogRecord.Type.TauntFail)[0];
-            NpcManager.TopicData bribeSuccess = GetTalk(topicData, DialogRecord.Type.BribeSuccess)[0];
-            NpcManager.TopicData bribeFail = GetTalk(topicData, DialogRecord.Type.BribeFail)[0];
+            NpcManager.TopicData admireSuccess = GetTalk(topicData, DialogRecord.Type.AdmireSuccess).FirstOrDefault() ?? new();
+            NpcManager.TopicData admireFail = GetTalk(topicData, DialogRecord.Type.AdmireFail).FirstOrDefault() ?? new();
+            NpcManager.TopicData intimidateSuccess = GetTalk(topicData, DialogRecord.Type.IntimidateSuccess).FirstOrDefault() ?? new();
+            NpcManager.TopicData intimidateFail = GetTalk(topicData, DialogRecord.Type.IntimidateFail).FirstOrDefault() ?? new();
+            NpcManager.TopicData tauntSuccess = GetTalk(topicData, DialogRecord.Type.TauntSuccess).FirstOrDefault() ?? new();
+            NpcManager.TopicData tauntFail = GetTalk(topicData, DialogRecord.Type.TauntFail).FirstOrDefault() ?? new();
+            NpcManager.TopicData bribeSuccess = GetTalk(topicData, DialogRecord.Type.BribeSuccess).FirstOrDefault() ?? new();
+            NpcManager.TopicData bribeFail = GetTalk(topicData, DialogRecord.Type.BribeFail).FirstOrDefault() ?? new();
 
             generatedStates = new();
             nxtGenStateId = Common.Const.ESD_STATE_HARDCODE_CHOICE;
@@ -90,7 +90,7 @@ namespace JortPob
             }
 
             generatedStates.Add(GeneratedState_HandleCrime(id, Common.Const.ESD_STATE_HARDCODE_HANDLECRIME));
-            generatedStates.Add(GeneratedState_CombatDialogSelection(id, Common.Const.ESD_STATE_HARDCODE_COMBATDIALOGSELECT, attack));
+            generatedStates.Add(GeneratedState_CombatDialogSelection(id, Common.Const.ESD_STATE_HARDCODE_COMBATDIALOGSELECT));
             generatedStates.Add(GeneratedState_CombatTalk(id, Common.Const.ESD_STATE_HARDCODE_COMBATTALK));
             generatedStates.Add(GeneratedState_DoAttackTalk(id, Common.Const.ESD_STATE_HARDCODE_DOATTACKTALK, attack));
             generatedStates.Add(GeneratedState_DoHitTalk(id, Common.Const.ESD_STATE_HARDCODE_DOHITTALK, hit));
@@ -152,10 +152,10 @@ namespace JortPob
             defs.Add(State_x35(id));
             defs.Add(State_x36(id));
             defs.Add(State_x37(id));
-            defs.Add(State_x38(id, attack));
-            defs.Add(State_x39(id, hit));
+            defs.Add(State_x38(id));
+            defs.Add(State_x39(id));
 
-            defs.Add(State_x40(id, attack));
+            defs.Add(State_x40(id));
             defs.Add(State_x41(id, hit));
             defs.Add(State_x42(id, talkActionButtonId));
             defs.Add(State_x44(id, talk));
@@ -628,13 +628,13 @@ namespace JortPob
         }
 
         /* On killing the player */
-        private string State_x38(uint id, NpcManager.TopicData topic)
+        private string State_x38(uint id)
         {
             return $"def t{id:D9}_x38():\r\n    ## on player kill talk\r\n    assert t{id:D9}_x{Const.ESD_STATE_HARDCODE_DOATTACKTALK:D2}()\r\n    return 0\r\n";
         }
 
         // Character gets hurt by player
-        private string State_x39(uint id, NpcManager.TopicData hurts)
+        private string State_x39(uint id)
         {
             string id_s = id.ToString("D9");
 
@@ -670,7 +670,7 @@ namespace JortPob
         }
 
         /* Hostile quip */
-        private string State_x40(uint id, NpcManager.TopicData topic)
+        private string State_x40(uint id)
         {
             Script.Flag theifFlag = scriptManager.GetFlag(Script.Flag.Designation.ThiefCrime, npcContent.entity.ToString());
             string s = $"def t{id:D9}_x40(flag4=_):\r\n    ## single angry quip triggered when a character becomes hostile\r\n";
@@ -1167,7 +1167,7 @@ namespace JortPob
         }
 
         /* State that randomly has npc use talk lines in combat */
-        private string GeneratedState_CombatDialogSelection(uint id, int x, NpcManager.TopicData topic)
+        private string GeneratedState_CombatDialogSelection(uint id, int x)
         {
             Script.Flag hostileFlag = scriptManager.GetFlag(Script.Flag.Designation.Hostile, npcContent.entity.ToString());
             string s = $""""

@@ -88,11 +88,14 @@ namespace JortPob
             scale = (int)((json["scale"] != null ? float.Parse(json["scale"].ToString()) : 1f) * 100);
         }
 
-        public Content(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale)
+        public Content(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale)
         {
+            this.cell = cell;
             this.id = id;
+            this.name = name;
             this.type = type;
             this.load = load;
+            this.papyrus = papyrus;
             this.position = position;
             this.rotation = rotation;
             this.scale = scale;
@@ -152,6 +155,16 @@ namespace JortPob
 
             private readonly Dictionary<Skill, int> skills;
             private readonly Dictionary<Attribute, int> attributes;
+
+            /* Blank constructor used for creatures */
+            public Stats()
+            {
+                attributes = new();
+                skills = new();
+
+                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute))) { attributes.Add(attribute, 50); }
+                foreach (Skill skill in Enum.GetValues(typeof(Skill))) { skills.Add(skill, 50); }
+            }
 
             /* Defined stats constructor */
             public Stats(JsonNode json)
@@ -286,6 +299,44 @@ namespace JortPob
             }
         }
 
+        /* Special constructor, this is used by NpcManager when creating dialog for creatures */
+        /* We take a creaturecontent and create an NpcContent out of it */
+        /* Ideally we would maybe have CreatureContent and NpcContent come from a shared abstract class and have NpcManager use that but that would require a lot of redesigning so guh */
+        public NpcContent(CreatureContent creature) : base(creature.cell, creature.id, creature.name, creature.type, creature.load, creature.papyrus, creature.position, creature.rotation, creature.scale)
+        {
+            race = Race.Creature;
+            sex = Sex.Male;
+            job = "Creature";
+            faction = null;
+
+            entity = creature.entity;
+
+            essential = creature.essential;
+            level = creature.level;
+            disposition = 50; // default neutral
+            reputation = 0;
+            rank = 0;
+            gold = 0;
+
+            hello = creature.hello;
+            fight = creature.fight;
+            flee = creature.flee;
+            alarm = creature.alarm;
+
+            hostile = creature.hostile;
+            dead = creature.dead;
+
+            stats = new();
+            services = creature.services;
+            barter = creature.barter;
+
+            inventory = creature.inventory;
+
+            spells = new();
+            travel = new();
+        }
+
+        /* Normal NpcContent contructor */
         public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
@@ -439,6 +490,8 @@ namespace JortPob
 
         public readonly List<Service> services;
 
+        public List<(string id, int quantity)> barter; // can be null
+
         public CreatureContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
@@ -477,6 +530,25 @@ namespace JortPob
                 inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
             }
         }
+
+        /* Return true if this npc has any barter service */
+        public bool HasBarter()
+        {
+            return
+                services.Contains(Service.BartersWeapons) ||
+                services.Contains(Service.BartersArmor) ||
+                services.Contains(Service.BartersClothing) ||
+                services.Contains(Service.BartersIngredients) ||
+                services.Contains(Service.BartersApparatus) ||
+                services.Contains(Service.BartersAlchemy) ||
+                services.Contains(Service.BartersBooks) ||
+                services.Contains(Service.BartersMiscItems) ||
+                services.Contains(Service.BartersEnchantedItems) ||
+                services.Contains(Service.BartersRepairItems) ||
+                services.Contains(Service.BartersLockpicks) ||
+                services.Contains(Service.BartersProbes) ||
+                services.Contains(Service.BartersLights);
+        }
     }
 
     /* static meshes to be converted to assets */
@@ -489,7 +561,7 @@ namespace JortPob
 
         public EmitterContent ConvertToEmitter()
         {
-            return new EmitterContent(id, type, load, position, rotation, scale, mesh);
+            return new EmitterContent(cell, id, name, type, load, papyrus, position, rotation, scale, mesh);
         }
     }
 
@@ -662,7 +734,7 @@ namespace JortPob
             mesh = record.json["mesh"].ToString().ToLower();
         }
 
-        public EmitterContent(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale, string mesh) : base(id, type, load, position, rotation, scale)
+        public EmitterContent(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale, string mesh) : base(cell, id, name, type, load, papyrus, position, rotation, scale)
         {
             this.mesh = mesh;
         }

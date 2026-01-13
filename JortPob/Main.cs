@@ -253,7 +253,7 @@ namespace JortPob
                     }
 
                     (int npc, int think) paramRows = character.GetParams(item, script, npc); // creates/gets and returns both an NpcParam and NpcThinkParam
-                    enemy.TalkID = character.GetESD(tile.IdList(), npc); // creates and returns a character esd
+                    enemy.TalkID = character.GetESD(tile, npc); // creates and returns a character esd
                     enemy.NPCParamID = paramRows.npc;
                     enemy.ThinkParamID = paramRows.think;
                     enemy.EntityID = npc.entity;
@@ -371,7 +371,15 @@ namespace JortPob
                     enemy.Position = creature.relative + Const.TEST_OFFSET1 + Const.TEST_OFFSET2;
                     enemy.Rotation = creature.rotation;
 
+                    // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                    if (creature.papyrus != null)
+                    {
+                        Papyrus papyrusScript = esm.GetPapyrus(creature.papyrus);
+                        if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, item, script, papyrusScript, creature); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                    }
+
                     (int npc, int think) paramRows = character.GetParams(item, script, creature, remap); // creates/gets and returns both an NpcParam and NpcThinkParam
+                    enemy.TalkID = character.GetESD(tile, creature); // creates and returns a character esd
                     enemy.NPCParamID = paramRows.npc;
                     enemy.ThinkParamID = paramRows.think;
                     enemy.EntityID = creature.entity;
@@ -604,7 +612,7 @@ namespace JortPob
                         }
 
                         (int npc, int think) paramRows = character.GetParams(item, script, npc); // creates/gets and returns both an NpcParam and NpcThinkParam
-                        enemy.TalkID = character.GetESD(group.IdList(), npc); // creates and returns a character esd
+                        enemy.TalkID = character.GetESD(group, npc); // creates and returns a character esd
                         enemy.NPCParamID = paramRows.npc;
                         enemy.ThinkParamID = paramRows.think;
                         enemy.EntityID = npc.entity;
@@ -719,7 +727,15 @@ namespace JortPob
                         enemy.Unk1.DisplayGroups[0] = 0;
                         enemy.CollisionPartName = rootCollision.Name;
 
+                        // Doing this BEFORE talkesd so that all nesscary local vars are created beforehand!
+                        if (creature.papyrus != null)
+                        {
+                            Papyrus papyrusScript = esm.GetPapyrus(creature.papyrus);
+                            if (papyrusScript != null) { PapyrusEMEVD.Compile(scriptManager, param, item, script, papyrusScript, creature); } // this != null check only exists because bugs. @TODO: remove when we get 100% papyrus support
+                        }
+
                         (int npc, int think) paramRows = character.GetParams(item, script, creature, remap); // creates/gets and returns both an NpcParam and NpcThinkParam
+                        enemy.TalkID = character.GetESD(group, creature); // creates and returns a character esd
                         enemy.NPCParamID = paramRows.npc;
                         enemy.ThinkParamID = paramRows.think;
                         enemy.EntityID = creature.entity;

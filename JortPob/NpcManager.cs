@@ -4,6 +4,7 @@ using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using static JortPob.Dialog;
 
 namespace JortPob
@@ -104,6 +105,20 @@ namespace JortPob
             npcThinkParamMap.Add(content.id, id);
             return id;
         }
+
+        public int GetESD(BaseTile tile, CreatureContent content)
+        {
+            if(!esm.HasDialog(content)) { return 0; }
+            return GetESD(tile.IdList(), new(content));
+        }
+        public int GetESD(InteriorGroup group, CreatureContent content)
+        {
+            if (!esm.HasDialog(content)) { return 0; }
+            return GetESD(group.IdList(), new(content));
+        }
+
+        public int GetESD(BaseTile tile, NpcContent content) { return GetESD(tile.IdList(), content); }
+        public int GetESD(InteriorGroup group, NpcContent content) { return GetESD(group.IdList(), content); }
 
         /* Creates an ESD for the given instance of a npc */
         /* ESDs are generally 1 to 1 with characters but there are some exceptions like guards */
@@ -277,6 +292,14 @@ namespace JortPob
                 this.dialog = dialog;
                 this.topicText = topicText;
                 this.talks = new();
+            }
+
+            /* Blank constructor only used by creature dialog generation for blank topics like voice */
+            public TopicData()
+            {
+                dialog = null;
+                topicText = -1;
+                talks = new();
             }
 
             /* Special case where a topic contains only infos with the filter type "choice" making it unreachable */

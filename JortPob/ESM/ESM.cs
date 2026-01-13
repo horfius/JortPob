@@ -370,11 +370,11 @@ namespace JortPob
                 List<DialogInfoRecord> infos = new();
                 foreach(DialogInfoRecord info in dialogRecord.infos)
                 {
-                    //if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Flee) { continue; } // discarding this for now
-                    //if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
-                    //if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Intruder) { continue; } // discarding this for now
+
+                    if(npc.race == NpcContent.Race.Creature && info.speaker == npc.id) { int x = 69;}
+                    if (npc.race == NpcContent.Race.Creature && info.speaker != npc.id) { continue; } // creatures only have lines with the speaker condition set for them explicitly
 
                     // Check if the npc meets all static requirements for this dialog line. this includes resolving some filter to see if they can ever pass
                     if (info.IsUnreachableFor(scriptManager, npc)) { continue; }
@@ -396,6 +396,20 @@ namespace JortPob
             LeveledCreature leveledCreatureList = GetLeveledCreature(id);
             string creature = leveledCreatureList.Get();
             return FindRecordById(creature);
+        }
+
+        /* Checks if a creature has any dialog associated to it and returns true/false. */
+        /* @TODO: Might be kind of expensive and maybe cache results for re-tests */
+        public bool HasDialog(CreatureContent content)
+        {
+            foreach (DialogRecord record in dialog)
+            {
+                foreach (DialogInfoRecord info in record.infos)
+                {
+                    if (info.speaker == content.id) { return true; }
+                }
+            }
+            return false;
         }
     }
 

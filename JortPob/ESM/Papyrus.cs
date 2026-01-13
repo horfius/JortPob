@@ -22,7 +22,7 @@ namespace JortPob
 
         public Papyrus(JsonNode json)
         {
-            id = json["id"].GetValue<string>();
+            id = json["id"].GetValue<string>().ToLower();
 
             Stack<Call> stack = new();
             string raw = json["text"].GetValue<string>();

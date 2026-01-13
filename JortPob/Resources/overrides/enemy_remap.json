@@ -90,6 +90,19 @@
     "comment": "Spirit Jellyfish"
   },
 
+  "scamp_creeper": {
+    "character": "c4100",
+    "npc": {
+      "row": 41002010,
+      "data": {}
+    },
+    "think": {
+      "row": 41002000,
+      "data": {}
+    },
+    "comment": "Basic Demi-human with Club"
+  },
+
   "vivec_god": {
     "character": "c5130",
     "npc": {

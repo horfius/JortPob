@@ -412,7 +412,7 @@ namespace JortPob
                 foreach (InteriorGroup.Chunk chunk in group.chunks) { CheckWitnesses(chunk.npcs); }
             }
 
-            /* Statically resolve shop inventories for npcs */
+            /* Statically resolve shop inventories for npcs (also creatures too) */
             void ResolveShop(NpcContent npc)
             {
                 if (!npc.HasBarter()) { return; } // nope!
@@ -502,15 +502,81 @@ namespace JortPob
                 if (shopInv.Count() > 0) { npc.barter = shopInv; }
             }
 
+            void ResolveShopCreature(CreatureContent creature)
+            {
+                if (!creature.HasBarter()) { return; } // nope!
+
+                bool WillBarter(CreatureContent creature, ESM.Type type)
+                {
+                    switch (type)
+                    {
+                        case ESM.Type.Armor:
+                            return creature.services.Contains(NpcContent.Service.BartersArmor);
+                        case ESM.Type.Book:
+                            return creature.services.Contains(NpcContent.Service.BartersBooks);
+                        case ESM.Type.Clothing:
+                            return creature.services.Contains(NpcContent.Service.BartersClothing);
+                        case ESM.Type.Ingredient:
+                            return creature.services.Contains(NpcContent.Service.BartersIngredients);
+                        case ESM.Type.Light:
+                            return creature.services.Contains(NpcContent.Service.BartersLights);
+                        case ESM.Type.MiscItem:
+                            return creature.services.Contains(NpcContent.Service.BartersMiscItems);
+                        case ESM.Type.Weapon:
+                            return creature.services.Contains(NpcContent.Service.BartersWeapons);
+                        case ESM.Type.Probe:
+                            return creature.services.Contains(NpcContent.Service.BartersProbes);
+                        case ESM.Type.Lockpick:
+                            return creature.services.Contains(NpcContent.Service.BartersLockpicks);
+                        case ESM.Type.RepairItem:
+                            return creature.services.Contains(NpcContent.Service.BartersRepairItems);
+                        case ESM.Type.Alchemy:
+                            return creature.services.Contains(NpcContent.Service.BartersAlchemy);
+                        case ESM.Type.Apparatus:
+                            return creature.services.Contains(NpcContent.Service.BartersApparatus);
+                        default:
+                            return false;
+                    }
+                }
+
+                List<(string id, int quantity)> shopInv = new();
+                void AddOrIncrement(List<(string id, int quantity)> list, (string id, int quantity) tuple)
+                {
+                    for (int i = 0; i < list.Count(); i++)
+                    {
+                        (string id, int quantity) entry = list[i];
+                        if (entry.id.ToLower() == tuple.id.ToLower())
+                        {
+                            list.RemoveAt(i);
+                            list.Add((entry.id, entry.quantity + tuple.quantity)); // can't increment value in a tuple because fuck
+                            return;
+                        }
+                    }
+                    list.Add(tuple);
+                }
+
+                foreach ((string id, int quantity) tuple in creature.inventory) // add own inventory to potential barter
+                {
+                    Record record = esm.FindRecordById(tuple.id);
+                    if (WillBarter(creature, record.type))
+                    {
+                        AddOrIncrement(shopInv, tuple);
+                    }
+                }
+                if (shopInv.Count() > 0) { creature.barter = shopInv; }
+            }
+
             foreach (Tile tile in tiles)
             {
                 foreach (NpcContent npc in tile.npcs) { ResolveShop(npc); }
+                foreach(CreatureContent creature in tile.creatures) { ResolveShopCreature(creature); }
             }
             foreach (InteriorGroup group in interiors)
             {
                 foreach (InteriorGroup.Chunk chunk in group.chunks)
                 {
                     foreach (NpcContent npc in chunk.npcs) { ResolveShop(npc); }
+                    foreach (CreatureContent creature in chunk.creatures) { ResolveShopCreature(creature); }
                 }
             }
 
