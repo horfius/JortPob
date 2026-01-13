@@ -204,6 +204,11 @@ namespace JortPob
                 {
                     /* Grab ModelInfo */
                     EmitterInfo emitterInfo = cache.GetEmitter(content.id);
+                    if (emitterInfo == null)
+                    {
+                        Lort.Log($" ## WARNING ## Skipping EmitterContent with id {content.id} as is has no associated EmitterInfo", Lort.Type.Debug);
+                        continue;
+                    }
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(emitterInfo);
@@ -542,6 +547,11 @@ namespace JortPob
                     {
                         /* Grab ModelInfo */
                         EmitterInfo emitterInfo = cache.GetEmitter(content.id);
+                        if (emitterInfo == null)
+                        {
+                            Lort.Log($" ## WARNING ## Skipping EmitterContent with id {content.id} as it has no associated EmmitterInfo!", Lort.Type.Debug);
+                            continue;
+                        }
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(emitterInfo);

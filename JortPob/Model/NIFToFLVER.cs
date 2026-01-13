@@ -3,16 +3,16 @@ using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Numerics;
-using System.Text.Json.Nodes;
 using TES3;
+
+#nullable enable
 
 namespace JortPob.Model
 {
     public partial class ModelConverter
     {
-        public static ModelInfo NIFToFLVER(MaterialContext materialContext,
+        public static ModelInfo? NIFToFLVER(MaterialContext materialContext,
                     ModelInfo modelInfo,
                     bool forceCollision,
                     string modelPath,
