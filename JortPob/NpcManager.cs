@@ -15,12 +15,12 @@ namespace JortPob
         /* This class handles both the creation and assignment of params (NPCPARAM, NPCTHINKPARAM, CHARAINITPARAM) and manages ESDs and data for dialog generation and compiling */
         /* Morrowind makes a distinction between these 2 types of characters but ER does not */
 
-        private ESM esm;
-        private SoundManager soundManager;
-        private Paramanager paramanager;
-        private TextManager textManager;
-        private ItemManager itemManager;
-        private ScriptManager scriptManager;
+        private readonly ESM esm;
+        private readonly SoundManager soundManager;
+        private readonly Paramanager paramanager;
+        private readonly TextManager textManager;
+        private readonly ItemManager itemManager;
+        private readonly ScriptManager scriptManager;
 
         private readonly Dictionary<string, int> topicText; // topic text id map
         private readonly List<EsdInfo> esds;

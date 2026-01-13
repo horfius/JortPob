@@ -16,7 +16,10 @@ namespace JortPob.Common
         public static string Generate(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
             // Get the exact location this file will be in
-            string lineDir = $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\";
+            bool useCustom = Override.CheckCustomVoice(npc.id);
+            string lineDir;
+            if (!useCustom) { lineDir = $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\"; }
+            else { lineDir = $"{Const.CACHE_PATH}dialog\\{NpcContent.Race.Custom}\\{npc.id}\\{dialog.id}\\{hashName}\\"; }
             string wavPath = $"{lineDir}{hashName}.wav";
             string wemPath = $"{lineDir}{hashName}.wem";
 
@@ -107,10 +110,15 @@ namespace JortPob.Common
         public static string GenerateAlt(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
             // Define paths
-            string lineDir = Path.Combine(Const.CACHE_PATH, "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName);
+            bool useCustom = Override.CheckCustomVoice(npc.id);
+            string lineDir;
+            if (!useCustom) { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName); }
+            else { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", NpcContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName); }
             string wavPath = Path.Combine(lineDir, $"{hashName}.wav");
             string wemPath = Path.Combine(lineDir, $"{hashName}.wem");
             string flitePath = Path.Combine(Environment.CurrentDirectory, "Resources", "tts", "flite.exe");
+
+            string safeText = MakeSafe((useCustom ? $"{npc.id} says " : "") + line);
 
             // Use a loop to handle retries
             for (int retry = 0; retry < Const.SAM_MAX_RETRY; retry++)
@@ -132,7 +140,7 @@ namespace JortPob.Common
                     // 2. Generate WAV (Text-to-Speech)
                     // string ssmlLine = $"<speak>{line}<break time='500ms'/></speak>";
                     string voice = npc.sex == NpcContent.Sex.Female ? "slt" : "rms";
-                    string args = $"-t \"{MakeSafe(line)}\" -voice {voice} \"{wavPath}\"";
+                    string args = $"-t \"{safeText}\" -voice {voice} \"{wavPath}\"";
 
                     ProcessStartInfo fliteStartInfo = new(flitePath)
                     {
@@ -187,7 +195,9 @@ namespace JortPob.Common
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
-                    string xmlRelative = Path.Combine("..", "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName, xmlName);
+                    string xmlRelative;
+                    if(!useCustom) { xmlRelative = Path.Combine("..", "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName, xmlName); }
+                    else { xmlRelative = Path.Combine("..", "dialog", NpcContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName, xmlName); }
                     convertInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
                     ExecuteProcess(convertInfo);
 
@@ -211,7 +221,7 @@ namespace JortPob.Common
             // Final check after all retries
             if (!File.Exists(wemPath))
             {
-                throw new System.Exception($"Failed to generated line {wemPath} despite {Const.SAM_MAX_RETRY} retry attempts.");
+                throw new System.Exception($"Failed to generate line {wemPath}. With text <{safeText}> -- despite {Const.SAM_MAX_RETRY} retry attempts.");
             }
 
             // Should be unreachable if the File.Exists check above is correct, but included for completeness.
@@ -268,7 +278,7 @@ namespace JortPob.Common
         {
             if (string.IsNullOrEmpty(input))
             {
-                return input;
+                return "empty string";
             }
 
             // 1. Strip ANSI/VT100 Escape Sequences (Always applied)
@@ -325,7 +335,10 @@ namespace JortPob.Common
                 .Replace("..\\", "") // Windows
                 .Replace("../", "")  // Unix/Linux
                 .Replace("./", "")   // Current directory (optional cleanup)
-                .Replace(".\\", ""); 
+                .Replace(".\\", "");
+
+
+            while (sanitized.Contains("  ")) { sanitized = sanitized.Replace("  ", " "); }
 
             return sanitized.Trim();
         }

@@ -23,6 +23,7 @@ namespace JortPob
         private static HashSet<string> DO_NOT_PLACE;
         private static HashSet<string> STATIC_COLLISION;
         private static HashSet<string> ITEMS_TO_SKIP;
+        private static HashSet<string> CUSTOM_VOICES;
 
         private static List<PlayerClass> CHARACTER_CREATION_CLASS;
         private static List<PlayerRace> CHARACTER_CREATION_RACE;
@@ -47,6 +48,11 @@ namespace JortPob
         public static bool CheckSkipItem(string id)
         {
             return ITEMS_TO_SKIP.Contains(id.ToLower());
+        }
+
+        public static bool CheckCustomVoice(string id)
+        {
+            return CUSTOM_VOICES.Contains(id.ToLower());
         }
 
         public static List<PlayerClass> GetCharacterCreationClasses()
@@ -143,6 +149,12 @@ namespace JortPob
             JsonNode jsonItemsToSkip = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\items_to_skip.json")));
             ITEMS_TO_SKIP = jsonItemsToSkip != null
                 ? jsonItemsToSkip.AsArray().Select(node => node.ToString().ToLower()).ToHashSet()
+                : [];
+
+            /* Load items_to_skip overrides */
+            JsonNode jsonCustomVoiceList = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\custom_voice_list.json")));
+            CUSTOM_VOICES = jsonCustomVoiceList != null
+                ? jsonCustomVoiceList.AsArray().Select(node => node.ToString().ToLower()).ToHashSet()
                 : [];
 
             /* Load character creation class overrides */
