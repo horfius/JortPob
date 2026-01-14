@@ -10,6 +10,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 #nullable enable
 
@@ -20,7 +21,6 @@ namespace JortPob
         public List<TerrainInfo> terrains;
         public List<ModelInfo> maps;        // Map pieces (deprecated)
         public List<ModelInfo> assets;
-        public List<PickableInfo> pickables;  // models for harvestable plants. seperated because they have very different params than most assets
         public List<EmitterInfo> emitters;
         public List<ObjectInfo> objects;
         public List<LiquidInfo> liquids;
@@ -28,16 +28,66 @@ namespace JortPob
 
         public CollisionInfo? defaultCollision { get; set; } = null; // used by interior cells as a base. needed because of engine being weird
 
+        /*
+         * These fields are marked as "ignore" because they are dynamic/used for caching.
+         */
+        [JsonIgnore]
+        public Dictionary<string, PickableInfo> pickablesByRecord;  // models for harvestable plants. seperated because they have very different params than most assets
+
+        [JsonIgnore]
+        private bool hasInitializedLookups;
+
+        [JsonIgnore]
+        private Dictionary<string, bool> assetCollisionByName; // caches whether an asset name has collision
+
+        [JsonIgnore]
+        private Dictionary<string, List<ModelInfo>> assetsByName; // we use a list because a single asset name can have multiple models with different scales
+
         public Cache()
         {
             maps = new();     /// @TODO: deelte deprecated
             assets = new();
-            pickables = new();
+            assetCollisionByName = new();
+            pickablesByRecord = new();
+            assetsByName = new();
             emitters = new();
             objects = new();
             terrains = new();
             liquids = new();
             cutouts = new();
+        }
+
+        /**
+         * Populates the various lookups/caches on-demand at most one time.
+         * Subsequent calls are no-ops.
+         */
+        private void InitializeLookups()
+        {
+            lock (assetsByName)
+            lock (assetCollisionByName)
+            {
+                if (hasInitializedLookups)
+                {
+                    return;
+                }
+
+                foreach (ModelInfo model in assets)
+                {
+                    // initialize the dictionary as we go, now that everything is settled
+                    if (assetsByName.TryGetValue(model.name, out var matchingAssets))
+                    {
+                        matchingAssets.Add(model);
+                    }
+                    else
+                    {
+                        assetsByName[model.name] = [model];
+                    }
+
+                    assetCollisionByName[model.name] = model.HasCollision();
+                }
+
+                hasInitializedLookups = true;
+            }
         }
 
         /* Get a terrain by coordinate */
@@ -52,16 +102,18 @@ namespace JortPob
             return cutouts.FirstOrDefault(c => c.coordinate == coordinate);
         }
 
+        public List<PickableInfo> GetPickables()
+        {
+            return pickablesByRecord.Values.ToList();
+        }
+
         /* Get a pickable modelinfo. These are generated on the fly. Pickables are always dynamic. */
         public PickableInfo? GetPickableModel(PickableContent content)
         {
             /* If pickable exists return it */
-            foreach(PickableInfo pickable in pickables)
+            if (pickablesByRecord.TryGetValue(content.id.ToLower(), out var pickable))
             {
-                if(pickable.record == content.id.ToLower())
-                {
-                    return pickable;
-                }
+                return pickable;
             }
 
             /* If it doesn't exist we look for the asset model of it and then create a pickable from that */
@@ -69,10 +121,38 @@ namespace JortPob
             if (modelInfo == null)
                 return null;
             PickableInfo p = new(content, modelInfo);
-            p.id = pickables.Count();
-            pickables.Add(p);
+            p.id = pickablesByRecord.Count;
+            pickablesByRecord.Add(p.record, p);
 
             return p;
+        }
+        
+        /**
+         * Cached lookup of whether a model name has collision.
+         * Returns "false" if we've never seen the model before, otherwise
+         * returns its actual `HasCollision` result after caching it.
+         */
+        private bool AssetHasCollision(string name)
+        {
+            InitializeLookups();
+            lock (assetCollisionByName)
+            {
+                if (assetCollisionByName.TryGetValue(name, out var collision))
+                {
+                    return collision;
+                }
+            }
+
+            return false;
+        }
+
+        private List<ModelInfo> GetAssetsByName(string name)
+        {
+            InitializeLookups();
+            lock (assetsByName)
+            {
+                return assetsByName.TryGetValue(name, out var matchingAssets) ? matchingAssets : [];
+            }
         }
 
         /* Get a modelinfo by the nif name and scale */
@@ -92,21 +172,23 @@ namespace JortPob
                 return assets.FirstOrDefault(x => x.name == name);
             }
 
+            // If we have nothing for the asset, return early
+            if (matchingAssets.Count == 0)
+            {
+                return null;
+            }
+
+            /* If the model doesn't have collision it's static scaleable so we return scale 100 as that's the only version of it */
+            if(!AssetHasCollision(name))
+            {
+                return matchingAssets.FirstOrDefault();
+            }
+
             /* Otherwise... */
             /* First look for one with a matched scale */
-            foreach(ModelInfo model in assets)
-            {
-                if(model.name == name && model.scale == scale) { return model; }
-            }
-
-            /* If not found then we look a dynamic asset */
-            foreach (ModelInfo model in assets)
-            {
-                if (model.name == name && model.scale == Const.DYNAMIC_ASSET) { return model; }
-            }
-
-            /* Oh dear.. return null I guess! */
-            return null;
+            return matchingAssets.Find(m => m.scale == scale) ??
+                   /* If not found then we look a dynamic asset, else return null */
+                   matchingAssets.Find(m => m.scale == Const.DYNAMIC_ASSET);
         }
 
         public EmitterInfo? GetEmitter(string record)
@@ -127,15 +209,6 @@ namespace JortPob
         public LiquidInfo GetLava()
         {
             return liquids[2];
-        }
-
-        public bool ModelHasCollision(string name)
-        {
-            foreach(ModelInfo model in assets)
-            {
-                if (model.name == name) { return model.HasCollision(); }
-            }
-            return false;
         }
 
         public void AddConvertedEmitter(EmitterContent emitterContent)

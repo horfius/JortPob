@@ -51,7 +51,7 @@ namespace JortPob.Common
         /* Bind all emitter assets */
         public static void BindPickables(Cache cache)
         {
-            foreach (PickableInfo pickable in cache.pickables)
+            foreach (PickableInfo pickable in cache.GetPickables())
             {
                 string outPath = Path.Combine(Const.OUTPUT_PATH, $@"asset\aeg\{pickable.AssetPath()}.geombnd.dcx");
 
