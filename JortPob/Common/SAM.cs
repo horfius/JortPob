@@ -68,7 +68,7 @@ namespace JortPob.Common
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.AddRange(["create-new-project", $"\"{projectPath}\"", "--platform", "Windows"]);
-                        using var process = Process.Start(startInfo);
+                        using Process process = Process.Start(startInfo);
                         process.WaitForExit();
                     }
 
@@ -82,7 +82,7 @@ namespace JortPob.Common
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.AddRange(["convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\""]);
-                        using var process = Process.Start(startInfo);
+                        using var Process = Process.Start(startInfo);
                         process.WaitForExit();
                     }
                 }
@@ -220,7 +220,7 @@ namespace JortPob.Common
 
         private static void ExecuteProcess(ProcessStartInfo startInfo)
         {
-            using var process = Process.Start(startInfo);
+            using var Process = Process.Start(startInfo);
             if (process == null)
             {
                 throw new InvalidOperationException($"Failed to start process: {startInfo.FileName}");
@@ -275,7 +275,7 @@ namespace JortPob.Common
             string sanitized = AnsiRegex.Replace(input, string.Empty);
 
             // 2. Filter Control Characters (Always applied)
-            var sb = new StringBuilder(sanitized.Length);
+            StringBuilder sb = new(sanitized.Length);
 
             foreach (char c in sanitized)
             {

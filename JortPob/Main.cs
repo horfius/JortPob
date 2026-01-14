@@ -87,7 +87,7 @@ namespace JortPob
                         MSBE.Part.Collision collision = MakePart.Collision();
                         collision.Name = $"h{collisionIndex}_0000";
                         collision.ModelName = $"h{collisionIndex}";
-                        collision.Position = position.AdjustByConst();
+                        collision.Position = position + Const.MSB_OFFSET;
 
                         msb.Parts.Collisions.Add(collision);
                         pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, collisionInfo));
@@ -105,7 +105,7 @@ namespace JortPob
                         MSBE.Part.Collision collision = MakePart.WaterCollision();
                         collision.Name = $"h{collisionIndex}_0000";
                         collision.ModelName = $"h{collisionIndex}";
-                        collision.Position = position.AdjustByConst();
+                        collision.Position = position + Const.MSB_OFFSET;
 
                         msb.Parts.Collisions.Add(collision);
                         pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, waterCollisionInfo));
@@ -122,7 +122,7 @@ namespace JortPob
                             MSBE.Part.Collision collision = MakePart.WaterCollision(); // also works for lava and poison
                             collision.Name = $"h{collisionIndex}_0000";
                             collision.ModelName = $"h{collisionIndex}";
-                            collision.Position = position.AdjustByConst();
+                            collision.Position = position + Const.MSB_OFFSET;
                             msb.Parts.Collisions.Add(collision);
                             pool.collisionIndices.Add(new Tuple<string, CollisionInfo>(collisionIndex, cutoutInfo.collision));
 
@@ -130,7 +130,7 @@ namespace JortPob
                             collision = MakePart.Collision(); // also works for lava and poison
                             collision.Name = $"h{collisionIndex}_0001";
                             collision.ModelName = $"h{collisionIndex}";
-                            collision.Position = position.AdjustByConst() + new Vector3(0f, terrainInfo.hasLava ? Const.LAVA_FLOOR_DEPTH : Const.SWAMP_FLOOR_DEPTH, 0f);
+                            collision.Position = position + Const.MSB_OFFSET + new Vector3(0f, terrainInfo.hasLava ? Const.LAVA_FLOOR_DEPTH : Const.SWAMP_FLOOR_DEPTH, 0f);
                             msb.Parts.Collisions.Add(collision);
                         }
                     }
@@ -146,7 +146,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -178,7 +178,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
                     asset.EntityID = content.entity;
@@ -193,7 +193,7 @@ namespace JortPob
                 foreach (Layout.WarpDestination warp in tile.warps)
                 {
                     MSBE.Part.Player player = MakePart.Player();
-                    player.Position = warp.position.AdjustByConst();
+                    player.Position = warp.position + Const.MSB_OFFSET;
                     player.Rotation = warp.rotation;
                     player.EntityID = warp.id;
                     msb.Parts.Players.Add(player);
@@ -212,7 +212,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(emitterInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(content.scale * 0.01f);
 
@@ -229,7 +229,7 @@ namespace JortPob
                 foreach (NpcContent npc in tile.npcs)
                 {
                     MSBE.Part.Enemy enemy = MakePart.Npc();
-                    enemy.Position = npc.relative.AdjustByConst();
+                    enemy.Position = npc.relative + Const.MSB_OFFSET;
                     enemy.Rotation = npc.rotation;
 
                     // If the npc is a deadbody we create a treasure on their body
@@ -278,7 +278,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -316,7 +316,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(pickableInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(content.scale * 0.01f);
 
@@ -338,7 +338,7 @@ namespace JortPob
 
                     /* Make part */
                     MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                    asset.Position = content.relative.AdjustByConst();
+                    asset.Position = content.relative + Const.MSB_OFFSET;
                     asset.Rotation = content.rotation;
                     asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -370,7 +370,7 @@ namespace JortPob
                 foreach (CreatureContent creature in tile.creatures)
                 {
                     MSBE.Part.Enemy enemy = MakePart.Creature();
-                    enemy.Position = creature.relative.AdjustByConst();
+                    enemy.Position = creature.relative + Const.MSB_OFFSET;
                     enemy.Rotation = creature.rotation;
                     enemy.EntityID = creature.entity;
 
@@ -457,7 +457,7 @@ namespace JortPob
                     MSBE.Part.Collision rootCollision = MakePart.Collision();
                     rootCollision.Name = $"h{collisionIndex}_0000";
                     rootCollision.ModelName = $"h{collisionIndex}";
-                    rootCollision.Position = chunk.root.AdjustByConst() - new Vector3(0f, chunk.bounds.Z, 0f);
+                    rootCollision.Position = chunk.root + Const.MSB_OFFSET - new Vector3(0f, chunk.bounds.Z, 0f);
                     rootCollision.Unk1.DisplayGroups[0] = 0;
                     rootCollision.Unk1.DisplayGroups[1] = chunkDrawGroup;
                     rootCollision.Unk1.CollisionMask[0] = 0;
@@ -468,7 +468,7 @@ namespace JortPob
                     /* Interior MSB shadow box */
                     ModelInfo shadowBoxModelInfo = cache.GetModel("interiorshadowbox");
                     MSBE.Part.Asset shadowBoxAsset = MakePart.Asset(shadowBoxModelInfo);
-                    shadowBoxAsset.Position = chunk.root.AdjustByConst();
+                    shadowBoxAsset.Position = chunk.root + Const.MSB_OFFSET;
                     shadowBoxAsset.Rotation = Vector3.Zero;
                     shadowBoxAsset.Scale = chunk.bounds;
                     shadowBoxAsset.Unk1.DisplayGroups[0] = 0;
@@ -487,7 +487,7 @@ namespace JortPob
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                        asset.Position = content.relative.AdjustByConst();
+                        asset.Position = content.relative + Const.MSB_OFFSET;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -516,7 +516,7 @@ namespace JortPob
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                        asset.Position = content.relative.AdjustByConst();
+                        asset.Position = content.relative + Const.MSB_OFFSET;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
                         asset.EntityID = content.entity;
@@ -536,7 +536,7 @@ namespace JortPob
                     foreach (Layout.WarpDestination warp in chunk.warps)
                     {
                         MSBE.Part.Player player = MakePart.Player();
-                        player.Position = warp.position.AdjustByConst();
+                        player.Position = warp.position + Const.MSB_OFFSET;
                         player.Rotation = warp.rotation;
                         player.EntityID = warp.id;
                         msb.Parts.Players.Add(player);
@@ -555,7 +555,7 @@ namespace JortPob
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(emitterInfo);
-                        asset.Position = content.relative.AdjustByConst();
+                        asset.Position = content.relative + Const.MSB_OFFSET;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(content.scale * 0.01f);
 
@@ -577,7 +577,7 @@ namespace JortPob
                     foreach (NpcContent npc in chunk.npcs)
                     {
                         MSBE.Part.Enemy enemy = MakePart.Npc();
-                        enemy.Position = npc.relative.AdjustByConst();
+                        enemy.Position = npc.relative + Const.MSB_OFFSET;
                         enemy.Rotation = npc.rotation;
 
                         // If the npc is a deadbody we create a treasure on their body
@@ -629,7 +629,7 @@ namespace JortPob
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                        asset.Position = content.relative.AdjustByConst();
+                        asset.Position = content.relative + Const.MSB_OFFSET;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -675,7 +675,7 @@ namespace JortPob
 
                         /* Make part */
                         MSBE.Part.Asset asset = MakePart.Asset(modelInfo);
-                        asset.Position = content.relative.AdjustByConst();
+                        asset.Position = content.relative + Const.MSB_OFFSET;
                         asset.Rotation = content.rotation;
                         asset.Scale = new Vector3(modelInfo.UseScale() ? (content.scale * 0.01f) : 1f);
 
@@ -712,7 +712,7 @@ namespace JortPob
                     foreach (CreatureContent creature in chunk.creatures)
                     {
                         MSBE.Part.Enemy enemy = MakePart.Creature();
-                        enemy.Position = creature.relative.AdjustByConst();
+                        enemy.Position = creature.relative + Const.MSB_OFFSET;
                         enemy.Rotation = creature.rotation;
 
                         enemy.Unk1.DisplayGroups[0] = 0;
@@ -729,7 +729,7 @@ namespace JortPob
                     MSBE.Region.MapPoint mpr = new();
                     mpr.Name = $"{chunk.cell.name} placename";
                     mpr.Shape = new MSB.Shape.Box(chunk.bounds.X, chunk.bounds.Z, chunk.bounds.Y);
-                    mpr.Position = chunk.root.AdjustByConst() - new Vector3(0f, chunk.bounds.Y / 2f, 0f);
+                    mpr.Position = chunk.root + Const.MSB_OFFSET - new Vector3(0f, chunk.bounds.Y / 2f, 0f);
                     mpr.Rotation = Vector3.Zero;
                     mpr.RegionID = nextMPR++;
                     mpr.MapStudioLayer = 4294967295;
@@ -761,13 +761,13 @@ namespace JortPob
                     MSBE.Region.EnvironmentMapEffectBox envBox = MakePart.EnvBox();
                     envBox.Name = $"Env_Box{envId.ToString("D3")}";
                     envBox.Shape = new MSB.Shape.Box(size + crossfade, size + crossfade, size + crossfade);
-                    envBox.Position = new Vector3(0f, size * -0.5f, 0f).AdjustByConst();
+                    envBox.Position = new Vector3(0f, size * -0.5f, 0f) + Const.MSB_OFFSET;
                     envBox.TransitionDist = crossfade / 2f;
                     msb.Regions.EnvironmentMapEffectBoxes.Add(envBox);
 
                     MSBE.Region.EnvironmentMapPoint envPoint = MakePart.EnvPoint();
                     envPoint.Name = $"Env_Point{envId.ToString("D3")}";
-                    envPoint.Position = new Vector3(0f, size * -0.5f, 0f).AdjustByConst();
+                    envPoint.Position = new Vector3(0f, size * -0.5f, 0f) + Const.MSB_OFFSET;
                     envPoint.UnkMapID = new byte[] { (byte)group.map, (byte)group.area, (byte)group.unk, (byte)group.block };
                     msb.Regions.EnvironmentMapPoints.Add(envPoint);
                 }

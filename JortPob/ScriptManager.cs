@@ -68,7 +68,7 @@ namespace JortPob
 
         public Script.Flag GetFlag(Designation designation, string name)
         {
-            var lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
+            ScriptFlagLookupKey lookupKey = Script.FormatFlagLookupKey(designation, name.ToLower());
 
             Flag f = common.FindFlagByLookupKey(lookupKey);
             if (f != null) { return f; }

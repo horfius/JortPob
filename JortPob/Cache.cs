@@ -117,7 +117,7 @@ namespace JortPob
             }
 
             /* If it doesn't exist we look for the asset model of it and then create a pickable from that */
-            var modelInfo = GetModel(content.mesh);
+            ModelInfo modelInfo = GetModel(content.mesh);
             if (modelInfo == null)
                 return null;
             PickableInfo p = new(content, modelInfo);
@@ -213,7 +213,7 @@ namespace JortPob
 
         public void AddConvertedEmitter(EmitterContent emitterContent)
         {
-            var modelInfo = GetModel(emitterContent.mesh);
+            ModelInfo modelInfo = GetModel(emitterContent.mesh);
             if (modelInfo == null)
                 return;
 
@@ -288,7 +288,7 @@ namespace JortPob
                             {
                                 if(content.mesh == null) { continue; }  // skip content with no mesh
                                 if (addCutouts) { LiquidManager.AddCutout(content); } // check if this is a lava or swamp mesh and add it to cutouts if it is
-                                var model = GetMesh(content);
+                                ModelInfo model = GetMesh(content);
                                 if (model == null)
                                 {
                                     Lort.Log($" ## WARNING ## Content with id {content.id} does not have an associated model, skipping.", Lort.Type.Debug);
@@ -449,7 +449,7 @@ namespace JortPob
 
             /* Load cache manifest */
             string tempRawJson = File.ReadAllText(manifestPath);
-            var cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals });
+            Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals });
             return cache!;
         }
     }

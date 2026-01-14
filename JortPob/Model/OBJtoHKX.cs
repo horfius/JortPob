@@ -57,31 +57,31 @@ namespace JortPob.Model
             string srcDir = Path.GetDirectoryName(objPath);
             File.Copy(Utility.ResourcePath("misc\\havok.mtl"), @$"{tempDir}\{fName}.mtl", true);
 
-            var startInfo = new ProcessStartInfo(@$"{tempDir}\obj2fsnp.exe", @$"{tempDir}\{fName}.obj")
+            ProcessStartInfo startInfo = new(@$"{tempDir}\obj2fsnp.exe", @$"{tempDir}\{fName}.obj")
             {
                 WorkingDirectory = @$"{tempDir}\",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using (var process = Process.Start(startInfo))
+            using (Process process = Process.Start(startInfo))
                 process.WaitForExit();
 
-            startInfo = new ProcessStartInfo(@$"{tempDir}\AssetCc2_fixed.exe", $@"--strip {tempDir}\{fName}.obj.o2f {tempDir}\{fName}.1")
+            startInfo = new(@$"{tempDir}\AssetCc2_fixed.exe", $@"--strip {tempDir}\{fName}.obj.o2f {tempDir}\{fName}.1")
             {
                 WorkingDirectory = @$"{tempDir}\",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using (var process = Process.Start(startInfo))
+            using (Process process = Process.Start(startInfo))
                 process.WaitForExit();
 
-            startInfo = new ProcessStartInfo(@$"{tempDir}\hknp2fsnp.exe", $@"{tempDir}\{fName}.1")
+            startInfo = new(@$"{tempDir}\hknp2fsnp.exe", $@"{tempDir}\{fName}.1")
             {
                 WorkingDirectory = @$"{tempDir}\",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using (var process = Process.Start(startInfo))
+            using (Process process = Process.Start(startInfo))
                 process.WaitForExit();
 
             return File.ReadAllBytes($@"{tempDir}\{fName}.1.hkx");

@@ -60,17 +60,17 @@ namespace JortPob
 
         public static ItemRemap GetItemRemap(string id)
         {
-            return ITEM_REMAPS_BY_ID.TryGetValue(id, out var remapped) ? remapped : null;
+            return ITEM_REMAPS_BY_ID.TryGetValue(id, out ItemRemap remapped) ? remapped : null;
         }
 
         public static ItemDefinition GetItemDefinition(string id)
         {
-            return ITEM_DEFINITIONS_BY_ID.TryGetValue(id, out var definition) ? definition : null;
+            return ITEM_DEFINITIONS_BY_ID.TryGetValue(id, out ItemDefinition definition) ? definition : null;
         }
 
         public static SpeffDefinition GetSpeffDefinition(string id)
         {
-            return SPEFF_DEFINITIONS_BY_ID.TryGetValue(id, out var definition) ? definition : null;
+            return SPEFF_DEFINITIONS_BY_ID.TryGetValue(id, out SpeffDefinition definition) ? definition : null;
         }
 
         public static List<SpeffDefinition> GetSpeffDefinitions()
@@ -80,7 +80,7 @@ namespace JortPob
 
         public static SpellRemap GetSpellRemap(string id)
         {
-            return SPELL_REMAPS_BY_ID.TryGetValue(id, out var remap) ? remap : null;
+            return SPELL_REMAPS_BY_ID.TryGetValue(id, out SpellRemap remap) ? remap : null;
         }
 
         public static List<SkillInfo> GetSkills()

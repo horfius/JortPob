@@ -113,7 +113,7 @@ namespace JortPob
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using var process = Process.Start(startInfo);
+            using Process process = Process.Start(startInfo);
             process.WaitForExit();
 
             if (File.Exists(bnkPath)) { File.Delete(bnkPath); }

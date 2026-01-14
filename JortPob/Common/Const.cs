@@ -32,6 +32,7 @@ namespace JortPob.Common
         public static readonly float TILE_SIZE = 256f;
         public static readonly int CELL_GRID_SIZE = 64;    // terrain vertices
 
+        public static readonly Vector3 MSB_OFFSET = new(0, 185, 0); // generic value added to all positions in an MSB. just shifting vertical position a bit so the morrowind map isn't super far down
         public static readonly float NPC_ROOT_OFFSET = 75f * GLOBAL_SCALE;  // how far the morrownid npc root (pelvis) is from it's feet. this is to fix the offset of spawn points since elden ring uses feet for characters position and mw uses pelvis
 
         public static readonly float TERRAIN_UV_SCALE = 20f;  // uv scale for terrain textures
@@ -119,17 +120,11 @@ namespace JortPob.Common
         #endregion
 
         #region Dialog
-        public static readonly bool USE_SAM = false; // very ultra mega hyper slow, only for stress testing dialog
+        public static readonly bool USE_SAM = true; // very ultra mega hyper slow, only for stress testing dialog
         public static readonly int SAM_MAX_RETRY = 10; // generating voice synth is slightly inconsistent. it occasionally fails for no real reason.
         public static readonly string DEFAULT_DIALOG_WEM = Utility.ResourcePath(@"sound\page_turn.wem");
         public static readonly int MAX_CHAR_PER_TALK = 160;  // character limit in a line of dialog. prevents subtitle cutting off
         public static readonly int MAX_ESD_PER_VCBNK = 10;
-        #endregion
-
-
-        #region TEST
-        public static readonly Vector3 TEST_OFFSET1 = new(0, 200, 0); // just shifting vertical position a bit so the morrowind map isn't super far down
-        public static readonly Vector3 TEST_OFFSET2 = new(0, -15, 0); // these should both be deleted eventually
         #endregion
 
         #region Debug

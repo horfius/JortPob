@@ -242,20 +242,20 @@ namespace JortPob.Common
             // Convert to ARGB int[] array
             int width = bitmap.Width, height = bitmap.Height;
             int[] srcPixels = new int[width * height];
-            var rect = new Rectangle(0, 0, width, height);
-            var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            Rectangle rect = new(0, 0, width, height);
+            BitmapData data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             System.Runtime.InteropServices.Marshal.Copy(data.Scan0, srcPixels, 0, srcPixels.Length);
             bitmap.UnlockBits(data);
 
             // Perform scaling
-            var scaler = new XbrzScaler(factor, withAlpha: true);
+            XbrzScaler scaler = new(factor, withAlpha: true);
             int[] scaledPixels = scaler.ScaleImage(srcPixels, null, width, height);
 
             // Convert back to Bitmap
             int scaledWidth = width * factor, scaledHeight = height * factor;
-            var scaledBitmap = new Bitmap(scaledWidth, scaledHeight, PixelFormat.Format32bppArgb);
-            var scaledRect = new Rectangle(0, 0, scaledWidth, scaledHeight);
-            var scaledData = scaledBitmap.LockBits(scaledRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            Bitmap scaledBitmap = new(scaledWidth, scaledHeight, PixelFormat.Format32bppArgb);
+            Rectangle scaledRect = new(0, 0, scaledWidth, scaledHeight);
+            BitmapData scaledData = scaledBitmap.LockBits(scaledRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
             System.Runtime.InteropServices.Marshal.Copy(scaledPixels, 0, scaledData.Scan0, scaledPixels.Length);
             scaledBitmap.UnlockBits(scaledData);
 
@@ -268,8 +268,8 @@ namespace JortPob.Common
             Bitmap linearBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
 
             Rectangle rect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-            var linearBitmapData = linearBitmap.LockBits(rect, ImageLockMode.ReadWrite, linearBitmap.PixelFormat);
-            var bitmapData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, bitmap.PixelFormat);
+            BitmapData linearBitmapData = linearBitmap.LockBits(rect, ImageLockMode.ReadWrite, linearBitmap.PixelFormat);
+            BitmapData bitmapData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, bitmap.PixelFormat);
 
             IntPtr linearPtr = linearBitmapData.Scan0;
             IntPtr bitmapPtr = bitmapData.Scan0;
@@ -304,12 +304,12 @@ namespace JortPob.Common
         /* Code borrowed from https://stackoverflow.com/questions/1922040/how-to-resize-an-image-c-sharp */
         public static Bitmap ResizeBitmap(Image image, int width, int height)
         {
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
+            Rectangle destRect = new(0, 0, width, height);
+            Bitmap destImage = new(width, height);
 
             destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
 
-            using (var graphics = Graphics.FromImage(destImage))
+            using (Graphics graphics = Graphics.FromImage(destImage))
             {
                 graphics.CompositingMode = CompositingMode.SourceCopy;
                 graphics.CompositingQuality = CompositingQuality.HighQuality;
@@ -317,7 +317,7 @@ namespace JortPob.Common
                 graphics.SmoothingMode = SmoothingMode.HighQuality;
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-                using (var wrapMode = new ImageAttributes())
+                using (ImageAttributes wrapMode = new())
                 {
                     wrapMode.SetWrapMode(WrapMode.TileFlipXY);
                     graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
