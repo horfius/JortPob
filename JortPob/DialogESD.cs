@@ -10,7 +10,6 @@ using System.Security;
 using System.Text;
 using static JortPob.Dialog;
 using static JortPob.FactionInfo;
-using static JortPob.NpcContent;
 using static JortPob.NpcManager.TopicData;
 
 namespace JortPob
@@ -24,13 +23,13 @@ namespace JortPob
         private readonly TextManager textManager;
         private readonly ItemManager itemManager;
         private readonly Script areaScript;
-        private readonly NpcContent npcContent;
+        private readonly CharacterContent npcContent;
 
         private readonly List<string> defs;
         private readonly List<string> generatedStates;
         private int nxtGenStateId;
 
-        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, ItemManager itemManager, Script areaScript, uint id, NpcContent npcContent, List<NpcManager.TopicData> topicData)
+        public DialogESD(ESM esm, ScriptManager scriptManager, Paramanager paramanager, TextManager textManager, ItemManager itemManager, Script areaScript, uint id, CharacterContent npcContent, List<NpcManager.TopicData> topicData)
         {
             this.esm = esm;
             this.itemManager = itemManager;
@@ -874,7 +873,7 @@ namespace JortPob
             // enchanting options
             if (npcContent.OffersEnchanting())
             {
-                int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(Stats.Skill.Enchant));
+                int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(CharacterContent.Stats.Skill.Enchant));
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({enchantShopId}, {enchantShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEquipmentChangeOfPurposeShop()\r\n            assert not (CheckSpecificPersonMenuIsOpen(7, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
@@ -885,7 +884,7 @@ namespace JortPob
             {
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n");
 
-                foreach (NpcContent.Stats.Tier tier in Enum.GetValues(typeof(NpcContent.Stats.Tier)))
+                foreach (CharacterContent.Stats.Tier tier in Enum.GetValues(typeof(CharacterContent.Stats.Tier)))
                 {
                     RecipeManager.RecipeBookInfo book = itemManager.recipeManager.GetBook(tier);
                     s.Append($"            if ComparePlayerStat(PlayerStat.Intelligence, CompareType.Greater, {(int)(((int)tier) * Const.ALCHEMY_TIER_REQUIREMENT_SCALE)}):\r\n");
@@ -1094,7 +1093,7 @@ namespace JortPob
             s.Append(a);
 
             int i = 1;
-            foreach (NpcContent.Travel travel in npcContent.travel)
+            foreach (CharacterContent.Travel travel in npcContent.travel)
             {
                 string b = $""""
                                     # action:##:"{travel.name}"
@@ -1119,7 +1118,7 @@ namespace JortPob
 
             i = 1;
             string ifop = "if";
-            foreach (NpcContent.Travel travel in npcContent.travel)
+            foreach (CharacterContent.Travel travel in npcContent.travel)
             {
                 Script.Flag warpFlag = scriptManager.common.GetOrRegisterTravelWarp(travel);
 

@@ -111,7 +111,7 @@ namespace JortPob
             return SKILL_INFOS;
         }
 
-        public static List<SkillInfo> GetSkills(NpcContent.Stats.Tier tier)
+        public static List<SkillInfo> GetSkills(CharacterContent.Stats.Tier tier)
         {
             return SKILL_INFOS.Where(skill => skill.tier <= tier).ToList();
         }
@@ -243,7 +243,7 @@ namespace JortPob
         public class PlayerRace
         {
             public string name, description;
-            public byte id;  // this id matches the values of the NpcContent.Race enums
+            public byte id;  // this id matches the values of the CharacterContent.Race enums
 
             public PlayerRace() { }
         }
@@ -252,14 +252,14 @@ namespace JortPob
         {
             public readonly string comment;
             public readonly string id;
-            public readonly NpcContent.Stats.Tier tier;
+            public readonly CharacterContent.Stats.Tier tier;
             public readonly List<string> ingredients;
 
             public AlchemyInfo(string id, JsonNode json)
             {
                 this.id = id;
                 comment = json["comment"]?.GetValue<string>();
-                tier = (NpcContent.Stats.Tier)System.Enum.Parse(typeof(NpcContent.Stats.Tier), json["tier"].GetValue<string>());
+                tier = (CharacterContent.Stats.Tier)System.Enum.Parse(typeof(CharacterContent.Stats.Tier), json["tier"].GetValue<string>());
 
                 ingredients = new();
                 JsonArray jsonArray = json["ingredients"].AsArray();
@@ -274,7 +274,7 @@ namespace JortPob
         {
             public readonly string comment;
             public readonly int row;    // gemparam row
-            public readonly NpcContent.Stats.Tier tier;  // strength and rarity of skill
+            public readonly CharacterContent.Stats.Tier tier;  // strength and rarity of skill
             public readonly int value;  // value is how much merchants will sell it for
 
             public readonly ItemText text;
@@ -283,7 +283,7 @@ namespace JortPob
             {
                 comment = json["comment"]?.GetValue<string>();
                 row = json["row"].GetValue<int>();
-                tier = (NpcContent.Stats.Tier)System.Enum.Parse(typeof(NpcContent.Stats.Tier), json["tier"].GetValue<string>());
+                tier = (CharacterContent.Stats.Tier)System.Enum.Parse(typeof(CharacterContent.Stats.Tier), json["tier"].GetValue<string>());
                 value = json["value"].GetValue<int>();
 
                 if (json["text"] != null)

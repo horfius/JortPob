@@ -1,4 +1,5 @@
 ﻿using JortPob.Common;
+using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,8 +103,8 @@ namespace JortPob
         }
     }
 
-    /* npcs, humanoid only */
-    public class NpcContent : Content
+    /* abstrat class that both humanoid NPCs and creature derive from */
+    public abstract class CharacterContent : Content
     {
         public enum Race { Custom = -2, Creature = -1, Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
         public enum Sex { Any, Male, Female };
@@ -156,14 +157,22 @@ namespace JortPob
             private readonly Dictionary<Skill, int> skills;
             private readonly Dictionary<Attribute, int> attributes;
 
-            /* Blank constructor used for creatures */
-            public Stats()
+            /* Defined stats for a creature constructor */
+            public Stats(JsonNode json, int level)
             {
                 attributes = new();
                 skills = new();
 
-                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute))) { attributes.Add(attribute, 50); }
-                foreach (Skill skill in Enum.GetValues(typeof(Skill))) { skills.Add(skill, 50); }
+                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                {
+                    int val = json[attribute.ToString().ToLower()].GetValue<int>();
+                    attributes.Add(attribute, val);
+                }
+
+                foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                {
+                    skills.Add(skill, Math.Min(100, level * 5));
+                }
             }
 
             /* Defined stats constructor */
@@ -232,39 +241,39 @@ namespace JortPob
             {
                 switch (skill)
                 {
-                    case NpcContent.Stats.Skill.HeavyArmor:
-                    case NpcContent.Stats.Skill.MediumArmor:
-                    case NpcContent.Stats.Skill.Spear:
+                    case CharacterContent.Stats.Skill.HeavyArmor:
+                    case CharacterContent.Stats.Skill.MediumArmor:
+                    case CharacterContent.Stats.Skill.Spear:
                         return Attribute.Endurance;
-                    case NpcContent.Stats.Skill.Acrobatics:
-                    case NpcContent.Stats.Skill.Armorer:
-                    case NpcContent.Stats.Skill.Axe:
-                    case NpcContent.Stats.Skill.BluntWeapon:
-                    case NpcContent.Stats.Skill.LongBlade:
+                    case CharacterContent.Stats.Skill.Acrobatics:
+                    case CharacterContent.Stats.Skill.Armorer:
+                    case CharacterContent.Stats.Skill.Axe:
+                    case CharacterContent.Stats.Skill.BluntWeapon:
+                    case CharacterContent.Stats.Skill.LongBlade:
                         return Attribute.Strength;
-                    case NpcContent.Stats.Skill.Block:
-                    case NpcContent.Stats.Skill.LightArmor:
-                    case NpcContent.Stats.Skill.Marksman:
-                    case NpcContent.Stats.Skill.Sneak:
+                    case CharacterContent.Stats.Skill.Block:
+                    case CharacterContent.Stats.Skill.LightArmor:
+                    case CharacterContent.Stats.Skill.Marksman:
+                    case CharacterContent.Stats.Skill.Sneak:
                         return Attribute.Agility;
-                    case NpcContent.Stats.Skill.Athletics:
-                    case NpcContent.Stats.Skill.HandToHand:
-                    case NpcContent.Stats.Skill.ShortBlade:
-                    case NpcContent.Stats.Skill.Unarmored:
+                    case CharacterContent.Stats.Skill.Athletics:
+                    case CharacterContent.Stats.Skill.HandToHand:
+                    case CharacterContent.Stats.Skill.ShortBlade:
+                    case CharacterContent.Stats.Skill.Unarmored:
                         return Attribute.Speed;
-                    case NpcContent.Stats.Skill.Mercantile:
-                    case NpcContent.Stats.Skill.Speechcraft:
-                    case NpcContent.Stats.Skill.Illusion:
+                    case CharacterContent.Stats.Skill.Mercantile:
+                    case CharacterContent.Stats.Skill.Speechcraft:
+                    case CharacterContent.Stats.Skill.Illusion:
                         return Attribute.Personality;
-                    case NpcContent.Stats.Skill.Security:
-                    case NpcContent.Stats.Skill.Alchemy:
-                    case NpcContent.Stats.Skill.Conjuration:
-                    case NpcContent.Stats.Skill.Enchant:
+                    case CharacterContent.Stats.Skill.Security:
+                    case CharacterContent.Stats.Skill.Alchemy:
+                    case CharacterContent.Stats.Skill.Conjuration:
+                    case CharacterContent.Stats.Skill.Enchant:
                         return Attribute.Intelligence;
-                    case NpcContent.Stats.Skill.Alteration:
-                    case NpcContent.Stats.Skill.Destruction:
-                    case NpcContent.Stats.Skill.Mysticism:
-                    case NpcContent.Stats.Skill.Restoration:
+                    case CharacterContent.Stats.Skill.Alteration:
+                    case CharacterContent.Stats.Skill.Destruction:
+                    case CharacterContent.Stats.Skill.Mysticism:
+                    case CharacterContent.Stats.Skill.Restoration:
                         return Attribute.Willpower;
                     default:
                         throw new Exception("What the fuck");
@@ -299,58 +308,52 @@ namespace JortPob
             }
         }
 
-        /* Special constructor, this is used by NpcManager when creating dialog for creatures */
-        /* We take a creaturecontent and create an NpcContent out of it */
-        /* Ideally we would maybe have CreatureContent and NpcContent come from a shared abstract class and have NpcManager use that but that would require a lot of redesigning so guh */
-        public NpcContent(CreatureContent creature) : base(creature.cell, creature.id, creature.name, creature.type, creature.load, creature.papyrus, creature.position, creature.rotation, creature.scale)
-        {
-            race = Race.Creature;
-            sex = Sex.Male;
-            job = "Creature";
-            faction = null;
-
-            entity = creature.entity;
-
-            essential = creature.essential;
-            level = creature.level;
-            disposition = 50; // default neutral
-            reputation = 0;
-            rank = 0;
-            gold = 0;
-
-            hello = creature.hello;
-            fight = creature.fight;
-            flee = creature.flee;
-            alarm = creature.alarm;
-
-            hostile = creature.hostile;
-            dead = creature.dead;
-
-            stats = new();
-            services = creature.services;
-            barter = creature.barter;
-
-            inventory = creature.inventory;
-
-            spells = new();
-            travel = new();
-        }
-
         /* Normal NpcContent contructor */
-        public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        public CharacterContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
-            job = record.json["class"].ToString();
-            faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
+            /* NPC Specific data */
+            if (type == ESM.Type.Npc)
+            {
+                race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
+                job = record.json["class"].ToString();
+                faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
 
-            sex = record.json["npc_flags"].ToString().ToLower().Contains("female") ? Sex.Female : Sex.Male;
+                sex = record.json["npc_flags"].ToString().ToLower().Contains("female") ? Sex.Female : Sex.Male;
 
+                disposition = int.Parse(record.json["data"]["disposition"].ToString());
+                reputation = int.Parse(record.json["data"]["reputation"].ToString());
+                rank = int.Parse(record.json["data"]["rank"].ToString());
+
+                if (record.json["data"]["stats"] != null)
+                {
+                    stats = new(record.json["data"]["stats"]);
+                }
+                else
+                {
+                    stats = new(sex, esm.GetRace(record.json["race"].ToString()), esm.GetJob(job), level);
+                }
+            }
+
+            /* Creature spefic data */
+            else
+            {
+                race = Race.Creature;
+                job = "none";
+                faction = null;
+
+                sex = Sex.Male;
+
+                disposition = 50;
+                reputation = 0;
+                rank = 0;
+
+                stats = new(record.json["data"], level);
+            }
+
+            /* Generic data used by both NPC and Creature */
             essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
 
             level = int.Parse(record.json["data"]["level"].ToString());
-            disposition = int.Parse(record.json["data"]["disposition"].ToString());
-            reputation = int.Parse(record.json["data"]["reputation"].ToString());
-            rank = int.Parse(record.json["data"]["rank"].ToString());
             gold = int.Parse(record.json["data"]["gold"].ToString());
 
             hello = int.Parse(record.json["ai_data"]["hello"].ToString());
@@ -360,15 +363,6 @@ namespace JortPob
 
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
-
-            if (record.json["data"]["stats"] != null)
-            {
-                stats = new(record.json["data"]["stats"]);
-            }
-            else
-            {
-                stats = new(sex, esm.GetRace(record.json["race"].ToString()), esm.GetJob(job), level);
-            }
 
             string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
             services = new();
@@ -477,77 +471,21 @@ namespace JortPob
         }
     }
 
-    /* creatures, both leveled and non-leveled */
-    public class CreatureContent : Content
+    /* npcs, humanoid only */
+    public class NpcContent : CharacterContent
     {
-        public readonly int level;
-        public readonly int hello, fight, flee, alarm;
-        public readonly bool hostile, dead;
-
-        public readonly bool essential; // player gets called dumb if they kill this dood
-
-        public List<(string id, int quantity)> inventory;
-
-        public readonly List<Service> services;
-
-        public List<(string id, int quantity)> barter; // can be null
-
-        public CreatureContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(esm, cell, json, record)
         {
-            essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
-
-            level = int.Parse(record.json["data"]["level"].ToString());
-
-            hello = int.Parse(record.json["ai_data"]["hello"].ToString());
-            fight = int.Parse(record.json["ai_data"]["fight"].ToString());
-            flee = int.Parse(record.json["ai_data"]["flee"].ToString());
-            alarm = int.Parse(record.json["ai_data"]["alarm"].ToString());
-
-            hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
-            dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
-
-
-            string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
-            services = new();
-            foreach (string s in serviceFlags)
-            {
-                string trim = s.Trim().ToLower().Replace("_", "");
-                try
-                {
-                    Service service = (Service)System.Enum.Parse(typeof(Service), trim, true);
-                    services.Add(service);
-                }
-                catch { }
-            }
-
-            rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
-
-            inventory = new();
-            JsonArray invJson = record.json["inventory"].AsArray();
-            foreach (JsonNode node in invJson)
-            {
-                JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
-            }
+            /* Parent constructor does all the work */
         }
+    }
 
-        /* Return true if this npc has any barter service */
-        public bool HasBarter()
+    /* creatures, both leveled and non-leveled */
+    public class CreatureContent : CharacterContent
+    {
+        public CreatureContent(ESM esm, Cell cell, JsonNode json, Record record) : base(esm, cell, json, record)
         {
-            return
-                services.Contains(Service.BartersWeapons) ||
-                services.Contains(Service.BartersArmor) ||
-                services.Contains(Service.BartersClothing) ||
-                services.Contains(Service.BartersIngredients) ||
-                services.Contains(Service.BartersApparatus) ||
-                services.Contains(Service.BartersAlchemy) ||
-                services.Contains(Service.BartersBooks) ||
-                services.Contains(Service.BartersMiscItems) ||
-                services.Contains(Service.BartersEnchantedItems) ||
-                services.Contains(Service.BartersRepairItems) ||
-                services.Contains(Service.BartersLockpicks) ||
-                services.Contains(Service.BartersProbes) ||
-                services.Contains(Service.BartersLights);
+            /* Parent constructor does all the work */
         }
     }
 

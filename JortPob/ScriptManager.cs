@@ -109,7 +109,7 @@ namespace JortPob
             // Temp flag that is set true when a player is sneaking
             Script.Flag playerIsSneakingFlag = common.CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.PlayerIsSneaking, "PlayerIsSneaking");
 
-            // One flag for each race. Single bit. Name of the flag to identify it by is the same as the enum name from NpcContent.Race
+            // One flag for each race. Single bit. Name of the flag to identify it by is the same as the enum name from CharacterContent.Race
             // Reason for doing 10 bits instead of a single byte is because I don't want to set an eventvalueflag from HKS becasue lua is a cursed language
             List<Script.Flag> raceFlags = new();
             foreach(JsonNode json in raceJson)
@@ -128,7 +128,7 @@ namespace JortPob
             string hksJankGen = "";
             foreach(Script.Flag flag in raceFlags)
             {
-                NpcContent.Race raceEnum = (Race)System.Enum.Parse(typeof(Race), flag.name);
+                CharacterContent.Race raceEnum = (CharacterContent.Race)System.Enum.Parse(typeof(CharacterContent.Race), flag.name);
 
                 hksJankGen += $"\t\tif BURN_SCAR_VALUE == {(int)raceEnum} then\r\n\t\t\tact(DEBUG_PRINT, \"{raceEnum.ToString()}\")\r\n\t\t\tact(SetEventFlag, \"{flag.id}\", 1)\r\n\t\tend\r\n";
             }

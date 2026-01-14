@@ -468,7 +468,7 @@ namespace JortPob.Common
             return enemy;
         }
 
-        /* makes a goat */
+        /* makes an Enemy object of the given cXXXX character id */
         public static MSBE.Part.Enemy Creature(string character)
         {
             MSBE.Part.Enemy enemy = new();

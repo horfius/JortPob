@@ -718,7 +718,7 @@ namespace JortPob
 
             int itemLotRow;
             List<(ItemManager.ItemInfo item, int quantity)> inventory = itemManager.ResolveInventory(creature);
-            if (inventory.Count() > 0) { itemLotRow = GenerateInventoryItemLot(script, creature, inventory); }
+            if (inventory.Count() > 0) { itemLotRow = GenerateInventoryItemLot(script, creature, inventory); }    // @TODO: rework item lot generation for creatures to be non-fixed
             else { itemLotRow = -1; }
 
             int textId = textManager.AddNpcName(creature.name);

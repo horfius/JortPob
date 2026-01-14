@@ -19,7 +19,7 @@ namespace JortPob.Common
             bool useCustom = Override.CheckCustomVoice(npc.id);
             string lineDir;
             if (!useCustom) { lineDir = $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\"; }
-            else { lineDir = $"{Const.CACHE_PATH}dialog\\{NpcContent.Race.Custom}\\{npc.id}\\{dialog.id}\\{hashName}\\"; }
+            else { lineDir = $"{Const.CACHE_PATH}dialog\\{CharacterContent.Race.Custom}\\{npc.id}\\{dialog.id}\\{hashName}\\"; }
             string wavPath = $"{lineDir}{hashName}.wav";
             string wemPath = $"{lineDir}{hashName}.wem";
 
@@ -33,7 +33,7 @@ namespace JortPob.Common
                         // Check if this audio file exists in the cache already // @TODO: ideally we generate a voice cache later but guh w/e filesystem check for now
                         if (System.IO.File.Exists(wemPath)) { return wemPath; }
 
-                        if (npc.sex == NpcContent.Sex.Female) { synthesizer.SelectVoice("Microsoft Zira Desktop"); }
+                        if (npc.sex == CharacterContent.Sex.Female) { synthesizer.SelectVoice("Microsoft Zira Desktop"); }
                         else { synthesizer.SelectVoice("Microsoft David Desktop"); }
 
                         // Make folder if doesn't exist (this is so ugly lmao)
@@ -107,15 +107,15 @@ namespace JortPob.Common
         }
 
 
-        public static string GenerateAlt(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
+        public static string GenerateAlt(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, CharacterContent npc)
         {
             // Define paths
             bool useCustom = Override.CheckCustomVoice(npc.id);
-            bool isCreature = npc.race == NpcContent.Race.Creature;
+            bool isCreature = npc.race == CharacterContent.Race.Creature;
 
             string lineDir;
-            if (useCustom) { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", NpcContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName); }
-            else if(isCreature) { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", NpcContent.Race.Creature.ToString(), npc.id, dialog.id.ToString(), hashName); }
+            if (useCustom) { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", CharacterContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName); }
+            else if(isCreature) { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", CharacterContent.Race.Creature.ToString(), npc.id, dialog.id.ToString(), hashName); }
             else { lineDir = Path.Combine(Const.CACHE_PATH, "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName); }
 
             string wavPath = Path.Combine(lineDir, $"{hashName}.wav");
@@ -145,7 +145,7 @@ namespace JortPob.Common
 
                     // 2. Generate WAV (Text-to-Speech)
                     // string ssmlLine = $"<speak>{line}<break time='500ms'/></speak>";
-                    string voice = npc.sex == NpcContent.Sex.Female ? "slt" : "rms";
+                    string voice = npc.sex == CharacterContent.Sex.Female ? "slt" : "rms";
                     string args = $"-t \"{safeText}\" -voice {voice} \"{wavPath}\"";
 
                     ProcessStartInfo fliteStartInfo = new(flitePath)
@@ -202,8 +202,8 @@ namespace JortPob.Common
                         CreateNoWindow = true
                     };
                     string xmlRelative;
-                    if (useCustom) { xmlRelative = Path.Combine("..", "dialog", NpcContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName, xmlName); }
-                    else if (isCreature) { xmlRelative = Path.Combine("..", "dialog", NpcContent.Race.Creature.ToString(), npc.id, dialog.id.ToString(), hashName, xmlName); }
+                    if (useCustom) { xmlRelative = Path.Combine("..", "dialog", CharacterContent.Race.Custom.ToString(), npc.id, dialog.id.ToString(), hashName, xmlName); }
+                    else if (isCreature) { xmlRelative = Path.Combine("..", "dialog", CharacterContent.Race.Creature.ToString(), npc.id, dialog.id.ToString(), hashName, xmlName); }
                     else { xmlRelative = Path.Combine("..", "dialog", npc.race.ToString(), npc.sex.ToString(), dialog.id.ToString(), hashName, xmlName); }
                     convertInfo.ArgumentList.AddRange(new string[] { "convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\"" });
                     ExecuteProcess(convertInfo);

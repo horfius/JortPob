@@ -106,26 +106,17 @@ namespace JortPob
             return id;
         }
 
-        public int GetESD(BaseTile tile, CreatureContent content)
-        {
-            if(!esm.HasDialog(content)) { return 0; }
-            return GetESD(tile.IdList(), new(content));
-        }
-        public int GetESD(InteriorGroup group, CreatureContent content)
-        {
-            if (!esm.HasDialog(content)) { return 0; }
-            return GetESD(group.IdList(), new(content));
-        }
-
-        public int GetESD(BaseTile tile, NpcContent content) { return GetESD(tile.IdList(), content); }
-        public int GetESD(InteriorGroup group, NpcContent content) { return GetESD(group.IdList(), content); }
+        public int GetESD(BaseTile tile, CharacterContent content) { return GetESD(tile.IdList(), content); }
+        public int GetESD(InteriorGroup group, CharacterContent content) { return GetESD(group.IdList(), content); }
 
         /* Creates an ESD for the given instance of a npc */
         /* ESDs are generally 1 to 1 with characters but there are some exceptions like guards */
         // @TODO: THIS SYSTEM USING AN ARRAY OF INTS IS FUCKING SHIT PLEASE GOD REFACTOR THIS TO JUST USE THE ACTUAL TILE OR INTERIOR GROUP
-        public int GetESD(int[] msbIdList, NpcContent content)
+        public int GetESD(int[] msbIdList, CharacterContent content)
         {
             if (Const.DEBUG_SKIP_ESD) { return 0; } // debug skip
+
+            if (content.race == CharacterContent.Race.Creature && !esm.HasDialog((CreatureContent)content)) { return 0; } // if this is a creature, verify it has dialog lines to build dialog for
 
             // First check if we even need one, hostile or dead npcs dont' get talk data for now
             if (content.dead || content.hostile) { return 0; }
