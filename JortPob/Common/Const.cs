@@ -3,6 +3,7 @@ using HKX2;
 using SoulsAssetPipeline.Animation;
 using SoulsFormats;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 
 namespace JortPob.Common
@@ -10,16 +11,16 @@ namespace JortPob.Common
     public static class Const
     {
         #region Paths
-        public static string MORROWIND_PATH = Settable.Get("MORROWIND_PATH");
-        public static string ELDEN_PATH = Settable.Get("ELDEN_PATH");
-        public static string OUTPUT_PATH = Settable.Get("OUTPUT_PATH");
-        public static string WWISE_PATH = Settable.Get("WWISE_PATH");
-        public static string CACHE_PATH = $"{OUTPUT_PATH}cache\\";
-        public static string[] LOAD_ORDER = Settable.GetArray("LOAD_ORDER");
+        public static string MORROWIND_PATH { get; } = Settable.Get("MORROWIND_PATH");
+        public static string ELDEN_PATH { get; } = Settable.Get("ELDEN_PATH");
+        public static string OUTPUT_PATH { get; } = Settable.Get("OUTPUT_PATH");
+        public static string WWISE_PATH { get; } = Settable.Get("WWISE_PATH");
+        public static string CACHE_PATH { get; } = Path.Combine(OUTPUT_PATH, @"cache\");
+        public static string[] LOAD_ORDER { get; } = Settable.GetArray("LOAD_ORDER");
         #endregion
 
         #region Optimization
-        public static readonly int THREAD_COUNT = int.Parse(Settable.Get("THREAD_COUNT"));
+        public static int THREAD_COUNT { get; } = int.Parse(Settable.Get("THREAD_COUNT"));
         #endregion
 
         #region General

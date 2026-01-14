@@ -142,9 +142,9 @@ namespace JortPob
             foreach (IconInfo icon in icons)
             {
                 byte[] ddsBytes = System.IO.File.ReadAllBytes($"{Const.MORROWIND_PATH}Data Files\\icons\\{icon.path}");
-                Bitmap bitmap = Common.DDS.DDStoBitmap(ddsBytes);
-                bitmap = Common.Utility.XbrzUpscale(bitmap, 5);
-                bitmaps.Add((icon, bitmap));
+                using Bitmap bitmap = Common.DDS.DDStoBitmap(ddsBytes);
+                var scaledBitmap = Common.Utility.XbrzUpscale(bitmap, 5);
+                bitmaps.Add((icon, scaledBitmap));
             }
 
             /* Make sheets */
