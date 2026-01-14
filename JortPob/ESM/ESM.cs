@@ -396,16 +396,21 @@ namespace JortPob
         }
 
         /* Checks if a creature has any dialog associated to it and returns true/false. */
-        /* @TODO: Might be kind of expensive and maybe cache results for re-tests */
+        /* This is an expensive and commonly used check so we cache the result for reuse */
+        private Dictionary<string, bool> hasDialogCache = new();
         public bool HasDialog(CreatureContent content)
         {
+            if (hasDialogCache.ContainsKey(content.id)) { return hasDialogCache[content.id]; }
+
             foreach (DialogRecord record in dialog)
             {
                 foreach (DialogInfoRecord info in record.infos)
                 {
-                    if (info.speaker == content.id) { return true; }
+                    if (info.speaker == content.id) { hasDialogCache.Add(content.id, true); return true; }
                 }
             }
+
+            hasDialogCache.Add(content.id, false);
             return false;
         }
     }

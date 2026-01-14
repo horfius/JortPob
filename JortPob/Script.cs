@@ -109,7 +109,7 @@ namespace JortPob
 
         public void RegisterItemAsset(ItemContent item)
         {
-            NpcContent owner;
+            CharacterContent owner;
             if(item.ownerNpc != null) { owner = GetAreaNpcById(item.ownerNpc); }
             else { owner = null; }
 
@@ -147,7 +147,7 @@ namespace JortPob
 
         public void RegisterContainerAsset(ContainerContent container)
         {
-            NpcContent owner;
+            CharacterContent owner;
             if (container.ownerNpc != null) { owner = GetAreaNpcById(container.ownerNpc); }
             else { owner = null; }
 
@@ -282,9 +282,9 @@ namespace JortPob
             init.Instructions.Add(AUTO.ParseAdd($"InitializeEvent(0, {thieveryEventFlag.id}, 0);"));
         }
 
-        private NpcContent GetAreaNpcById(string id)
+        private CharacterContent GetAreaNpcById(string id)
         {
-            foreach(NpcContent npc in npcs)
+            foreach(CharacterContent npc in npcs)
             {
                 if (npc.id == id) { return npc; }
             }
