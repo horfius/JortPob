@@ -116,10 +116,10 @@ namespace JortPob
                 Lort.TaskIterate();
                 try
                 {
-                    ParamDefType ty = (ParamDefType)System.Enum.Parse(typeof(ParamDefType), p.ParamType);
+                    ParamDefType ty = Enum.Parse<ParamDefType>(p.ParamType);
                     paramdefs.Add(ty, p);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Lort.Log($"Skipped unknown paramdef: {p.ParamType}", Lort.Type.Debug);
                     continue;
