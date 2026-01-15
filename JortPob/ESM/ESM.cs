@@ -254,7 +254,6 @@ namespace JortPob
         }
 
         /* List of types that we should search for references */
-        // more const values we should move somewhere. @TODO
         public readonly Type[] VALID_CONTENT_TYPES = {
             Type.Static, Type.Container, Type.Light, Type.Sound, Type.Skill, Type.Region, Type.Door, Type.MiscItem, Type.Weapon,  Type.Creature, Type.Bodypart, Type.Npc,
             Type.Armor, Type.Clothing, Type.RepairItem, Type.Activator, Type.Apparatus, Type.Lockpick, Type.Probe, Type.Ingredient, Type.Book, Type.Alchemy, Type.LeveledItem,
@@ -262,7 +261,6 @@ namespace JortPob
         };
 
         /* References don't contain any explicit 'type' data so... we just gotta go find it lol */
-        /* @TODO: well actually i think the 'flags' int value in some records is useed as a 32bit boolean array and that may specify record types possibly. Look into it? */
         public Record FindRecordById(string id)
         {
             foreach (var type in VALID_CONTENT_TYPES)
