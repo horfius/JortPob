@@ -350,9 +350,10 @@ namespace JortPob.Common
                 .Replace(".\\", "");
 
 
+            sanitized = sanitized.Trim();
             while (sanitized.Contains("  ")) { sanitized = sanitized.Replace("  ", " "); }
 
-            return sanitized.Trim();
+            return sanitized;
         }
     }
 }

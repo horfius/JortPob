@@ -76,7 +76,7 @@ namespace JortPob
 
                 speaker = NullEmpty(json["speaker_id"].ToString());
                 string raceStr = NullEmpty(json["speaker_race"].ToString());
-                race = raceStr != null ? (CharacterContent.Race)System.Enum.Parse(typeof(CharacterContent.Race), raceStr.Replace(" ", "")) : CharacterContent.Race.Any;
+                race = raceStr != null ? Enum.Parse<CharacterContent.Race>(raceStr.Replace(" ", "")) : CharacterContent.Race.Any;
                 job = NullEmpty(json["speaker_class"].ToString());
                 faction = NullEmpty(json["speaker_faction"].ToString());
                 cell = NullEmpty(json["speaker_cell"].ToString());
