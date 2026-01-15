@@ -82,7 +82,7 @@ namespace JortPob.Common
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.AddRange(["convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\""]);
-                        using var process = Process.Start(startInfo);
+                        using Process process = Process.Start(startInfo);
                         process.WaitForExit();
                     }
                 }
@@ -220,7 +220,7 @@ namespace JortPob.Common
 
         private static void ExecuteProcess(ProcessStartInfo startInfo)
         {
-            using var process = Process.Start(startInfo);
+            using Process process = Process.Start(startInfo);
             if (process == null)
             {
                 throw new InvalidOperationException($"Failed to start process: {startInfo.FileName}");
