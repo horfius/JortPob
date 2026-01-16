@@ -6,6 +6,8 @@ using System.Numerics;
 using System.Text.Json.Nodes;
 using static JortPob.NpcContent;
 
+#nullable enable
+
 namespace JortPob
 {
     public class Cell
@@ -35,11 +37,11 @@ namespace JortPob
         public Cell(ESM esm, JsonNode json)
         {
             /* Cell Data */
-            name = json["name"]?.ToString();
-            region = json["region"]?.ToString();
+            name = json["name"]?.ToString() ?? throw new Exception("Could not find 'name' value in cell json!");
+            region = json["region"]?.ToString() ?? throw new Exception("Could not find 'region' value in cell json!");
 
             flags = new();
-            string[] fs = json["data"]["flags"].GetValue<string>().ToLower().Split("|");
+            string[] fs = json["data"]?["flags"]?.GetValue<string>().ToLower().Split("|") ?? [];
             foreach(string f in fs)
             {
                 string trim = f.Trim().ToLower().Replace("_", "");
@@ -48,8 +50,8 @@ namespace JortPob
                 flags.Add(flag);
             }
 
-            int x = int.Parse(json["data"]["grid"][0].ToString());
-            int y = int.Parse(json["data"]["grid"][1].ToString());
+            int x = json["data"]?["grid"]?[0]?.GetValue<int>() ?? throw new Exception("Could not find cell->data->grid->0 value!");
+            int y = json["data"]?["grid"]?[1]?.GetValue<int>() ?? throw new Exception("Could not find cell->data->grid->1 value!");
             coordinate = new Int2(x, y);
 
             float half = Const.CELL_SIZE / 2f;
@@ -67,14 +69,14 @@ namespace JortPob
             pickables = new();
             items = new();
 
-            foreach (JsonNode reference in json["references"].AsArray())
+            foreach (var reference in json["references"]?.AsArray() ?? [])
             {
-                string id = reference["id"].ToString();
+                string id = reference?["id"]?.ToString() ?? throw new Exception("Could not find cell->references->id!");
                 Record record = esm.FindRecordById(id);
 
                 if(record == null) { continue; }
 
-                string mesh = record.json["mesh"]?.ToString(); // mesh can just be "" sometimes
+                var mesh = record.json["mesh"]?.ToString(); // mesh can just be "" sometimes
 
                 switch(record.type)
                 {

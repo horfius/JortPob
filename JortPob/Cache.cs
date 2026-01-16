@@ -441,14 +441,14 @@ namespace JortPob
                 }
 
                 /* Write new cache file */
-                string jsonOutput = JsonSerializer.Serialize(nu, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals });
+                string jsonOutput = JsonSerializer.Serialize(nu, new JsonSerializerOptions { IncludeFields = true, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals });
                 File.WriteAllText(manifestPath, jsonOutput);
                 Lort.Log($"Generated new cache: {Const.CACHE_PATH}", Lort.Type.Main);
             }
 
             /* Load cache manifest */
             string tempRawJson = File.ReadAllText(manifestPath);
-            Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals })!;
+            Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals })!;
             return cache!;
         }
     }

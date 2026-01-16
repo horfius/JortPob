@@ -57,7 +57,7 @@ namespace JortPob.Worker
             var cells = cellRecords.AsParallel()
                 .WithDegreeOfParallelism(Const.THREAD_COUNT)
                 .Select(node => {
-                        Cell cell = MakeCell(node, esm);
+                        var cell = MakeCell(node, esm);
                         Lort.TaskIterate(); // Progress bar update
                         return cell;
                     })

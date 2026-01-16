@@ -8,6 +8,8 @@ using System.Speech.Synthesis;
 using System.Text;
 using System.Text.RegularExpressions;
 
+#nullable enable
+
 /* This exists for me to test if full voice acting will work properly before we get voice actors involved */
 namespace JortPob.Common
 {
@@ -68,7 +70,7 @@ namespace JortPob.Common
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.AddRange(["create-new-project", $"\"{projectPath}\"", "--platform", "Windows"]);
-                        using Process process = Process.Start(startInfo);
+                        using var process = Process.Start(startInfo) ?? throw new Exception($" ## ERROR ## Failed to run wwise with arguments: {string.Join(", ", startInfo.ArgumentList)}");
                         process.WaitForExit();
                     }
 
@@ -82,13 +84,13 @@ namespace JortPob.Common
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.AddRange(["convert-external-source", $"\"{projectPath}\"", "--source-file", xmlRelative, "--output", "Windows", $"\"{lineDir}\""]);
-                        using Process process = Process.Start(startInfo);
+                        using var process = Process.Start(startInfo) ?? throw new Exception($" ## ERROR ## Failed to run wwise with arguments: {string.Join(", ", startInfo.ArgumentList)}");
                         process.WaitForExit();
                     }
                 }
-                catch
+                catch(Exception ex)
                 {
-                    Lort.Log($"## ERROR ## Failed to generate dialog {wavPath}", Lort.Type.Debug);
+                    Lort.Log($"## ERROR ## Failed to generate dialog {wavPath}, exception: {ex.Message}", Lort.Type.Debug);
                 }
 
                 if (File.Exists(wemPath)) { break; } // if the file is created successfully we don't need to retry.
@@ -220,11 +222,7 @@ namespace JortPob.Common
 
         private static void ExecuteProcess(ProcessStartInfo startInfo)
         {
-            using Process process = Process.Start(startInfo);
-            if (process == null)
-            {
-                throw new InvalidOperationException($"Failed to start process: {startInfo.FileName}");
-            }
+            using var process = Process.Start(startInfo) ?? throw new InvalidOperationException($"Failed to start process: {startInfo.FileName}");
 
             bool exited = process.WaitForExit(5000);
 

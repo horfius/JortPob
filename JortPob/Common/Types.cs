@@ -3,20 +3,22 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public sealed class BinderFileIdComparer : IComparer<BinderFile>
     {
         readonly Dictionary<BinderFile, uint> _cache = new();
 
-        public int Compare(BinderFile x, BinderFile y)
+        public int Compare(BinderFile? x, BinderFile? y)
         {
             uint xi = GetId(x);
             uint yi = GetId(y);
             return xi < yi ? -1 : (xi > yi ? 1 : 0);
         }
 
-        uint GetId(BinderFile f)
+        uint GetId(BinderFile? f)
         {
             if (f == null) return uint.MaxValue;
             if (_cache.TryGetValue(f, out uint v)) return v;
@@ -104,17 +106,23 @@ namespace JortPob.Common
             this.x = x; this.y = y;
         }
 
-        public static bool operator ==(Int2 a, Int2 b)
+        public static bool operator ==(Int2? a, Int2? b)
         {
-            return a.Equals(b);
+            return a?.Equals(b) ?? b is null;
         }
+
         public static bool operator !=(Int2 a, Int2 b) => !(a == b);
 
-        public bool Equals(Int2 b)
+        public bool Equals(Int2? b)
         {
+            if (ReferenceEquals(this, b)) 
+                return true;
+            else if (b is null)
+                return false;
+
             return x == b.x && y == b.y;
         }
-        public override bool Equals(object a) => Equals(a as Int2);
+        public override bool Equals(object? a) => Equals(a as Int2);
 
         public static Int2 operator +(Int2 a, Int2 b)
         {
@@ -151,17 +159,21 @@ namespace JortPob.Common
             this.x = x; this.y = y;
         }
 
-        public static bool operator ==(UShort2 a, UShort2 b)
+        public static bool operator ==(UShort2? a, UShort2? b)
         {
-            return a.Equals(b);
+            return a?.Equals(b) ?? b is null;
         }
-        public static bool operator !=(UShort2 a, UShort2 b) => !(a == b);
+        public static bool operator !=(UShort2? a, UShort2? b) => !(a == b);
 
-        public bool Equals(UShort2 b)
+        public bool Equals(UShort2? b)
         {
+            if (ReferenceEquals(this, b))
+                return true;
+            else if (b is null)
+                return false;
             return x == b.x && y == b.y;
         }
-        public override bool Equals(object a) => Equals(a as UShort2);
+        public override bool Equals(object? a) => Equals(a as UShort2);
 
         public override int GetHashCode()
         {

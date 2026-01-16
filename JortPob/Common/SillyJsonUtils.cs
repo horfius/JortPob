@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using WitchyFormats;
 using static IronPython.Modules._ast;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public class SillyJsonUtils
@@ -16,7 +18,7 @@ namespace JortPob.Common
         {
             FsParam param = paramanager.param[paramType];
             FsParam.Row row = paramanager.GetRow(param, rowId);
-            FsParam.Cell cell = (FsParam.Cell)row[fieldName];
+            FsParam.Cell cell = row[fieldName] ?? throw new Exception($"Cell with fieldName {fieldName} does not exist in row {row.ID}");
             cell.SetValue(value);
         }
 
@@ -25,14 +27,15 @@ namespace JortPob.Common
         {
             FsParam param = paramanager.param[paramType];
             FsParam.Row row = paramanager.GetRow(param, rowId);
-            FsParam.Cell cell = (FsParam.Cell)row[fieldName];
+            FsParam.Cell cell = row[fieldName] ?? throw new Exception($"Cell with fieldName {fieldName} does not exist in row {row.ID}");
             cell.SetValue(value);
         }
 
         public static void CopyRowAndModify(Paramanager paramanager, SpeffManager speffManager, Paramanager.ParamType paramType, string name, int sourceRow, int destRow, Dictionary<string, string> data)
         {
             FsParam param = paramanager.param[paramType];
-            FsParam.Row row = paramanager.CloneRow(param[sourceRow], name, destRow);
+            FsParam.Row row = paramanager.CloneRow(param[sourceRow] ?? throw new Exception($"Row with id {sourceRow} does not exist in param type {Enum.GetName(paramType)}"),
+                name, destRow);
 
             /* List of named speff fields that should be resolved before applying */
             List<string> equipSpeffFieldNames = [
@@ -93,7 +96,7 @@ namespace JortPob.Common
                 }
 
                 /* Apply values from json to the param */
-                FsParam.Cell cell = (FsParam.Cell)row[key];
+                FsParam.Cell cell = row[key] ?? throw new Exception($"Cell with fieldName {key} does not exist in row {row.ID}");
                 switch (cell.Value.GetType())
                 {
                     case Type t when t == typeof(int):

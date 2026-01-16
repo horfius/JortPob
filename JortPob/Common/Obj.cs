@@ -5,6 +5,8 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public class Obj
@@ -60,7 +62,7 @@ namespace JortPob.Common
                         }
                     case "usemtl":
                         {
-                            last.mtl = values[1];
+                            last!.mtl = values[1];
                             break;
                         }
                     case "f":
@@ -73,7 +75,7 @@ namespace JortPob.Common
                             ObjV B = new(int.Parse(b[0]) - 1, int.Parse(b[1]) - 1, int.Parse(b[2]) - 1);
                             ObjV C = new(int.Parse(c[0]) - 1, int.Parse(c[1]) - 1, int.Parse(c[2]) - 1);
 
-                            last.fs.Add(new(A, B, C));
+                            last!.fs.Add(new(A, B, C));
                             break;
                         }
                     default: break;
@@ -222,7 +224,7 @@ namespace JortPob.Common
 
             /* write to file */
             if (File.Exists(outPath)) { File.Delete(outPath); }
-            if(!Directory.Exists(Path.GetDirectoryName(outPath))) { Directory.CreateDirectory(Path.GetDirectoryName(outPath)); }
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath) ?? throw new Exception($"Invalid path {outPath}!"));
             File.WriteAllText(outPath, sb.ToString());
         }
 
@@ -270,7 +272,9 @@ namespace JortPob.Common
 
     public class ObjG
     {
-        public string name, mtl;
+        public string? name { get; set; }
+        public string? mtl { get; set; }
+
         public List<ObjF> fs;
         public ObjG()
         {

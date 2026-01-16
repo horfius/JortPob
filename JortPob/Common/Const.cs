@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public static class Const
@@ -136,7 +138,7 @@ namespace JortPob.Common
         public static readonly bool DEBUG_SKIP_FMG_PARAM_SORTING = false;
         public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = true; // slow as shit, skipping this saves about a minute per build
-        public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
+        public static readonly string? DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
         public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -5, -15, 5, -5 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }

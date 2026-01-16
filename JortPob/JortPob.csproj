@@ -5,6 +5,8 @@
     <TargetFramework>net9.0-windows</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<!-- Will be enabled eventually as each file is individually converted to handle nullabe -->
+	<Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

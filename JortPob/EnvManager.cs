@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using static JortPob.Paramanager;
 
+#nullable enable
+
 namespace JortPob
 {
     public class EnvManager
@@ -14,7 +16,7 @@ namespace JortPob
         }
 
         // returns a list of texture names and bytes for them
-        private static byte[] defEnvX, defEnvY, defEnvZ, defEnvW; // function to gen these is slow so hold onto the bytes to reuse
+        private static byte[]? defEnvX, defEnvY, defEnvZ, defEnvW; // function to gen these is slow so hold onto the bytes to reuse
         public static List<Tuple<string, byte[]>> GenerateIrradianceTextures(int map, int x, int y, int block, int id, int time, int size, Rem rem)
         {
             string[] names = new string[]
@@ -34,12 +36,14 @@ namespace JortPob
                 defEnvW = Common.DDS.MakeVolumeTexture(16, 250, 250, 250, 55);
             }
 
-            List<Tuple<string, byte[]>> textures = new();
-            textures.Add(new(names[0], defEnvW));
-            textures.Add(new(names[1], defEnvX));
-            textures.Add(new(names[2], defEnvY));
-            textures.Add(new(names[3], defEnvZ));
-            textures.Add(new(names[4], System.IO.File.ReadAllBytes(Utility.ResourcePath($"env\\{rem.ToString().ToLower()}_rem.dds"))));
+            List<Tuple<string, byte[]>> textures =
+            [
+                new(names[0], defEnvW),
+                new(names[1], defEnvX),
+                new(names[2], defEnvY),
+                new(names[3], defEnvZ),
+                new(names[4], System.IO.File.ReadAllBytes(Utility.ResourcePath($"env\\{rem.ToString().ToLower()}_rem.dds"))),
+            ];
 
             return textures;
         }

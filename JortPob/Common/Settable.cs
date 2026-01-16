@@ -3,20 +3,23 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Nodes;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public class Settable
     {
-        private static JsonNode json;
+        private static JsonNode? json;
+
         public static string Get(string key)
         {
             if(json == null)
             {
-                string tempRawJson = File.ReadAllText($"{AppDomain.CurrentDomain.BaseDirectory}settings.json");
+                string tempRawJson = File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json"));
                 json = JsonNode.Parse(tempRawJson);
             }
 
-            return json[key]?.ToString() ?? throw new Exception($"Setting with key '{key}' does not exist in settings.json");
+            return json![key]?.ToString() ?? throw new Exception($"Setting with key '{key}' does not exist in settings.json");
         }
 
         public static string[] GetArray(string key)
@@ -29,9 +32,11 @@ namespace JortPob.Common
 
             List<string> strings = new();
 
-            JsonArray array = json[key]?.AsArray() ?? throw new Exception($"Setting with key '{key}' does not exist in settings.json");
-            foreach(JsonNode jsonNode in array)
+            JsonArray array = json![key]?.AsArray() ?? throw new Exception($"Setting with key '{key}' does not exist in settings.json");
+            foreach(var jsonNode in array)
             {
+                if (jsonNode is null)
+                    continue;
                 strings.Add(jsonNode.GetValue<string>());
             }
 

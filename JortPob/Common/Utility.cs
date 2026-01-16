@@ -10,6 +10,8 @@ using WitchyFormats;
 using Xbrz;
 using System.Runtime.InteropServices;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public static class Utility
@@ -229,7 +231,7 @@ namespace JortPob.Common
             return true;
         }
 
-        private static Random random;
+        private static Random? random { get; set; }
         public static int RandomRange(int min, int max)
         {
             if(random == null) { random = new(Const.RANDOM_SEED); }
@@ -249,7 +251,9 @@ namespace JortPob.Common
 
             // Perform scaling
             XbrzScaler scaler = new(factor, withAlpha: true);
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type. The library handles this properly, it's just not part of the signature
             int[] scaledPixels = scaler.ScaleImage(srcPixels, null, width, height);
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
             // Convert back to Bitmap
             int scaledWidth = width * factor, scaledHeight = height * factor;

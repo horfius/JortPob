@@ -8,6 +8,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using TeximpNet.DDS;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public class DDS
@@ -196,7 +198,7 @@ namespace JortPob.Common
                 return scaled;
             } catch (Exception ex) {
                 Lort.Log($"{ex.Message} {ex.StackTrace} {ex.Source}", Lort.Type.Debug);
-                return null;
+                throw;
             }
         }
 

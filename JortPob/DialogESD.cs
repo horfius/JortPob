@@ -13,6 +13,8 @@ using static JortPob.FactionInfo;
 using static JortPob.NpcContent;
 using static JortPob.NpcManager.TopicData;
 
+#nullable enable
+
 namespace JortPob
 {
     /* Handles python state machine code generation for a dialog ESD */
@@ -180,8 +182,8 @@ namespace JortPob
 
         public void Write(string pyPath)
         {
-            if (!Directory.Exists(Path.GetDirectoryName(pyPath))) { Directory.CreateDirectory(Path.GetDirectoryName(pyPath)); }
-            System.IO.File.WriteAllLines(pyPath, defs);
+            Directory.CreateDirectory(Path.GetDirectoryName(pyPath) ?? throw new Exception($"Path is not valid {pyPath}"));
+            File.WriteAllLines(pyPath, defs);
         }
 
 
@@ -1398,15 +1400,15 @@ namespace JortPob
             Script.Flag repFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionReputation, npcContent.faction);
             Script.Flag rankFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, npcContent.faction);
             Script.Flag returnValue = areaScript.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Nibble, Script.Flag.Designation.ReturnValueRankReq, npcContent.entity.ToString());
-            FactionInfo faction = esm.GetFaction(npcContent.faction);
+            FactionInfo? faction = esm.GetFaction(npcContent.faction);
 
             // First rank
             s += $"    if GetEventFlagValue({rankFlag.id}, {rankFlag.Bits()}) == 0:\r\n";
             s += $"         SetEventFlagValue({returnValue.id}, {returnValue.Bits()}, 3)\r\n";
 
-            for (int i = 0; i < faction.ranks.Count()-1; i++)
+            for (int i = 0; i < (faction?.ranks.Count() ?? 0)-1; i++)
             {
-                FactionInfo.Rank rank = faction.ranks[i];
+                FactionInfo.Rank rank = faction!.ranks[i];
                 FactionInfo.Rank nextRank = faction.ranks[i + 1];
 
                 // Not max rank

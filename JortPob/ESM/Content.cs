@@ -5,12 +5,14 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
 
+#nullable enable
+
 namespace JortPob
 {
     /* Content is effectively any physical object in the game world. Anything that has a physical position in a cell */
     public abstract class Content
     {
-        public readonly Cell cell;
+        public Cell? cell { get; init; }
 
         public readonly string id;   // record id
         public readonly string? name; // can be null!
@@ -19,7 +21,7 @@ namespace JortPob
         public uint entity;  // entity id, usually 0
         public string? papyrus { get; private set; } // papyrus script id if it has one (usually null)
         public Vector3 relative;
-        public Int2 load; // if a piece of content needs tile load data this is where it's stored
+        public Int2 load { get; set; } // if a piece of content needs tile load data this is where it's stored
 
         public readonly Vector3 position;
         public Vector3 rotation;
@@ -30,7 +32,8 @@ namespace JortPob
         public Content(Cell cell, JsonNode json, Record record)
         {
             this.cell = cell;
-            id = json["id"].ToString();
+            load = new(0, 0);
+            id = json["id"]?.ToString() ?? throw new Exception("Could not find id from content json!");
             name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
@@ -38,13 +41,13 @@ namespace JortPob
 
             papyrus = string.IsNullOrEmpty(record.json["script"]?.GetValue<string>()) ? null : record.json["script"]!.GetValue<string>();
 
-            float x = float.Parse(json["translation"][0].ToString());
-            float z = float.Parse(json["translation"][1].ToString());
-            float y = float.Parse(json["translation"][2].ToString());
+            float x = float.Parse(json["translation"]?[0]?.ToString() ?? throw new Exception("Content translation x value is missing!"));
+            float z = float.Parse(json["translation"]?[1]?.ToString() ?? throw new Exception("Content translation y value is missing!"));
+            float y = float.Parse(json["translation"]?[2]?.ToString() ?? throw new Exception("Content translation z value is missing!"));
 
-            float i = float.Parse(json["rotation"][0].ToString());
-            float j = float.Parse(json["rotation"][1].ToString());
-            float k = float.Parse(json["rotation"][2].ToString());
+            float i = float.Parse(json["rotation"]?[0]?.ToString() ?? throw new Exception("Content rotation i value is missing!"));
+            float j = float.Parse(json["rotation"]?[1]?.ToString() ?? throw new Exception("Content rotation j value is missing!"));
+            float k = float.Parse(json["rotation"]?[2]?.ToString() ?? throw new Exception("Content rotation k value is missing!"));
 
             /* The following unholy code converts morrowind (Z up) euler rotations into dark souls (Y up) euler rotations */
             /* Big thanks to katalash, dropoff, and the TESUnity dudes for helping me sort this out */
@@ -84,7 +87,7 @@ namespace JortPob
             relative = new();
             position = new Vector3(x, y, z) * Const.GLOBAL_SCALE;
             rotation = eu * (float)(180 / Math.PI);
-            scale = (int)((json["scale"] != null ? float.Parse(json["scale"].ToString()) : 1f) * 100);
+            scale = (int)((json["scale"] != null ? float.Parse(json["scale"]!.ToString()) : 1f) * 100);
         }
 
         public Content(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale)
@@ -109,7 +112,8 @@ namespace JortPob
             OffersRepairs, BartersLockpicks, BartersProbes, BartersLights
         };
 
-        public readonly string job, faction; // class is job, cant used reserved word
+        public string job { get; init; } // class is job, cant used reserved word
+        public string? faction { get; init; }
         public readonly Race race;
         public readonly Sex sex;
 
@@ -127,15 +131,15 @@ namespace JortPob
         public List<(string id, int quantity)> inventory;
         public List<string> spells; // spells this character knows or sells as a vendor
 
-        public List<(string id, int quantity)> barter; // can be null
+        public List<(string id, int quantity)>? barter; // can be null
 
         public List<Travel> travel;  // travel destinations for silt strider people, mage guild teles, etc...
 
-        public Script.Flag treasure; // only used if this is a dead body npc and it has treasure. otherwise null. NEVER SET THIS FOR A LIVING NPC!!!
+        public Script.Flag? treasure; // only used if this is a dead body npc and it has treasure. otherwise null. NEVER SET THIS FOR A LIVING NPC!!!
 
         public class Travel : DoorContent.Warp
         {
-            public string name;
+            public string? name { get; set; }
             public int cost;
             public Travel(JsonNode json) : base(json)
             {
@@ -158,19 +162,24 @@ namespace JortPob
                 attributes = new();
                 skills = new();
 
-                JsonArray jsonAttributes = json["attributes"].AsArray();
-                JsonArray jsonSkills = json["skills"].AsArray();
+                JsonArray jsonAttributes = json["attributes"]?.AsArray() ?? throw new Exception("Stats attributes value is missing!");
+                JsonArray jsonSkills = json["skills"]?.AsArray() ?? throw new Exception("Stats skills value is missing!");
 
+                if (jsonAttributes.Count < Enum.GetValues<Attribute>().Length)
+                    throw new Exception("Attributes array is not long enough!");
+                else if (jsonSkills.Count < Enum.GetValues<Skill>().Length)
+                    throw new Exception("Skills array is not long enough!");
+                
                 int i = 0;
-                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                foreach (Attribute attribute in Enum.GetValues<Attribute>())
                 {
-                    attributes.Add(attribute, jsonAttributes[i++].GetValue<int>());
+                    attributes.Add(attribute, jsonAttributes[i++]!.GetValue<int>());
                 }
 
                 i = 0;
-                foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                foreach (Skill skill in Enum.GetValues<Skill>())
                 {
-                    skills.Add(skill, jsonSkills[i++].GetValue<int>());
+                    skills.Add(skill, jsonSkills[i++]!.GetValue<int>());
                 }
             }
 
@@ -218,39 +227,39 @@ namespace JortPob
             {
                 switch (skill)
                 {
-                    case NpcContent.Stats.Skill.HeavyArmor:
-                    case NpcContent.Stats.Skill.MediumArmor:
-                    case NpcContent.Stats.Skill.Spear:
+                    case Skill.HeavyArmor:
+                    case Skill.MediumArmor:
+                    case Skill.Spear:
                         return Attribute.Endurance;
-                    case NpcContent.Stats.Skill.Acrobatics:
-                    case NpcContent.Stats.Skill.Armorer:
-                    case NpcContent.Stats.Skill.Axe:
-                    case NpcContent.Stats.Skill.BluntWeapon:
-                    case NpcContent.Stats.Skill.LongBlade:
+                    case Skill.Acrobatics:
+                    case Skill.Armorer:
+                    case Skill.Axe:
+                    case Skill.BluntWeapon:
+                    case Skill.LongBlade:
                         return Attribute.Strength;
-                    case NpcContent.Stats.Skill.Block:
-                    case NpcContent.Stats.Skill.LightArmor:
-                    case NpcContent.Stats.Skill.Marksman:
-                    case NpcContent.Stats.Skill.Sneak:
+                    case Skill.Block:
+                    case Skill.LightArmor:
+                    case Skill.Marksman:
+                    case Skill.Sneak:
                         return Attribute.Agility;
-                    case NpcContent.Stats.Skill.Athletics:
-                    case NpcContent.Stats.Skill.HandToHand:
-                    case NpcContent.Stats.Skill.ShortBlade:
-                    case NpcContent.Stats.Skill.Unarmored:
+                    case Skill.Athletics:
+                    case Skill.HandToHand:
+                    case Skill.ShortBlade:
+                    case Skill.Unarmored:
                         return Attribute.Speed;
-                    case NpcContent.Stats.Skill.Mercantile:
-                    case NpcContent.Stats.Skill.Speechcraft:
-                    case NpcContent.Stats.Skill.Illusion:
+                    case Skill.Mercantile:
+                    case Skill.Speechcraft:
+                    case Skill.Illusion:
                         return Attribute.Personality;
-                    case NpcContent.Stats.Skill.Security:
-                    case NpcContent.Stats.Skill.Alchemy:
-                    case NpcContent.Stats.Skill.Conjuration:
-                    case NpcContent.Stats.Skill.Enchant:
+                    case Skill.Security:
+                    case Skill.Alchemy:
+                    case Skill.Conjuration:
+                    case Skill.Enchant:
                         return Attribute.Intelligence;
-                    case NpcContent.Stats.Skill.Alteration:
-                    case NpcContent.Stats.Skill.Destruction:
-                    case NpcContent.Stats.Skill.Mysticism:
-                    case NpcContent.Stats.Skill.Restoration:
+                    case Skill.Alteration:
+                    case Skill.Destruction:
+                    case Skill.Mysticism:
+                    case Skill.Restoration:
                         return Attribute.Willpower;
                     default:
                         throw new Exception("What the fuck");
@@ -287,38 +296,42 @@ namespace JortPob
 
         public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
-            job = record.json["class"].ToString();
-            faction = record.json["faction"].ToString().Trim() != "" ? record.json["faction"].ToString() : null;
+            race = Enum.Parse<Race>(record.json["race"]?.ToString().Replace(" ", "") ?? throw new Exception("NpcContent json is missing race value!"));
+            job = record.json["class"]?.ToString() ?? throw new Exception("NpcContent json is missing job value!");
+            faction = string.IsNullOrEmpty(record.json["faction"]?.ToString()) ? null : record.json["faction"]!.ToString();
 
-            sex = record.json["npc_flags"].ToString().ToLower().Contains("female") ? Sex.Female : Sex.Male;
+            sex = record.json["npc_flags"]?.ToString().ToLower().Contains("female") ?? true ? Sex.Female : Sex.Male; // Default to female
 
-            essential = record.json["npc_flags"] != null ? record.json["npc_flags"].GetValue<string>().ToLower().Contains("essential") : false;
+            essential = record.json["npc_flags"]?.GetValue<string>().ToLower().Contains("essential") ?? false;
 
-            level = int.Parse(record.json["data"]["level"].ToString());
-            disposition = int.Parse(record.json["data"]["disposition"].ToString());
-            reputation = int.Parse(record.json["data"]["reputation"].ToString());
-            rank = int.Parse(record.json["data"]["rank"].ToString());
-            gold = int.Parse(record.json["data"]["gold"].ToString());
+            level = record.json["data"]?["level"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->level!");
+            disposition = record.json["data"]?["disposition"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->disposition!");
+            reputation = record.json["data"]?["reputation"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->reputation!");
+            rank = record.json["data"]?["rank"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->rank!");
+            gold = record.json["data"]?["gold"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->gold!");
 
-            hello = int.Parse(record.json["ai_data"]["hello"].ToString());
-            fight = int.Parse(record.json["ai_data"]["fight"].ToString());
-            flee = int.Parse(record.json["ai_data"]["flee"].ToString());
-            alarm = int.Parse(record.json["ai_data"]["alarm"].ToString());
+            hello = record.json["ai_data"]?["hello"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->hello!");
+            fight = record.json["ai_data"]?["fight"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->fight!");
+            flee = record.json["ai_data"]?["flee"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->flee!");
+            alarm = record.json["ai_data"]?["alarm"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->alarm!");
 
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
-            dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
+            
+            dead = int.TryParse(record.json["data"]?["stats"]?["health"]?.ToString(), out var res) && res <= 0;
 
-            if (record.json["data"]["stats"] != null)
+            if (record.json["data"]?["stats"] != null)
             {
-                stats = new(record.json["data"]["stats"]);
+                stats = new(record.json["data"]!["stats"]!);
             }
             else
             {
-                stats = new(sex, esm.GetRace(record.json["race"].ToString()), esm.GetJob(job), level);
+                var jobInfo = esm.GetJob(job) ?? throw new Exception($"Could not get jobInfo from job '{job}'");
+                var race = record.json["race"]?.ToString() ?? throw new Exception("NpcContent is missing value race!");
+                var raceInfo = esm.GetRace(race) ?? throw new Exception($"Could not get raceInfo from race '{race}'");
+                stats = new(sex, raceInfo, jobInfo, level);
             }
 
-            string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
+            string[] serviceFlags = record.json["ai_data"]?["services"]?.ToString().Split("|") ?? throw new Exception($"NpcContent is missing ai_data->services");
             services = new();
             foreach (string s in serviceFlags)
             {
@@ -334,27 +347,33 @@ namespace JortPob
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
 
             inventory = new();
-            JsonArray invJson = record.json["inventory"].AsArray();
-            foreach(JsonNode node in invJson)
+            JsonArray invJson = record.json["inventory"]?.AsArray() ?? [];
+            foreach(var node in invJson)
             {
+                if (node == null)
+                    continue;
+
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
+                if (item.Count < 2)
+                    throw new Exception("NpcContent inventory node is has less than the required elements!");
+                inventory.Add(new(item[1]!.GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0]!.GetValue<int>()))));
             }
 
             spells = new();
             if (record.json["spells"] != null)
             {
-                JsonArray spellJson = record.json["spells"].AsArray();
+                JsonArray spellJson = record.json["spells"]!.AsArray();
                 for(int i=0;i<spellJson.Count;i++)
                 {
-                    spells.Add(spellJson[i].GetValue<string>().ToLower());
+                    spells.Add(spellJson[i]!.GetValue<string>().ToLower());
                 }
             }
 
             travel = new();
-            JsonArray travelJson = record.json["travel_destinations"].AsArray();
-            foreach (JsonNode t in travelJson)
+            JsonArray travelJson = record.json["travel_destinations"]?.AsArray() ?? [];
+            foreach (var t in travelJson)
             {
+                if (t == null) continue;
                 travel.Add(new Travel(t));
             }
         }
@@ -441,12 +460,12 @@ namespace JortPob
     {
         public AssetContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
+            mesh = record.json["mesh"]?.ToString().ToLower();
         }
 
         public EmitterContent ConvertToEmitter()
         {
-            return new EmitterContent(id, type, load, position, rotation, scale, mesh);
+            return new EmitterContent(id, type, load, position, rotation, scale, mesh ?? throw new Exception("Mesh value is null, cannot convert to EmitterContent"));
         }
     }
 
@@ -456,23 +475,23 @@ namespace JortPob
         public class Warp
         {
             // this data comes from the esm, we use it to resolve the actual data we will use
-            public readonly string cell;
+            public string? cell { get; init; }
             public readonly Vector3 position, rotation;
 
             // this is the actual warp data we generate
             public int map, x, y, block;
             public uint entity;
-            public string prompt; // used for the action button prompt. this is either the cell name, region name, or a generic "Morrowind" as a last case
+            public string prompt { get; set; } = "Morrowind"; // used for the action button prompt. this is either the cell name, region name, or a generic "Morrowind" as a last case
 
             public Warp(JsonNode json)
             {
-                float x = float.Parse(json["translation"][0].ToString());
-                float z = float.Parse(json["translation"][1].ToString());
-                float y = float.Parse(json["translation"][2].ToString());
+                float x = float.Parse(json["translation"]?[0]?.ToString() ?? throw new Exception("Warp content missing value translation->x"));
+                float z = float.Parse(json["translation"]?[1]?.ToString() ?? throw new Exception("Warp content missing value translation->y"));
+                float y = float.Parse(json["translation"]?[2]?.ToString() ?? throw new Exception("Warp content missing value translation->z"));
 
-                float i = float.Parse(json["rotation"][0].ToString());
-                float j = float.Parse(json["rotation"][1].ToString());
-                float k = float.Parse(json["rotation"][2].ToString());
+                float i = float.Parse(json["rotation"]?[0]?.ToString() ?? throw new Exception("Warp content missing value rotation->x"));
+                float j = float.Parse(json["rotation"]?[1]?.ToString() ?? throw new Exception("Warp content missing value rotation->y"));
+                float k = float.Parse(json["rotation"]?[2]?.ToString() ?? throw new Exception("Warp content missing value rotation->z"));
 
                 // Same rotation code as in content, just copy pasted because lol lmao
                 /* Katalashes code from MapStudio */
@@ -509,20 +528,20 @@ namespace JortPob
 
                 position = new Vector3(x, y, z) * Const.GLOBAL_SCALE;
                 rotation = (eu * (float)(180 / Math.PI)) + new Vector3(0f, 180f, 0); // bonus rotation here, actual models get rotated 180 Y in the model itself, placements like this need it here
-                cell = json["cell"].ToString().Trim();
+                cell = json["cell"]?.ToString().Trim();
                 if (cell == "") { cell = null; }
             }
         }
 
-        public Warp warp;
+        public Warp? warp;
         public DoorContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
+            mesh = record.json["mesh"]?.ToString().ToLower();
 
             if (json["destination"]  == null) { warp = null; }
             else
             {
-                warp = new(json["destination"]);
+                warp = new(json["destination"] ?? throw new Exception("DoorContent value destination is missing!"));
             }
         }
     }
@@ -530,25 +549,30 @@ namespace JortPob
     /* static mesh of a container in the world that can **CAN** (but not always) be lootable */
     public class ContainerContent : Content
     {
-        public readonly string ownerNpc; // npc record id of the owenr of this container, can be null
-        public readonly string ownerFaction; // faction id that owns this container, player can take it if they are in that faction. can be null
+        public readonly string? ownerNpc; // npc record id of the owenr of this container, can be null
+        public readonly string? ownerFaction; // faction id that owns this container, player can take it if they are in that faction. can be null
 
         public List<(string id, int quantity)> inventory;
 
-        public Script.Flag treasure; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
+        public Script.Flag? treasure; // if this container content has a treasure event and is a lootable container, this flag will be the "has been looted" flag. otherwise null
 
         public ContainerContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
-            if (json["owner"] != null) { ownerNpc = json["owner"].GetValue<string>(); }
-            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
+            mesh = record.json["mesh"]?.ToString().ToLower();
+            if (json["owner"] != null) { ownerNpc = json["owner"]!.GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"]!.GetValue<string>(); }
 
             inventory = new();
-            JsonArray invJson = record.json["inventory"].AsArray();
-            foreach (JsonNode node in invJson)
+            JsonArray invJson = record.json["inventory"]?.AsArray() ?? [];
+            foreach (var node in invJson)
             {
+                if (node == null) 
+                    continue;
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));  // get item record id and quantity from json
+                if (item.Count < 2)
+                    throw new Exception("ContainerContent inventory node has less than the required elements!");
+
+                inventory.Add(new(item[1]!.GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0]!.GetValue<int>()))));  // get item record id and quantity from json
             }
         }
 
@@ -567,14 +591,18 @@ namespace JortPob
 
         public PickableContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
+            mesh = record.json["mesh"]?.ToString().ToLower();
 
             inventory = new();
-            JsonArray invJson = record.json["inventory"].AsArray();
-            foreach (JsonNode node in invJson)
+            JsonArray invJson = record.json["inventory"]?.AsArray() ?? [];
+            foreach (var node in invJson)
             {
+                if (node == null) continue;
                 JsonArray item = node.AsArray();
-                inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));  // get item record id and quantity from json
+                if (item.Count < 2)
+                    throw new Exception("PickableContent inventory node has less than the required values!");
+
+                inventory.Add(new(item[1]!.GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0]!.GetValue<int>()))));  // get item record id and quantity from json
             }
         }
 
@@ -588,19 +616,19 @@ namespace JortPob
     /* static mesh of an item placed in the world that can **CAN** (but not always) be pickupable */
     public class ItemContent : Content
     {
-        public readonly string ownerNpc; // npc record id of the owenr of this item, can be null
-        public readonly string ownerFaction; // faction id that owns this item, player can take it if they are in that faction. can be null
+        public readonly string? ownerNpc; // npc record id of the owenr of this item, can be null
+        public readonly string? ownerFaction; // faction id that owns this item, player can take it if they are in that faction. can be null
 
         public readonly int value; // morrowind gp value for this item
 
-        public Script.Flag treasure; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
+        public Script.Flag? treasure; // if this item content has a treasure event and is a lootable item, this flag will be the "is picked up" flag. otherwise null
 
         public ItemContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
-            if (json["owner"] != null ) { ownerNpc = json["owner"].GetValue<string>(); }
-            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"].GetValue<string>(); }
-            value = record.json["data"]["value"].GetValue<int>();
+            mesh = record.json["mesh"]?.ToString().ToLower();
+            if (json["owner"] != null ) { ownerNpc = json["owner"]!.GetValue<string>(); }
+            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"]!.GetValue<string>(); }
+            value = record.json["data"]?["value"]?.GetValue<int>() ?? 1000; // Default to 1k
         }
 
         // Generates button prompt text for looting this container
@@ -616,7 +644,7 @@ namespace JortPob
     {
         public EmitterContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"].ToString().ToLower();
+            mesh = record.json["mesh"]?.ToString().ToLower();
         }
 
         public EmitterContent(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale, string mesh) : base(id, type, load, position, rotation, scale)
@@ -639,19 +667,19 @@ namespace JortPob
 
         public LightContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            int r = int.Parse(record.json["data"]["color"][0].ToString());
-            int g = int.Parse(record.json["data"]["color"][1].ToString());
-            int b = int.Parse(record.json["data"]["color"][2].ToString());
-            int a = int.Parse(record.json["data"]["color"][3].ToString());
+            int r = int.Parse(record.json["data"]?["color"]?[0]?.ToString() ?? throw new Exception("LightContent is missing value data->color->r!"));
+            int b = int.Parse(record.json["data"]?["color"]?[2]?.ToString() ?? throw new Exception("LightContent is missing value data->color->g!"));
+            int g = int.Parse(record.json["data"]?["color"]?[1]?.ToString() ?? throw new Exception("LightContent is missing value data->color->b!"));
+            int a = int.Parse(record.json["data"]?["color"]?[3]?.ToString() ?? throw new Exception("LightContent is missing value data->color->a!"));
             color = new(r, g, b, a);  // 0 -> 255 colors
 
-            radius = float.Parse(record.json["data"]["radius"].ToString()) * Const.GLOBAL_SCALE;
-            weight = float.Parse(record.json["data"]["weight"].ToString());
+            radius = float.Parse(record.json["data"]?["radius"]?.ToString() ?? throw new Exception("LightContent is missing value data->radius!")) * Const.GLOBAL_SCALE;
+            weight = float.Parse(record.json["data"]?["weight"]?.ToString() ?? throw new Exception("LightContent is missing value data->weight!"));
 
-            value = int.Parse(record.json["data"]["value"].ToString());
-            time = int.Parse(record.json["data"]["time"].ToString());
+            value = int.Parse(record.json["data"]?["value"]?.ToString() ?? throw new Exception("LightContent is missing value data->value!"));
+            time = int.Parse(record.json["data"]?["time"]?.ToString() ?? throw new Exception("LightContent is missing value data->time!"));
 
-            string flags = record.json["data"]["flags"].ToString();
+            string flags = record.json["data"]?["flags"]?.ToString() ?? throw new Exception("LightContent is missing value data->flags!");
 
             dynamic = flags.Contains("DYNAMIC");
             fire = flags.Contains("FIRE");

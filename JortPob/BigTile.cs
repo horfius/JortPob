@@ -4,13 +4,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 
+#nullable enable
+
 namespace JortPob
 {
     /* BigTile is a 2x2 grid of Tiles. Sort of like an LOD type thing. */
     [DebuggerDisplay("Big m{map}_{coordinate.x}_{coordinate.y}_{block} :: [{cells.Count}] Cells")]
     public class BigTile : BaseTile
     {
-        public HugeTile huge;
+        public HugeTile? huge { get; set; }
         public List<Tile> tiles;
 
         public BigTile(int m, int x, int y, int b) : base(m, x, y, b)
@@ -39,7 +41,7 @@ namespace JortPob
         public override void AddCell(Cell cell)
         {
             cells.Add(cell);
-            Tile tile = GetTile(cell.center);
+            var tile = GetTile(cell.center);
             if (tile == null) { Lort.Log($" ## WARNING ## Cell fell outside of reality [{cell.coordinate.x}, {cell.coordinate.y}] -- {cell.name} :: B00", Lort.Type.Debug); return; }
             tile.AddCell(cell);
         }
@@ -50,12 +52,12 @@ namespace JortPob
             switch (content)
             {
                 case AssetContent a:
-                    ModelInfo modelInfo = cache.GetModel(a.mesh);
+                    ModelInfo modelInfo = cache.GetModel(a.mesh) ?? throw new System.Exception($"Asset mesh is invalid '{a.mesh}'");
                     if (modelInfo.size * (content.scale*0.01f) > Const.CONTENT_SIZE_BIG) {
                         float x = (coordinate.x * 2f * Const.TILE_SIZE) + (Const.TILE_SIZE * 0.5f);
                         float y = (coordinate.y * 2f * Const.TILE_SIZE) + (Const.TILE_SIZE * 0.5f);
                         content.relative = (content.position + Const.LAYOUT_COORDINATE_OFFSET) - new Vector3(x, 0, y);
-                        Tile t = GetTile(cell.center);
+                        var t = GetTile(cell.center);
                         if (t == null) { break; } // Content fell outside of the bounds of any valid msbs. BAD!
                         content.load = t.coordinate;
                         base.AddContent(cache, cell, content);
@@ -63,14 +65,14 @@ namespace JortPob
                     }
                     goto default;
                 default:
-                    Tile tile = GetTile(cell.center);
+                    var tile = GetTile(cell.center);
                     if (tile == null) { break; } // Content fell outside of the bounds of any valid msbs. BAD!
                     tile.AddContent(cache, cell, content);
                     break;
             }
         }
 
-        public Tile GetTile(Vector3 position)
+        public Tile? GetTile(Vector3 position)
         {
             foreach (Tile tile in tiles)
             {

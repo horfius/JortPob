@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     public class Bind
@@ -84,6 +86,11 @@ namespace JortPob.Common
         {
             foreach(EmitterInfo emitterInfo in cache.emitters)
             {
+                if (emitterInfo.model == null)
+                {
+                    Lort.LogDebug($" ## WARNING ## Trying to bind EmitterInfo {emitterInfo.id} without a model!");
+                    continue;
+                }
                 string outPath = Path.Combine(Const.OUTPUT_PATH, @$"asset\aeg\{emitterInfo.AssetPath()}.geombnd.dcx");
 
                 // Bind up emitter asset flver
