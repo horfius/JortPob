@@ -26,8 +26,14 @@ namespace JortPob.Worker
                 Bitmap image = new Bitmap(Utility.ResourcePath("menu\\map\\map_v1.png"));
                 Bitmap map = Utility.LinearToSRGBAlt(image);
 
+                // direct refrence to the naming convention used in the game
                 string[] groundLevels = new[] { "M00" };
-                string[] zoomLevels = new[] { "L0", "L1", "L2" };
+                MapGenerator.ZoomLevel[] zoomLevels = new[] 
+                { 
+                    MapGenerator.ZoomLevel.L0,
+                    MapGenerator.ZoomLevel.L1,
+                    MapGenerator.ZoomLevel.L2
+                };
 
                 string maskPath = Path.Combine(Const.ELDEN_PATH, "Game\\menu\\71_maptile.mtmskbnd.dcx");
                 string bhdPath = Path.Combine(Const.ELDEN_PATH, "Game\\menu\\71_maptile.tpfbhd");
