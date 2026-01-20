@@ -67,7 +67,7 @@ namespace JortPob.Common
             Action progressCallback = null,
             CancellationToken cancellationToken = default)
         {
-            var replacer = new MapGenerator();
+            using var replacer = new MapGenerator();
             return replacer.ReplaceMapTilesInternal(
                 sourceImage,
                 groundLevels,
@@ -138,7 +138,7 @@ namespace JortPob.Common
         {
             try
             {
-                if (mapTileTpfBxf == null || mapTileTpfBxf.Files.Count == 0) return;
+                if (mapTileTpfBxf == null || mapTileTpfBxf.Files.Count == 0) throw new FileNotFoundException("Map files weren't loaded correctly");
 
                 BinderFile? l0File = mapTileTpfBxf.Files.FirstOrDefault(f => f.Name.Contains("MENU_MapTile_M00_L0_00_00_00000000"));
                 BinderFile? l1File = mapTileTpfBxf.Files.FirstOrDefault(f => f.Name.Contains("MENU_MapTile_M00_L1_00_00_00000000"));
