@@ -280,7 +280,7 @@ namespace JortPob
                     FMG fmg = kvp.Value;
                     if (!Const.DEBUG_SKIP_FMG_PARAM_SORTING)
                     {
-                        Utility.SortFMG(fmg);  // it's too slow!!!!!! jesus fucking christ make a faster sort @TODO: !!
+                        Utility.SortFMG(fmg);
                     }
 
                     BinderFile file = new();
