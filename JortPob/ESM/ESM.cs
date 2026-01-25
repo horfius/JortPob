@@ -388,7 +388,7 @@ namespace JortPob
 
         public Record ResolveLeveledCreature(string id)
         {
-            LeveledCreature leveledCreatureList = GetLeveledCreature(id);
+            LeveledCreature leveledCreatureList = GetLeveledCreature(id) ?? throw new Exception($"Failed to resolve leveled creature list: {id}");
             string creature = leveledCreatureList.Get();
             return FindRecordById(creature);
         }
