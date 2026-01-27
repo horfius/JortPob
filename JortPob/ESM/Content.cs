@@ -14,7 +14,7 @@ namespace JortPob
     /* Content is effectively any physical object in the game world. Anything that has a physical position in a cell */
     public abstract class Content
     {
-        public Cell? cell { get; init; }
+        public Cell cell { get; init; }
 
         public readonly string id;   // record id
         public readonly string? name; // can be null!
@@ -35,7 +35,7 @@ namespace JortPob
         {
             this.cell = cell;
             load = new(0, 0);
-            id = record["id"]?.ToString() ?? throw new Exception("Could not find id from content json!");
+            id = record.json["id"]?.ToString() ?? throw new Exception("Could not find id from content json!");
             name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
@@ -92,7 +92,7 @@ namespace JortPob
             scale = (int)((json["scale"] != null ? float.Parse(json["scale"]!.ToString()) : 1f) * 100);
         }
 
-        public Content(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale)
+        public Content(Cell cell, string id, string? name, ESM.Type type, Int2 load, string? papyrus, Vector3 position, Vector3 rotation, int scale)
         {
             this.cell = cell;
             this.id = id;
@@ -170,7 +170,7 @@ namespace JortPob
 
                 foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
                 {
-                    int val = json[attribute.ToString().ToLower()].GetValue<int>();
+                    int val = json[attribute.ToString().ToLower()]!.GetValue<int>();
                     attributes.Add(attribute, val);
                 }
 
@@ -326,7 +326,7 @@ namespace JortPob
             {
                 race = Enum.Parse<Race>(record.json["race"]!.GetValue<string>().Replace(" ", ""));
                 job = record.json["class"]!.GetValue<string>();
-                faction = string.IsNullOrWhiteSpace(record.json["faction"]?.GetValue<string>()) ? null : record.json["faction"].GetValue<string>();
+                faction = string.IsNullOrWhiteSpace(record.json["faction"]?.GetValue<string>()) ? null : record.json["faction"]!.GetValue<string>();
 
                 sex = record.json["npc_flags"]!.GetValue<string>().Contains("female") ? Sex.Female : Sex.Male;
 
@@ -340,7 +340,10 @@ namespace JortPob
                 }
                 else
                 {
-                    stats = new(sex, esm.GetRace(record.json["race"]!.GetValue<string>()), esm.GetJob(job), level);
+                    stats = new(sex, 
+                        esm.GetRace(record.json["race"]!.GetValue<string>()) ?? throw new Exception($"Could not find race with value '{record.json["race"]!.GetValue<string>()}'"),
+                        esm.GetJob(job) ?? throw new Exception($"Could not find job with value '{job}'"),
+                        level);
                 }
             }
 
@@ -511,12 +514,12 @@ namespace JortPob
     {
         public AssetContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            mesh = record.json["mesh"]?.ToString().ToLower();
+            mesh = record.json["mesh"]!.ToString().ToLower();
         }
 
         public EmitterContent ConvertToEmitter()
         {
-            return new EmitterContent(cell, id, name, type, load, papyrus, position, rotation, scale, mesh ?? throw new Exception("Mesh value is null, cannot convert to EmitterContent"));
+            return new EmitterContent(cell, id, name, type, load, papyrus, position, rotation, scale, mesh!);
         }
     }
 
@@ -698,7 +701,7 @@ namespace JortPob
             mesh = record.json["mesh"]?.ToString().ToLower();
         }
 
-        public EmitterContent(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale, string mesh) : base(cell, id, name, type, load, papyrus, position, rotation, scale)
+        public EmitterContent(Cell cell, string id, string? name, ESM.Type type, Int2 load, string? papyrus, Vector3 position, Vector3 rotation, int scale, string mesh) : base(cell, id, name, type, load, papyrus, position, rotation, scale)
         {
             this.mesh = mesh;
         }

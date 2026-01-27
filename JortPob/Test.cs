@@ -99,7 +99,7 @@ namespace JortPob
             Bind.BindMaterials($"{Const.OUTPUT_PATH}material\\allmaterial.matbinbnd.dcx");
 
             // all our terrain map pieces are now in the super overworld so this is easier lol
-            string map = "60";
+            //string map = "60";
             string name = "60_00_00_99";
             foreach (Tuple<TerrainInfo, int> values in OUTPUT)
             {
