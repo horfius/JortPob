@@ -1,9 +1,11 @@
 ﻿using JortPob.Common;
+using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using static JortPob.NpcContent;
 
 #nullable enable
 
@@ -33,7 +35,7 @@ namespace JortPob
         {
             this.cell = cell;
             load = new(0, 0);
-            id = json["id"]?.ToString() ?? throw new Exception("Could not find id from content json!");
+            id = record["id"]?.ToString() ?? throw new Exception("Could not find id from content json!");
             name = record.json["name"]?.GetValue<string>();
 
             type = record.type;
@@ -90,21 +92,25 @@ namespace JortPob
             scale = (int)((json["scale"] != null ? float.Parse(json["scale"]!.ToString()) : 1f) * 100);
         }
 
-        public Content(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale)
+        public Content(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale)
         {
+            this.cell = cell;
             this.id = id;
+            this.name = name;
             this.type = type;
             this.load = load;
+            this.papyrus = papyrus;
             this.position = position;
             this.rotation = rotation;
             this.scale = scale;
         }
     }
 
-    /* npcs, humanoid only */
-    public class NpcContent : Content
+    /* abstrat class that both humanoid NPCs and creature derive from */
+    public abstract class CharacterContent : Content
     {
-        public enum Race { Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
+        // Never EVER assign "Race.Custom" to anything! It is only used by SoundManager classes to handle unique voice roles
+        public enum Race { Custom = -2, Creature = -1, Any = 0, Argonian = 1, Breton = 2, DarkElf = 3, HighElf = 4, Imperial = 5, Khajiit = 6, Nord = 7, Orc = 8, Redguard = 9, WoodElf = 10 }
         public enum Sex { Any, Male, Female };
         public enum Service {
             OffersTraining, BartersIngredients, BartersApparatus, BartersAlchemy, BartersClothing, OffersSpells, BartersWeapons,
@@ -155,6 +161,24 @@ namespace JortPob
 
             private readonly Dictionary<Skill, int> skills;
             private readonly Dictionary<Attribute, int> attributes;
+
+            /* Defined stats for a creature constructor */
+            public Stats(JsonNode json, int level)
+            {
+                attributes = new();
+                skills = new();
+
+                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                {
+                    int val = json[attribute.ToString().ToLower()].GetValue<int>();
+                    attributes.Add(attribute, val);
+                }
+
+                foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                {
+                    skills.Add(skill, Math.Min(100, level * 5));
+                }
+            }
 
             /* Defined stats constructor */
             public Stats(JsonNode json)
@@ -294,44 +318,64 @@ namespace JortPob
             }
         }
 
-        public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        /* Normal NpcContent contructor */
+        public CharacterContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            race = Enum.Parse<Race>(record.json["race"]?.ToString().Replace(" ", "") ?? throw new Exception("NpcContent json is missing race value!"));
-            job = record.json["class"]?.ToString() ?? throw new Exception("NpcContent json is missing job value!");
-            faction = string.IsNullOrEmpty(record.json["faction"]?.ToString()) ? null : record.json["faction"]!.ToString();
+            /* NPC Specific data */
+            if (type == ESM.Type.Npc)
+            {
+                race = Enum.Parse<Race>(record.json["race"]!.GetValue<string>().Replace(" ", ""));
+                job = record.json["class"]!.GetValue<string>();
+                faction = string.IsNullOrWhiteSpace(record.json["faction"]?.GetValue<string>()) ? null : record.json["faction"].GetValue<string>();
 
-            sex = record.json["npc_flags"]?.ToString().ToLower().Contains("female") ?? true ? Sex.Female : Sex.Male; // Default to female
+                sex = record.json["npc_flags"]!.GetValue<string>().Contains("female") ? Sex.Female : Sex.Male;
 
+                disposition = record.json["data"]!["disposition"]!.GetValue<int>();
+                reputation = record.json["data"]!["reputation"]!.GetValue<int>();
+                rank = record.json["data"]!["rank"]!.GetValue<int>();
+
+                if (record.json["data"]?["stats"] != null)
+                {
+                    stats = new(record.json["data"]!["stats"]!);
+                }
+                else
+                {
+                    stats = new(sex, esm.GetRace(record.json["race"]!.GetValue<string>()), esm.GetJob(job), level);
+                }
+            }
+
+            /* Creature spefic data */
+            else
+            {
+                race = Race.Creature;
+                job = "none";
+                faction = null;
+
+                sex = Sex.Male;
+
+                disposition = 50;
+                reputation = 0;
+                rank = 0;
+
+                stats = new(record.json["data"]!, level);
+            }
+
+            /* Generic data used by both NPC and Creature */
             essential = record.json["npc_flags"]?.GetValue<string>().ToLower().Contains("essential") ?? false;
 
-            level = record.json["data"]?["level"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->level!");
-            disposition = record.json["data"]?["disposition"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->disposition!");
-            reputation = record.json["data"]?["reputation"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->reputation!");
-            rank = record.json["data"]?["rank"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->rank!");
-            gold = record.json["data"]?["gold"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value data->gold!");
+            level = record.json["data"]!["level"]!.GetValue<int>();
+            gold = record.json["data"]!["gold"]!.GetValue<int>();
 
-            hello = record.json["ai_data"]?["hello"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->hello!");
-            fight = record.json["ai_data"]?["fight"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->fight!");
-            flee = record.json["ai_data"]?["flee"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->flee!");
-            alarm = record.json["ai_data"]?["alarm"]?.GetValue<int>() ?? throw new Exception("NpcContent is missing value ai_data->alarm!");
+            hello = record.json["ai_data"]!["hello"]!.GetValue<int>();
+            fight = record.json["ai_data"]!["fight"]!.GetValue<int>();
+            flee = record.json["ai_data"]!["flee"]!.GetValue<int>();
+            alarm = record.json["ai_data"]!["alarm"]!.GetValue<int>();
 
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             
-            dead = int.TryParse(record.json["data"]?["stats"]?["health"]?.ToString(), out var res) && res <= 0;
+            dead = int.TryParse(record.json["data"]?["stats"]?["health"]?.GetValue<string>(), out var res) && res <= 0;
 
-            if (record.json["data"]?["stats"] != null)
-            {
-                stats = new(record.json["data"]!["stats"]!);
-            }
-            else
-            {
-                var jobInfo = esm.GetJob(job) ?? throw new Exception($"Could not get jobInfo from job '{job}'");
-                var race = record.json["race"]?.ToString() ?? throw new Exception("NpcContent is missing value race!");
-                var raceInfo = esm.GetRace(race) ?? throw new Exception($"Could not get raceInfo from race '{race}'");
-                stats = new(sex, raceInfo, jobInfo, level);
-            }
-
-            string[] serviceFlags = record.json["ai_data"]?["services"]?.ToString().Split("|") ?? throw new Exception($"NpcContent is missing ai_data->services");
+            string[] serviceFlags = record.json["ai_data"]!["services"]!.GetValue<string>().Split("|");
             services = new();
             foreach (string s in serviceFlags)
             {
@@ -444,14 +488,21 @@ namespace JortPob
         }
     }
 
-    /* creatures, both leveled and non-leveled */
-    public class CreatureContent : Content
+    /* npcs, humanoid only */
+    public class NpcContent : CharacterContent
     {
-        public CreatureContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(esm, cell, json, record)
         {
-            // Kinda stubby for now
+            /* Parent constructor does all the work */
+        }
+    }
 
-            rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
+    /* creatures, both leveled and non-leveled */
+    public class CreatureContent : CharacterContent
+    {
+        public CreatureContent(ESM esm, Cell cell, JsonNode json, Record record) : base(esm, cell, json, record)
+        {
+            /* Parent constructor does all the work */
         }
     }
 
@@ -465,7 +516,7 @@ namespace JortPob
 
         public EmitterContent ConvertToEmitter()
         {
-            return new EmitterContent(id, type, load, position, rotation, scale, mesh ?? throw new Exception("Mesh value is null, cannot convert to EmitterContent"));
+            return new EmitterContent(cell, id, name, type, load, papyrus, position, rotation, scale, mesh ?? throw new Exception("Mesh value is null, cannot convert to EmitterContent"));
         }
     }
 
@@ -647,7 +698,7 @@ namespace JortPob
             mesh = record.json["mesh"]?.ToString().ToLower();
         }
 
-        public EmitterContent(string id, ESM.Type type, Int2 load, Vector3 position, Vector3 rotation, int scale, string mesh) : base(id, type, load, position, rotation, scale)
+        public EmitterContent(Cell cell, string id, string name, ESM.Type type, Int2 load, string papyrus, Vector3 position, Vector3 rotation, int scale, string mesh) : base(cell, id, name, type, load, papyrus, position, rotation, scale)
         {
             this.mesh = mesh;
         }
