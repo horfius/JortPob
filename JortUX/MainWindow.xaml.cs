@@ -50,10 +50,10 @@ namespace JortUX
             string mainText = "", debugText = "";
 
             // top-to-bottom order
-            foreach (string line in JortPob.Common.Lort.mainOutput)
+            foreach (string line in JortPob.Common.Lort.mainOutput!)
                 mainText += line + "\n";
 
-            foreach (string line in JortPob.Common.Lort.debugOutput)
+            foreach (string line in JortPob.Common.Lort.debugOutput!)
                 debugText += line + "\n";
 
             main.Text = mainText;

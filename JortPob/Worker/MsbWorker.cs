@@ -25,7 +25,7 @@ namespace JortPob.Worker
             string map = $"{pool.id[0].ToString("D2")}";
             string name = $"{pool.id[0].ToString("D2")}_{pool.id[1].ToString("D2")}_{pool.id[2].ToString("D2")}_{pool.id[3].ToString("D2")}";
 
-            pool.msb.Write($"{Const.OUTPUT_PATH}map\\mapstudio\\m{name}.msb.dcx");
+            pool.msb.Write(Path.Combine(Const.OUTPUT_PATH, $@"map\mapstudio\m{name}.msb.dcx"));
             if (pool.lights.Count() > 0) { pool.lights.Write(); }
 
             /* Write map pieces like terrain */
@@ -48,7 +48,7 @@ namespace JortPob.Worker
                 file.Bytes = flver.Write();
                 bnd.Files.Add(file);
 
-                bnd.Write($"{Const.OUTPUT_PATH}map\\m60\\m{name}\\m{name}_{mpid.ToString("D8")}.mapbnd.dcx");
+                bnd.Write(Path.Combine(Const.OUTPUT_PATH, $@"map\m60\m{name}\m{name}_{mpid.ToString("D8")}.mapbnd.dcx"));
             }
 
             BXF4 bxfH = new();
@@ -72,7 +72,7 @@ namespace JortPob.Worker
                 testH.ID = id++;
                 bxfH.Files.Add(testH);
             }
-            bxfH.Write($"{Const.OUTPUT_PATH}map\\m{map}\\m{name}\\h{name}.hkxbhd", $"{Const.OUTPUT_PATH}map\\m{map}\\m{name}\\h{name}.hkxbdt");
+            bxfH.Write(Path.Combine(Const.OUTPUT_PATH, $@"map\m{map}\m{name}\h{name}.hkxbhd"), Path.Combine(Const.OUTPUT_PATH, $@"map\m{map}\m{name}\h{name}.hkxbdt"));
 
             BXF4 bxfL = new();
             bxfL.Version = "07D7R6";
@@ -95,7 +95,7 @@ namespace JortPob.Worker
                 testL.ID = id++;
                 bxfL.Files.Add(testL);
             }
-            bxfL.Write($"{Const.OUTPUT_PATH}map\\m{map}\\m{name}\\l{name}.hkxbhd", $"{Const.OUTPUT_PATH}map\\m{map}\\m{name}\\l{name}.hkxbdt");
+            bxfL.Write(Path.Combine(Const.OUTPUT_PATH, $@"map\m{map}\m{name}\l{name}.hkxbhd"), Path.Combine(Const.OUTPUT_PATH, $@"map\m{map}\m{name}\l{name}.hkxbdt"));
 
             Lort.TaskIterate(); // Progress bar update
 

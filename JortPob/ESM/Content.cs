@@ -721,19 +721,19 @@ namespace JortPob
 
         public LightContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
-            int r = int.Parse(record.json["data"]?["color"]?[0]?.ToString() ?? throw new Exception("LightContent is missing value data->color->r!"));
-            int b = int.Parse(record.json["data"]?["color"]?[2]?.ToString() ?? throw new Exception("LightContent is missing value data->color->g!"));
-            int g = int.Parse(record.json["data"]?["color"]?[1]?.ToString() ?? throw new Exception("LightContent is missing value data->color->b!"));
-            int a = int.Parse(record.json["data"]?["color"]?[3]?.ToString() ?? throw new Exception("LightContent is missing value data->color->a!"));
+            int r = record.json["data"]!["color"]![0]!.GetValue<int>();
+            int b = record.json["data"]!["color"]![2]!.GetValue<int>();
+            int g = record.json["data"]!["color"]![1]!.GetValue<int>();
+            int a = record.json["data"]!["color"]![3]!.GetValue<int>();
             color = new(r, g, b, a);  // 0 -> 255 colors
 
-            radius = float.Parse(record.json["data"]?["radius"]?.ToString() ?? throw new Exception("LightContent is missing value data->radius!")) * Const.GLOBAL_SCALE;
-            weight = float.Parse(record.json["data"]?["weight"]?.ToString() ?? throw new Exception("LightContent is missing value data->weight!"));
+            radius = record.json["data"]!["radius"]!.GetValue<float>() * Const.GLOBAL_SCALE;
+            weight = record.json["data"]!["weight"]!.GetValue<float>();
 
-            value = int.Parse(record.json["data"]?["value"]?.ToString() ?? throw new Exception("LightContent is missing value data->value!"));
-            time = int.Parse(record.json["data"]?["time"]?.ToString() ?? throw new Exception("LightContent is missing value data->time!"));
+            value = record.json["data"]!["value"]!.GetValue<int>();
+            time = record.json["data"]!["time"]!.GetValue<int>();
 
-            string flags = record.json["data"]?["flags"]?.ToString() ?? throw new Exception("LightContent is missing value data->flags!");
+            string flags = record.json["data"]!["flags"]!.GetValue<string>();
 
             dynamic = flags.Contains("DYNAMIC");
             fire = flags.Contains("FIRE");

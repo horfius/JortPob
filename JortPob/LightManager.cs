@@ -1,5 +1,6 @@
 ﻿using JortPob.Common;
 using SoulsFormats;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 
@@ -104,7 +105,7 @@ namespace JortPob
 
         public void Write()
         {
-            string path = $"{Const.OUTPUT_PATH}map\\m{map:D2}\\m{map:D2}_{x:D2}_{y:D2}_{block:D2}\\m{map:D2}_{x:D2}_{y:D2}_{block:D2}_0000.btl.dcx";
+            string path = Path.Combine(Const.OUTPUT_PATH, $@"map\m{map:D2}\m{map:D2}_{x:D2}_{y:D2}_{block:D2}\m{map:D2}_{x:D2}_{y:D2}_{block:D2}_0000.btl.dcx");
             btl.Write(path, DCX.Type.DCX_DFLT_10000_44_9);
             //btab.Write($"{path}.btab.dcx", DCX.Type.DCX_DFLT_10000_44_9);
         }

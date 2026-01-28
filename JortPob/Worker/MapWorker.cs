@@ -23,7 +23,7 @@ namespace JortPob.Worker
             try
             {
                 Lort.Log("Loading UI map resources... ", Lort.Type.Main);
-                Bitmap image = new Bitmap(Utility.ResourcePath("menu\\map\\map_v1.png"));
+                Bitmap image = new Bitmap(Utility.ResourcePath(@"menu\map\map_v1.png"));
                 Bitmap map = Utility.LinearToSRGBAlt(image);
 
                 // direct refrence to the naming convention used in the game
@@ -35,9 +35,9 @@ namespace JortPob.Worker
                     MapGenerator.ZoomLevel.L2
                 };
 
-                string maskPath = Path.Combine(Const.ELDEN_PATH, "Game\\menu\\71_maptile.mtmskbnd.dcx");
-                string bhdPath = Path.Combine(Const.ELDEN_PATH, "Game\\menu\\71_maptile.tpfbhd");
-                string bdtPath = Path.Combine(Const.ELDEN_PATH, "Game\\menu\\71_maptile.tpfbdt");
+                string maskPath = Path.Combine(Const.ELDEN_PATH, @"Game\menu\71_maptile.mtmskbnd.dcx");
+                string bhdPath = Path.Combine(Const.ELDEN_PATH, @"Game\menu\71_maptile.tpfbhd");
+                string bdtPath = Path.Combine(Const.ELDEN_PATH, @"Game\menu\71_maptile.tpfbdt");
 
                 // L0 chunks + L1 chunks + L2 chunks
                 var chunkCount = (41 * 41) + (31 * 31) + (11 * 11);
@@ -59,9 +59,9 @@ namespace JortPob.Worker
                 );
 
                 Lort.Log("Writing map files... ", Lort.Type.Main);
-                File.Copy(maskPath, Path.Combine(Const.OUTPUT_PATH, "menu\\71_maptile.mtmskbnd.dcx"));
-                File.WriteAllBytes(Path.Combine(Const.OUTPUT_PATH, "menu\\71_maptile.tpfbhd"), result.bhdBytes);
-                File.WriteAllBytes(Path.Combine(Const.OUTPUT_PATH, "menu\\71_maptile.tpfbdt"), result.bdtBytes);
+                File.Copy(maskPath, Path.Combine(Const.OUTPUT_PATH, @"menu\71_maptile.mtmskbnd.dcx"));
+                File.WriteAllBytes(Path.Combine(Const.OUTPUT_PATH, @"menu\71_maptile.tpfbhd"), result.bhdBytes);
+                File.WriteAllBytes(Path.Combine(Const.OUTPUT_PATH, @"menu\71_maptile.tpfbdt"), result.bdtBytes);
             } catch (Exception ex) 
             {
                 Lort.Log($"Failed to generate UI map: {ex.Message}", Lort.Type.Debug);

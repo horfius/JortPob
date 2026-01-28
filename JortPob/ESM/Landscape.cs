@@ -3,6 +3,7 @@ using JortPob.Common;
 using JortPob.Model;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
@@ -69,7 +70,7 @@ namespace JortPob
             {
                 {
                     DEFAULT_TEXTURE_INDEX, // Default hardcoded terrain texture. Morrowind moment.
-                    new Texture("Default Terrain Texture", $"{Const.MORROWIND_PATH}{Const.TERRAIN_DEFAULT_TEXTURE}", DEFAULT_TEXTURE_INDEX)
+                    new Texture("Default Terrain Texture", Path.Combine(Const.MORROWIND_PATH, Const.TERRAIN_DEFAULT_TEXTURE), DEFAULT_TEXTURE_INDEX)
                 }
             };
 
@@ -84,9 +85,10 @@ namespace JortPob
 
                 if (ltjson != null)
                 {
+                    var fileName = ltjson["file_name"]!.GetValue<string>().ToLower();
                     texturesByIndex.Add(
                         index,
-                        new Texture(ltjson["id"].ToString().ToLower(), $"{Const.MORROWIND_PATH}Data Files\\textures\\{ltjson["file_name"].ToString().ToLower().Substring(0, ltjson["file_name"].ToString().Length - 4)}.dds", index)
+                        new Texture(ltjson["id"].ToString().ToLower(), Path.Combine(Const.MORROWIND_PATH, "Data Files", "textures", Path.ChangeExtension(fileName, "dds")), index)
                     );
                 }
                 else

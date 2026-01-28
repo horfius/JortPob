@@ -5,6 +5,7 @@ using SoulsFormats;
 using SoulsIds;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection.Metadata.Ecma335;
 using static JortPob.Script.Flag;
 using static SoulsFormats.MSB1.Event;
@@ -64,7 +65,7 @@ namespace JortPob
 
             AUTO = new(Utility.ResourcePath(@"script\\er-common.emedf.json"), true, true);
 
-            EMEVD DEBUGTESTDELETE = EMEVD.Read($"{Const.ELDEN_PATH}\\game\\event\\m60_42_36_00.emevd.dcx");
+            EMEVD DEBUGTESTDELETE = EMEVD.Read(Path.Combine(Const.ELDEN_PATH, "game", "event", "m60_42_36_00.emevd.dcx"));
 
             emevd = new EMEVD();
             emevd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
@@ -374,7 +375,7 @@ namespace JortPob
 
         public void Write()
         {
-            emevd.Write($"{Const.OUTPUT_PATH}\\event\\m{map:D2}_{x:D2}_{y:D2}_{block:D2}.emevd.dcx");
+            emevd.Write(Path.Combine(Const.OUTPUT_PATH, $@"event\m{map:D2}_{x:D2}_{y:D2}_{block:D2}.emevd.dcx"));
         }
 
         public class Flag

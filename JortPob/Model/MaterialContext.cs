@@ -205,11 +205,11 @@ namespace JortPob.Model
                 } 
                 else if (relpath.ToLower().StartsWith("textures\\"))
                 {
-                    abspath = $"{Const.MORROWIND_PATH}Data Files\\{relpath}";
+                    abspath = Path.Combine(Const.MORROWIND_PATH, "Data Files", relpath);
                 } 
                 else
                 {
-                    abspath = $"{Const.MORROWIND_PATH}Data Files\\Textures\\{relpath}";
+                    abspath = Path.Combine(Const.MORROWIND_PATH, "Data Files", "Textures", relpath);
                 }
 
                 string fileName = Utility.PathToFileName(abspath);
@@ -235,11 +235,11 @@ namespace JortPob.Model
         {
             if (texturePath.ToLower().StartsWith("textures\\"))
             {
-                texturePath = $"{Const.MORROWIND_PATH}Data Files\\{texturePath}";
+                texturePath = Path.Combine(Const.MORROWIND_PATH, "Data Files", texturePath);
             }
             else
             {
-                texturePath = $"{Const.MORROWIND_PATH}Data Files\\Textures\\{texturePath}";
+                texturePath = Path.Combine(Const.MORROWIND_PATH, "Data Files", "Textures", texturePath);
             }
 
             if (Path.GetExtension(texturePath) == string.Empty)
@@ -771,7 +771,7 @@ namespace JortPob.Model
 
         public MaterialInfo GenerateMaterialSwamp(int index)
         {
-            string diffuseTextureSourcePathA = $"{Const.MORROWIND_PATH}Data Files\\textures\\tx_bc_scum.dds"; // hardcoded swamp texture
+            string diffuseTextureSourcePathA = Path.Combine(Const.MORROWIND_PATH, "Data Files", "textures", "tx_bc_scum.dds"); // hardcoded swamp texture
             string diffuseTextureA;
             string AddTexture(string diffuseTextureSourcePath)
             {

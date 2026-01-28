@@ -3,6 +3,7 @@ using JortPob.Model;
 using SharpAssimp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -49,8 +50,8 @@ namespace JortPob.Worker
                 }
 
                 /* Generate the 100 scale version of the model. This is the baseline. After this we generate dynamics and baked scale versions from this */
-                string meshIn = $"{Const.MORROWIND_PATH}Data Files\\meshes\\{premodel.mesh.ToLower()/*.Replace(".nif", ".fbx")*/}";
-                string meshOut = $"{Const.CACHE_PATH}meshes\\{premodel.mesh.ToLower().Replace(".nif", ".flver").Replace(@"\", "_").Replace(" ", "")}";
+                string meshIn = Path.Combine(Const.MORROWIND_PATH, "Data Files", "meshes", premodel.mesh.ToLower()/*.Replace(".nif", ".fbx")*/);
+                string meshOut = Path.Combine(Const.CACHE_PATH, "meshes", premodel.mesh.ToLower().Replace(".nif", ".flver").Replace(@"\", "_").Replace(" ", ""));
                 ModelInfo modelInfo = new(premodel.mesh, $"meshes\\{premodel.mesh.ToLower().Replace(".nif", ".flver").Replace(@"\", "_").Replace(" ", "")}", 100);
                 //modelInfo = ModelConverter.FBXtoFLVER(assimpContext, materialContext, modelInfo, premodel.forceCollision, meshIn, meshOut);
 

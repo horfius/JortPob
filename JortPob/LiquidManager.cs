@@ -2054,7 +2054,7 @@ namespace JortPob
                 this.mesh = new();
 
                 AssimpContext assimpContext = new();
-                Scene fbx = assimpContext.ImportFile($"{Const.MORROWIND_PATH}Data Files\\meshes\\{meshPath.Replace(".nif", ".fbx")}");
+                Scene fbx = assimpContext.ImportFile(Path.Combine(Const.MORROWIND_PATH, "Data Files", "meshes", meshPath.Replace(".nif", ".fbx")));
                 Mesh mesh = null;  // find first mesh that's not collision and use it
                 Node node = null;
 

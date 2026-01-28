@@ -825,7 +825,7 @@ namespace JortPob
             if (param.param[Paramanager.ParamType.TalkParam].Rows.Count() >= ushort.MaxValue) { throw new Exception("Ran out of talk param rows! Will fail to compile params!"); }
 
             /* Write sound BNKs */
-            sound.Write($"{Const.OUTPUT_PATH}sd\\enus\\");
+            sound.Write(Path.Combine(Const.OUTPUT_PATH, "sd", "enus"));
 
             /* Write ESD bnds */
             character.Write();
@@ -849,14 +849,14 @@ namespace JortPob
 
             /* Write FMGs */
             Lort.Log($"Binding FMGs...", Lort.Type.Main);
-            text.Write($"{Const.OUTPUT_PATH}msg\\engus\\");
+            text.Write(Path.Combine(Const.OUTPUT_PATH, "msg", "engus"));
 
             /* Write FXR files */
             Lort.Log($"Binding FXRs...", Lort.Type.Main);
             FxrManager.Write(layout);
 
             /* Bind and write all materials and textures */
-            Bind.BindMaterials($"{Const.OUTPUT_PATH}material\\allmaterial.matbinbnd.dcx");
+            Bind.BindMaterials(Path.Combine(Const.OUTPUT_PATH, $@"material\allmaterial.matbinbnd.dcx"));
             Bind.BindTPF(cache, layout.ListCommon());
             icon.Write();
 
@@ -868,7 +868,7 @@ namespace JortPob
             Bind.BindPickables(cache);
             foreach (LiquidInfo water in cache.liquids)  // bind up them waters toooooo
             {
-                Bind.BindAsset(water, $"{Const.OUTPUT_PATH}asset\\aeg\\{water.AssetPath()}.geombnd.dcx");
+                Bind.BindAsset(water, Path.Combine(Const.OUTPUT_PATH, $@"asset\aeg\{water.AssetPath()}.geombnd.dcx"));
             }
 
             /* Generate overworld */

@@ -245,7 +245,7 @@ namespace JortPob
 
                 Lort.TaskIterate();
             }
-            SFUtil.EncryptERRegulation($"{Const.OUTPUT_PATH}regulation.bin", bnd);
+            SFUtil.EncryptERRegulation(Path.Combine(Const.OUTPUT_PATH, "regulation.bin"), bnd);
         }
 
         /* picks the partdrawparam for an asset based on its size. smaller assets have shorter render distance etc */
