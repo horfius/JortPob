@@ -77,13 +77,13 @@ namespace JortPob.Worker
                         else
                         {
                             ModelInfo baked = new(modelInfo.name, modelInfo.path.Replace(".flver", $"_s{scale}.flver"), scale);
-                            FLVERUtil.Scale($"{Const.CACHE_PATH}{modelInfo.path}", $"{Const.CACHE_PATH}{baked.path}", scale * 0.01f);
+                            FLVERUtil.Scale(Path.Combine(Const.CACHE_PATH, modelInfo.path), Path.Combine(Const.CACHE_PATH, baked.path), scale * 0.01f);
                             if (modelInfo.collision != null)
                             {
                                 baked.collision = new(modelInfo.collision.name, modelInfo.collision.obj.Replace(".obj", $"_s{scale}.obj"));
-                                Obj obj = new($"{Const.CACHE_PATH}{modelInfo.collision.obj}");
+                                Obj obj = new(Path.Combine(Const.CACHE_PATH, modelInfo.collision.obj));
                                 obj.scale(scale * 0.01f);
-                                obj.write($"{Const.CACHE_PATH}{baked.collision.obj}");
+                                obj.write(Path.Combine(Const.CACHE_PATH, baked.collision.obj));
                             }
                             baked.size = modelInfo.size * (scale * 0.01f);
                             models.Add(baked);

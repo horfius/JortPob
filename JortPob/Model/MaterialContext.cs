@@ -828,7 +828,7 @@ namespace JortPob.Model
             foreach(KeyValuePair<string, MATBIN> kvp in genMATBINs)
             {
                 string outFileName = $"{Utility.PathToFileName(kvp.Value.SourcePath)}.matbin";
-                kvp.Value.Write($"{Const.CACHE_PATH}materials\\{outFileName}");
+                kvp.Value.Write(Path.Combine(Const.CACHE_PATH, "materials", outFileName));
                 Lort.TaskIterate();
             }
 
@@ -874,7 +874,7 @@ namespace JortPob.Model
                         TPF.Texture tex = new($"{kvp.Value}", (byte)format, 0, data, TPF.TPFPlatform.PC);
                         tpf.Textures.Add(tex);
 
-                        tpf.Write($"{Const.CACHE_PATH}textures\\{kvp.Value}.tpf.dcx");
+                        tpf.Write(Path.Combine(Const.CACHE_PATH, "textures", $"{kvp.Value}.tpf.dcx"));
                     }
 
                     /* And then, make a low detail texture for lods and bind that up */
@@ -890,7 +890,7 @@ namespace JortPob.Model
                         TPF.Texture tex = new($"{kvp.Value}_l", (byte)format, 0, dataLow, TPF.TPFPlatform.PC);
                         tpf.Textures.Add(tex);
 
-                        tpf.Write($"{Const.CACHE_PATH}textures\\{kvp.Value}_l.tpf.dcx");
+                        tpf.Write(Path.Combine(Const.CACHE_PATH, "textures", $"{kvp.Value}_l.tpf.dcx"));
                     }
                 }
                 else
@@ -911,7 +911,7 @@ namespace JortPob.Model
                         TPF.Texture tex = new($"{kvp.Value}", (byte)format, 0, errorData, TPF.TPFPlatform.PC);
                         tpf.Textures.Add(tex);
 
-                        tpf.Write($"{Const.CACHE_PATH}textures\\{kvp.Value}.tpf.dcx");
+                        tpf.Write(Path.Combine(Const.CACHE_PATH, "textures", $"{kvp.Value}.tpf.dcx"));
                     }
 
                     /* And then, make a low detail texture for lods and bind that up */
@@ -927,7 +927,7 @@ namespace JortPob.Model
                         TPF.Texture tex = new($"{kvp.Value}_l", (byte)format, 0, errorDataLow, TPF.TPFPlatform.PC);
                         tpf.Textures.Add(tex);
 
-                        tpf.Write($"{Const.CACHE_PATH}textures\\{kvp.Value}_l.tpf.dcx");
+                        tpf.Write(Path.Combine(Const.CACHE_PATH, "textures", $"{kvp.Value}_l.tpf.dcx"));
                     }
                 }
 

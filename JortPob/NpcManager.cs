@@ -196,8 +196,8 @@ namespace JortPob
             areaScript.RegisterNpcHello(content);      // setup hello flags and turntoplayer script
 
             DialogESD dialogEsd = new(esm, scriptManager, paramanager, textManager, itemManager, areaScript, (uint)esdId, content, data);
-            string pyPath = $"{Const.CACHE_PATH}esd\\t{esdId}.py";
-            string esdPath = $"{Const.CACHE_PATH}esd\\t{esdId}.esd";
+            string pyPath = Path.Combine(Const.CACHE_PATH, "esd", $"t{esdId}.py");
+            string esdPath = Path.Combine(Const.CACHE_PATH, "esd", $"t{esdId}.esd");
             dialogEsd.Write(pyPath);
 
             EsdInfo esdInfo = new(pyPath, esdPath, content.id, esdId);

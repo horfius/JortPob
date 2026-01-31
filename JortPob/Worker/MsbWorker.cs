@@ -34,7 +34,7 @@ namespace JortPob.Worker
                 int mpid = mp.Item1;
                 string mppath = mp.Item2;
 
-                FLVER2 flver = FLVER2.Read($"{Const.CACHE_PATH}{mppath}");
+                FLVER2 flver = FLVER2.Read(Path.Combine(Const.CACHE_PATH, mppath));
 
                 BND4 bnd = new();
                 bnd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
@@ -68,7 +68,7 @@ namespace JortPob.Worker
                 BinderFile testH = new();
                 testH.CompressionType = SoulsFormats.DCX.Type.Zlib;
                 testH.Name = $"m{name}\\h{name}_{index}.hkx.dcx";
-                testH.Bytes = DCX.Compress(File.ReadAllBytes($"{Const.CACHE_PATH}{collisionInfo.hkx}"), DCX.Type.DCX_KRAK);
+                testH.Bytes = DCX.Compress(File.ReadAllBytes(Path.Combine(Const.CACHE_PATH, collisionInfo.hkx)), DCX.Type.DCX_KRAK);
                 testH.ID = id++;
                 bxfH.Files.Add(testH);
             }
@@ -91,7 +91,7 @@ namespace JortPob.Worker
                 BinderFile testL = new();
                 testL.CompressionType = SoulsFormats.DCX.Type.Zlib;
                 testL.Name = $"m{name}\\l{name}_{index}.hkx.dcx";
-                testL.Bytes = DCX.Compress(File.ReadAllBytes($"{Const.CACHE_PATH}{collisionInfo.hkx}"), DCX.Type.DCX_KRAK);
+                testL.Bytes = DCX.Compress(File.ReadAllBytes(Path.Combine(Const.CACHE_PATH, collisionInfo.hkx)), DCX.Type.DCX_KRAK);
                 testL.ID = id++;
                 bxfL.Files.Add(testL);
             }

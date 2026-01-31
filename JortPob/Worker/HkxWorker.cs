@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace JortPob.Worker
 {
@@ -26,7 +27,7 @@ namespace JortPob.Worker
             for (int i = start; i < limit; i++)
             {
                 CollisionInfo collisionInfo = collisions[i];
-                ModelConverter.OBJtoHKX($"{Const.CACHE_PATH}{collisionInfo.obj}", $"{Const.CACHE_PATH}{collisionInfo.hkx}");
+                ModelConverter.OBJtoHKX(Path.Combine(Const.CACHE_PATH, collisionInfo.obj), Path.Combine(Const.CACHE_PATH, collisionInfo.hkx));
                 Lort.TaskIterate(); // Progress bar update
             }
         }
