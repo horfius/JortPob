@@ -376,7 +376,7 @@ namespace JortPob
 
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             
-            dead = int.TryParse(record.json["data"]?["stats"]?["health"]?.GetValue<string>(), out var res) && res <= 0;
+            dead = (record.json["data"]?["stats"]?["health"]?.GetValue<int>() ?? 1) <= 0;
 
             string[] serviceFlags = record.json["ai_data"]!["services"]!.GetValue<string>().Split("|");
             services = new();

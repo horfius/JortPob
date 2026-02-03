@@ -171,6 +171,7 @@ namespace JortPob
 
                             layout.Add(icon.id, new Int2(x * (ICON + PAD), y * (ICON + PAD)), new Int2(ICON, ICON));
 
+                            bitmap.Dispose();
                             i++;
                             Lort.TaskIterate();
                         }
@@ -194,10 +195,10 @@ namespace JortPob
             foreach (BuffInfo buff in buffs)
             {
                 byte[] ddsBytes = File.ReadAllBytes(Path.Combine(Const.MORROWIND_PATH, "Data Files", "icons", buff.path));
-                Bitmap buffBitmap = Common.DDS.DDStoBitmap(ddsBytes);
-                buffBitmap = Common.Utility.XbrzUpscale(buffBitmap, 4);
-                buffBitmap = Utility.ResizeBitmap(buffBitmap, BUFF, BUFF);
-                buffBitmaps.Add((buff, buffBitmap));
+                using Bitmap buffBitmap = Common.DDS.DDStoBitmap(ddsBytes);
+                using var scaledBuffBitmap = Common.Utility.XbrzUpscale(buffBitmap, 4);
+                var resizedScaledBuffBitmap = Utility.ResizeBitmap(buffBitmap, BUFF, BUFF);
+                buffBitmaps.Add((buff, resizedScaledBuffBitmap));
             }
 
             /* Make buff sheets */
@@ -221,6 +222,7 @@ namespace JortPob
 
                         buffLayout.Add(buff.id, new Int2(x * (BUFF + BUFF_PAD), y * (BUFF + BUFF_PAD)), new Int2(BUFF, BUFF));
 
+                        buffBitmap.Dispose();
                         i++;
                         Lort.TaskIterate();
                     }
@@ -243,9 +245,8 @@ namespace JortPob
                 {
                     /* Add sheet to TPF */
                     TPF.Texture texture = new();
-                    Bitmap linearBitmap = Common.Utility.LinearToSRGB(tuple.bitmap);
+                    using Bitmap linearBitmap = Common.Utility.LinearToSRGB(tuple.bitmap);
                     texture.Bytes = Common.DDS.BitmapToDDS(linearBitmap, DXGI_FORMAT.BC2_UNORM);
-                    linearBitmap.Dispose();
                     texture.Format = (byte)Common.DDS.GetTpfFormatFromDdsBytes(texture.Bytes);
                     texture.Name = tuple.layout.name;
                     tpf.Textures.Add(texture);
@@ -268,8 +269,8 @@ namespace JortPob
             AddSheets(lowLayoutPath, lowTpfPath, "Low"); Lort.TaskIterate();
 
             /* Clean up */
-            foreach ((Layout layout, Bitmap bitmap) tuple in sheets) { tuple.bitmap.Dispose(); }
-            foreach ((IconInfo iconInfo, Bitmap bitmap) tuple in bitmaps) { tuple.bitmap.Dispose(); }
+            sheets.ForEach(tuple => tuple.bitmap.Dispose());
+            bitmaps.ForEach(tuple => tuple.bitmap.Dispose());
 
             /* Do large icons for use in the description area */
             const string hiPath = @"menu\hi\00_solo";
@@ -290,12 +291,10 @@ namespace JortPob
                 {
                     byte[] data = File.ReadAllBytes(Path.Combine(Const.MORROWIND_PATH, "Data Files", "icons", icon.path));
 
-                    Bitmap bitmap = Common.DDS.DDStoBitmap(data);
-                    Bitmap scaledBitmap = Common.Utility.XbrzUpscale(bitmap, 6); // 32x32x -> 192x192
-                    Bitmap linearScaledBitmap = Common.Utility.LinearToSRGB(scaledBitmap);
+                    using Bitmap bitmap = Common.DDS.DDStoBitmap(data);
+                    using Bitmap scaledBitmap = Common.Utility.XbrzUpscale(bitmap, 6); // 32x32x -> 192x192
+                    using Bitmap linearScaledBitmap = Common.Utility.LinearToSRGB(scaledBitmap);
                     byte[] scaledDDS = Common.DDS.BitmapToDDS(linearScaledBitmap, DXGI_FORMAT.BC2_UNORM);
-                    scaledBitmap.Dispose();
-                    linearScaledBitmap.Dispose();
 
                     int format = JortPob.Common.DDS.GetTpfFormatFromDdsBytes(scaledDDS);
 

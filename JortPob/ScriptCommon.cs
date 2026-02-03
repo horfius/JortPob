@@ -523,7 +523,7 @@ namespace JortPob
         public void Write()
         {
             emevd.Write(Path.Combine(Const.OUTPUT_PATH, @"event\common.emevd.dcx"));
-            func.Write(Path.Combine(Const.OUTPUT_PATH}, @"event\common_func.emevd.dcx"));
+            func.Write(Path.Combine(Const.OUTPUT_PATH, @"event\common_func.emevd.dcx"));
         }
     }
 }

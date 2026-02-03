@@ -23,8 +23,8 @@ namespace JortPob.Worker
             try
             {
                 Lort.Log("Loading UI map resources... ", Lort.Type.Main);
-                Bitmap image = new Bitmap(Utility.ResourcePath(@"menu\map\map_v1.png"));
-                Bitmap map = Utility.LinearToSRGBAlt(image);
+                using Bitmap image = new Bitmap(Utility.ResourcePath(@"menu\map\map_v1.png"));
+                using Bitmap map = Utility.LinearToSRGB(image);
 
                 // direct refrence to the naming convention used in the game
                 string[] groundLevels = new[] { "M00" };

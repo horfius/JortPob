@@ -126,7 +126,7 @@ namespace JortPob.Common
             lock(_lock) {
 
                 /* For some damn reason the System.Drawing.Common is a NuGet dll. Something something windows only something */
-                Bitmap img = new(width, height);
+                using Bitmap img = new(width, height);
                 for (int x = 0; x < img.Width; x++)
                 {
                     for (int y = 0; y < img.Height; y++)
@@ -149,22 +149,25 @@ namespace JortPob.Common
                 ScratchImage sImage = TexHelper.Instance.LoadFromWICMemory(pinnedArray.AddrOfPinnedObject(), pngBytes.Length, WIC_FLAGS.DEFAULT_SRGB);
 
                 if (scaleX != null && scaleY != null)
-                    sImage = sImage.Resize(0, scaleX.Value, scaleY.Value, filterFlags);
+                {
+                    var tImage = sImage.Resize(0, scaleX.Value, scaleY.Value, filterFlags);
+                    sImage.Dispose();
+                    sImage = tImage;
+                }
 
-                sImage = sImage.Compress(format, texCompFlag, 0.5f);
-                sImage.OverrideFormat(format);
+                using var compressedSImage = sImage.Compress(format, texCompFlag, 0.5f);
+                sImage.Dispose();
+                compressedSImage.OverrideFormat(format);
 
                 /* Save the DDS to memory stream and then read the stream into a byte array. */
                 byte[] bytes;
-                using (UnmanagedMemoryStream uStream = sImage.SaveToDDSMemory(ddsFlags))
+                using (UnmanagedMemoryStream uStream = compressedSImage.SaveToDDSMemory(ddsFlags))
                 {
                     bytes = new byte[uStream.Length];
                     uStream.Read(bytes);
                 }
 
                 pinnedArray.Free(); //We have to manually free pinned stuff, or it will never be collected.
-                img.Dispose();
-                sImage.Dispose();
                 return bytes;
             }
         }
@@ -209,12 +212,16 @@ namespace JortPob.Common
             DirectXTexNet.ScratchImage scratchImage = DirectXTexNet.TexHelper.Instance.LoadFromDDSMemory(pinnedArray.AddrOfPinnedObject(), dds.Length, DirectXTexNet.DDS_FLAGS.NONE);
             if (TexHelper.Instance.IsCompressed(scratchImage.GetMetadata().Format))
             {
-                scratchImage = scratchImage.Decompress(DirectXTexNet.DXGI_FORMAT.R8G8B8A8_UNORM);
+                var tempScratchImage = scratchImage.Decompress(DirectXTexNet.DXGI_FORMAT.R8G8B8A8_UNORM);
+                scratchImage.Dispose();
+                scratchImage = tempScratchImage;
             }
 
             if(width > 0 || height > 0)
             {
-                scratchImage = scratchImage.Resize(0, width, height, TEX_FILTER_FLAGS.CUBIC);
+                var tempScratchImage = scratchImage.Resize(0, width, height, TEX_FILTER_FLAGS.CUBIC);
+                scratchImage.Dispose();
+                scratchImage = tempScratchImage;
             }
 
             Bitmap bitmap = new(scratchImage.GetImage(0).Width, scratchImage.GetImage(0).Height);
@@ -260,23 +267,22 @@ namespace JortPob.Common
 
             /* pin the array to memory so the garbage collector can't mess with it, */
             GCHandle pinnedArray = GCHandle.Alloc(pngBytes, GCHandleType.Pinned);
-            ScratchImage sImage = TexHelper.Instance.LoadFromWICMemory(pinnedArray.AddrOfPinnedObject(), pngBytes.Length, WIC_FLAGS.DEFAULT_SRGB);
+            using ScratchImage sImage = TexHelper.Instance.LoadFromWICMemory(pinnedArray.AddrOfPinnedObject(), pngBytes.Length, WIC_FLAGS.DEFAULT_SRGB);
 
             //sImage = sImage.Compress(DXGI_FORMAT.BC2_UNORM_SRGB, texCompFlag, 0.5f);
-           // sImage = sImage.Decompress(DirectXTexNet.DXGI_FORMAT.R8G8B8A8_UNORM);
-            sImage = sImage.Compress(format, texCompFlag, 0.5f);
-            sImage.OverrideFormat(format);
+            // sImage = sImage.Decompress(DirectXTexNet.DXGI_FORMAT.R8G8B8A8_UNORM);
+            using var compressedImage = sImage.Compress(format, texCompFlag, 0.5f);
+            compressedImage.OverrideFormat(format);
 
             /* Save the DDS to memory stream and then read the stream into a byte array. */
             byte[] bytes;
-            using (UnmanagedMemoryStream uStream = sImage.SaveToDDSMemory(ddsFlags))
+            using (UnmanagedMemoryStream uStream = compressedImage.SaveToDDSMemory(ddsFlags))
             {
                 bytes = new byte[uStream.Length];
                 uStream.Read(bytes);
             }
 
             pinnedArray.Free(); //We have to manually free pinned stuff, or it will never be collected.
-            sImage.Dispose();
             return bytes;
         }
 

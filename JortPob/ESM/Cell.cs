@@ -15,7 +15,7 @@ namespace JortPob
         public enum Flag { IsInterior, HasWater, RestingIsIllegal, BehavesLikeExterior, Unk40 }
 
         public readonly string name;
-        public readonly string region;
+        public string? region { get; init; }
         public readonly Int2 coordinate;  // Position on the cell grid
         public readonly Vector3 center;
         public readonly Vector3 boundsMin;
@@ -38,7 +38,7 @@ namespace JortPob
         {
             /* Cell Data */
             name = json["name"]?.ToString() ?? throw new Exception("Could not find 'name' value in cell json!");
-            region = json["region"]?.ToString() ?? throw new Exception("Could not find 'region' value in cell json!");
+            region = json["region"]?.GetValue<string>();
 
             flags = new();
             string[] fs = json["data"]?["flags"]?.GetValue<string>().ToLower().Split("|") ?? [];

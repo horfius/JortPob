@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
+#nullable enable
+
 namespace JortPob.Common
 {
     // most credit goes to https://github.com/Pear0533/ERMapGenerator
@@ -42,20 +44,20 @@ namespace JortPob.Common
             { ZoomLevel.L2, 11 }
         };
 
-        private BND4 mapTileMaskBnd;
-        private BXF4 mapTileTpfBxf;
+        private BND4? mapTileMaskBnd;
+        private BXF4? mapTileTpfBxf;
         private BXF4 mapTileBxf;
         private MapTileMatrix tileFlags;
-        private XmlNode mapTileMaskRoot;
+        private XmlNode? mapTileMaskRoot;
 
-        private Bitmap blankTileL0;
-        private Bitmap blankTileL1;
-        private Bitmap blankTileL2;
+        private Bitmap? blankTileL0;
+        private Bitmap? blankTileL1;
+        private Bitmap? blankTileL2;
 
-        private Bitmap scaledL1Image;
-        private Bitmap scaledL2Image;
+        private Bitmap? scaledL1Image;
+        private Bitmap? scaledL2Image;
 
-        private Action progressCallback;
+        private Action? progressCallback;
 
         public static (byte[] bhdBytes, byte[] bdtBytes) ReplaceMapTiles(
             Bitmap sourceImage,
@@ -64,7 +66,7 @@ namespace JortPob.Common
             string mapTileMaskBndPath,
             string mapTileTpfBhdPath,
             string mapTileTpfBtdPath,
-            Action progressCallback = null,
+            Action? progressCallback = null,
             CancellationToken cancellationToken = default)
         {
             using var replacer = new MapGenerator();
@@ -92,7 +94,7 @@ namespace JortPob.Common
             string mapTileMaskBndPath,
             string mapTileTpfBhdPath,
             string mapTileTpfBtdPath,
-            Action progressCallback,
+            Action? progressCallback,
             CancellationToken cancellationToken)
         {
             this.progressCallback = progressCallback;
@@ -182,9 +184,9 @@ namespace JortPob.Common
             {
                 case ZoomLevel.L0 when sourceImage.Width == L0_SIZE && sourceImage.Height == L0_SIZE:
                     return new Bitmap(sourceImage);
-                case ZoomLevel.L1:
+                case ZoomLevel.L1 when scaledL1Image is not null:
                     return new Bitmap(scaledL1Image);
-                case ZoomLevel.L2:
+                case ZoomLevel.L2 when scaledL2Image is not null:
                     return new Bitmap(scaledL2Image);
             }
 
@@ -308,7 +310,7 @@ namespace JortPob.Common
 
         private void ReadMapTileMask(string groundLevel)
         {
-            BinderFile file = mapTileMaskBnd.Files.Find(i => i.Name.Contains(groundLevel));
+            var file = mapTileMaskBnd?.Files.Find(i => i.Name.Contains(groundLevel));
             if (file != null)
             {
                 string fileName = Path.GetFileName(file.Name);
@@ -332,7 +334,7 @@ namespace JortPob.Common
 
             for (int i = 0; i < mapTileMaskRoot.ChildNodes.Count; ++i)
             {
-                XmlNode node =  mapTileMaskRoot.ChildNodes[i];
+                XmlNode node =  mapTileMaskRoot.ChildNodes[i]!;
                 if (node == null) continue;
                 if (node.Attributes == null || node.Attributes.Count < 2) continue;
 
@@ -371,16 +373,20 @@ namespace JortPob.Common
 
         private (byte[] bhdBytes, byte[] bdtBytes) GetBinderBytes()
         {
+            // Something fucked up
+            if (mapTileBxf == null) 
+                return ([], []);
+
             // remove old tiles that are being replaced
             IEnumerable<int> files = mapTileBxf.Files.Select(file =>
-                mapTileTpfBxf.Files.FindIndex(i =>
+                mapTileTpfBxf!.Files.FindIndex(i =>
                     string.Equals(i.Name, file.Name, StringComparison.OrdinalIgnoreCase)));
 
             foreach (int i in files.Where(index => index != -1))
-                mapTileTpfBxf.Files.RemoveAt(i);
+                mapTileTpfBxf!.Files.RemoveAt(i);
 
             // add new tiles
-            mapTileTpfBxf.Files.AddRange(mapTileBxf.Files);
+            mapTileTpfBxf!.Files.AddRange(mapTileBxf.Files);
 
             // sort and re-index
             mapTileTpfBxf.Files = mapTileTpfBxf.Files.OrderBy(i => i.Name).ToList();
@@ -399,19 +405,8 @@ namespace JortPob.Common
             blankTileL2?.Dispose();
             scaledL1Image?.Dispose();
             scaledL2Image?.Dispose();
-
-            // hacky but works
-            foreach (var file in mapTileMaskBnd.Files)
-            {
-                file.Bytes = null;
-            }
-            mapTileTpfBxf.Files.Clear();
-
-            foreach (var file in mapTileTpfBxf.Files)
-            {
-                file.Bytes = null;
-            }
-            mapTileTpfBxf.Files.Clear();
+            mapTileMaskBnd?.Files.Clear();
+            mapTileTpfBxf?.Files.Clear();
         }
 
         private class MapTileMatrix

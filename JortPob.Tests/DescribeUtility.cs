@@ -27,9 +27,9 @@ namespace JortPob.Tests
             Color ConvertColor(Color color)
             {
                 byte alpha = color.A;
-                byte red = (byte)(ConvertValue(color.R / 255f) * 255);
-                byte green = (byte)(ConvertValue(color.G / 255f) * 255);
-                byte blue = (byte)(ConvertValue(color.B / 255f) * 255);
+                byte red = (byte)Math.Round(ConvertValue(color.R / 255f) * 255);
+                byte green = (byte)Math.Round(ConvertValue(color.G / 255f) * 255);
+                byte blue = (byte)Math.Round(ConvertValue(color.B / 255f) * 255);
                 return Color.FromArgb(alpha, red, green, blue);
             }
 
@@ -38,7 +38,7 @@ namespace JortPob.Tests
                                     [Color.ForestGreen, Color.DarkSalmon, Color.Chocolate]];
             Color[][] expectedOutputColor = inputColors.Select(cArr => cArr.Select(ConvertColor).ToArray()).ToArray();
 
-            var inputBitmap = new Bitmap(3, 3, PixelFormat.Format32bppArgb);
+            using var inputBitmap = new Bitmap(3, 3, PixelFormat.Format32bppArgb);
             for (var h = 0; h < inputColors.Length; h++)
             {
                 for (var w = 0; w < inputColors[h].Length; w++)
@@ -47,7 +47,7 @@ namespace JortPob.Tests
                 }
             }
 
-            var convertedBitmap = Utility.LinearToSRGB(inputBitmap);
+            using var convertedBitmap = Utility.LinearToSRGB(inputBitmap);
             for (var h = 0; h < inputColors.Length; h++)
             {
                 for (var w = 0; w < inputColors[h].Length; w++)
