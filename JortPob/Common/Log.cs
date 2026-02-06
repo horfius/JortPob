@@ -12,19 +12,16 @@ namespace JortPob.Common
 {
     public class Lort
     {
-        public static ConcurrentBag<string>? mainOutput { get; private set; }
-        public static ConcurrentBag<string>? debugOutput { get; private set; }
-        public static string? progressOutput { get; private set; }
+        public static ConcurrentBag<string> mainOutput { get; } = new();
+        public static ConcurrentBag<string> debugOutput { get; } = new();
+        public static string progressOutput { get; private set; } = string.Empty;
         public static int total { get; private set; }
         public static int current { get; private set; }
         public static bool update { get; set; }
-        public static string? logFilePath { get; private set; }
+        public static string logFilePath { get; private set; } = string.Empty;
 
         public static void Initialize()
         {
-            mainOutput = new();
-            debugOutput = new();
-            progressOutput = string.Empty;
             total = 0;
             current = 0;
             update = false;
@@ -46,9 +43,9 @@ namespace JortPob.Common
             switch (type)
             {
                 case Type.Main:
-                    mainOutput?.Add(message); break;
+                    mainOutput.Add(message); break;
                 case Type.Debug:
-                    debugOutput?.Add(message); break;
+                    debugOutput.Add(message); break;
             }
             update = true;
             AppendTextToLog(message, type);
@@ -56,14 +53,14 @@ namespace JortPob.Common
 
         public static void LogDebug(string message)
         {
-            debugOutput?.Add(message);
+            debugOutput.Add(message);
             update = true;
             AppendTextToLog(message, Type.Debug);
         }
 
         public static void LogMain(string message)
         {
-            mainOutput?.Add(message);
+            mainOutput.Add(message);
             update = true;
             AppendTextToLog(message, Type.Main);
         }
@@ -84,7 +81,7 @@ namespace JortPob.Common
 
         private static void AppendTextToLog(string message, Type type)
         {
-            if (logFilePath == null)
+            if (string.IsNullOrEmpty(logFilePath))
                 return;
 
             switch (type)

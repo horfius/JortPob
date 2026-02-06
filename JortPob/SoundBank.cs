@@ -105,9 +105,9 @@ namespace JortPob
 
             string bnkPath = Path.Combine(dir, $"vc{id.ToString("D3")}.bnk");
             Directory.CreateDirectory(Path.GetDirectoryName(bnkPath));
-            File.WriteAllText($"{bnkPath}json", json.ToJsonString());
+            File.WriteAllText($"{bnkPath}.json", json.ToJsonString());
 
-            ProcessStartInfo startInfo = new(Utility.ResourcePath(@"tools\Bnk2Json\bnk2json.exe"), $"\"{bnkPath}json\"")
+            ProcessStartInfo startInfo = new(Utility.ResourcePath(@"tools\Bnk2Json\bnk2json.exe"), $"\"{bnkPath}.json\"")
             {
                 WorkingDirectory = Utility.ResourcePath(@"tools\Bnk2Json"),
                 UseShellExecute = false,

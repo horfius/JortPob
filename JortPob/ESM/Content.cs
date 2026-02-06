@@ -595,7 +595,7 @@ namespace JortPob
             if (json["destination"]  == null) { warp = null; }
             else
             {
-                warp = new(json["destination"] ?? throw new Exception("DoorContent value destination is missing!"));
+                warp = new(json["destination"]!);
             }
         }
     }
@@ -613,8 +613,8 @@ namespace JortPob
         public ContainerContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             mesh = record.json["mesh"]?.ToString().ToLower();
-            if (json["owner"] != null) { ownerNpc = json["owner"]!.GetValue<string>(); }
-            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"]!.GetValue<string>(); }
+            ownerNpc = json["owner"]?.GetValue<string>();
+            ownerFaction = json["owner_faction"]?.GetValue<string>();
 
             inventory = new();
             JsonArray invJson = record.json["inventory"]?.AsArray() ?? [];
@@ -680,8 +680,8 @@ namespace JortPob
         public ItemContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             mesh = record.json["mesh"]?.ToString().ToLower();
-            if (json["owner"] != null ) { ownerNpc = json["owner"]!.GetValue<string>(); }
-            if (json["owner_faction"] != null) { ownerFaction = json["owner_faction"]!.GetValue<string>(); }
+            ownerNpc = json["owner"]?.GetValue<string>();
+            ownerFaction = json["owner_faction"]?.GetValue<string>();
             value = record.json["data"]?["value"]?.GetValue<int>() ?? 1000; // Default to 1k
         }
 
@@ -722,8 +722,8 @@ namespace JortPob
         public LightContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             int r = record.json["data"]!["color"]![0]!.GetValue<int>();
-            int b = record.json["data"]!["color"]![2]!.GetValue<int>();
             int g = record.json["data"]!["color"]![1]!.GetValue<int>();
+            int b = record.json["data"]!["color"]![2]!.GetValue<int>();
             int a = record.json["data"]!["color"]![3]!.GetValue<int>();
             color = new(r, g, b, a);  // 0 -> 255 colors
 
