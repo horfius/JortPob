@@ -25,7 +25,6 @@ namespace JortPob
             Utility.InitSRGBCache();
             Oodler.Initialize();
 
-
             /* Loading stuff */
             ScriptManager scriptManager = new();                                              // Manages EMEVD scripts
             ESM esm = new ESM(scriptManager);                                                // Morrowind ESM parse and partial serialization

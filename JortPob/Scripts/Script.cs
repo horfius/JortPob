@@ -525,7 +525,7 @@ namespace JortPob.Scripts
                 Global, Local, Reputation, Journal, CrimeLevel,          // CrimeLevel is gold owed to guards, the Crime below is a per npc variable for if you comitted a crime against them
                 Dead, DeadCount, Disabled, Hostile, CrimeEvent, FriendHitCounter, Pickpocketed, ThiefCrime,      // hostile flag exists for friendly npcs, if you piss em off they stab you
                 HasBeenAttacked, // used by a specific filter condition. if the npc is ever hit by the player this is permanently true
-                TopicEnabled, TalkedToPc, Disposition, PlayerRace,
+                TopicEnabled, TalkedToPc, Disposition, PlayerRace, PlayerJob,
                 FactionJoined, FactionReputation, FactionRank, FactionExpelled,    // faction stuff
                 GuardIsGreeting, PlayerIsTalking, PlayerIsSneaking, PlayerRuneCount, PlayerStat, PlayerItemCount,
                 ReturnValueRankReq, ReturnReactionHigh, ReturnReactionLow,          // these are temp values used by ESD to store variables

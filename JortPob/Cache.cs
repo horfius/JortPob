@@ -449,6 +449,10 @@ namespace JortPob
                 Lort.Log($"Generated new cache: {Const.CACHE_PATH}", Lort.Type.Main);
             }
 
+            /* Copy 'custom_voice_list.json` over to cache folder so that BingusSpeak can load and use it if the user is working with that */
+            Directory.CreateDirectory(Path.Combine(Const.CACHE_PATH, "text"));
+            File.Copy(Utility.ResourcePath(Path.Combine("overrides", "custom_voice_list.json")), Path.Combine(Const.CACHE_PATH, "text", "custom_voice_list.json"), true);
+
             /* Load cache manifest */
             string tempRawJson = File.ReadAllText(manifestPath);
             Cache cache = JsonSerializer.Deserialize<Cache>(tempRawJson, new JsonSerializerOptions { IncludeFields = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals })!;
