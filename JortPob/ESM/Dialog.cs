@@ -1,5 +1,7 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
+using Microsoft.VisualBasic.ApplicationServices;
+using Newtonsoft.Json;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;
@@ -62,6 +64,7 @@ namespace JortPob
             private static int NEXT_ID = 0;
 
             public readonly int id; // generated id used when lookin up wems, not used by elden ring or morrowind
+            public readonly Int128 trueId; // morrowind 64 bit int id, only used for anchoring text replacements from BingusSpeak
             public readonly DialogRecord.Type type;
 
             // static requirements for a dialog to be added
@@ -76,7 +79,7 @@ namespace JortPob
 
             public readonly List<DialogFilter> filters;
 
-            public readonly string text; // actual dialog text
+            public string text; // actual dialog text
             public readonly string mp3;  // path to mp3 file of dialog line (if it exists, only some specific types of lines have them)
 
             public readonly DialogPapyrus script; // parsed script snippet for this line to execute after playback
@@ -87,6 +90,7 @@ namespace JortPob
             public DialogInfoRecord(DialogRecord.Type type, JsonNode json)
             {
                 id = DialogInfoRecord.NEXT_ID+=10;  // increment by 10 so we can use the 9 values between each id as the split text ids (guh)
+                trueId = Int128.Parse(json["id"].GetValue<string>());
                 this.type = type;
 
                 string NullEmpty(string s) { return s.Trim() == "" ? null : s; }
@@ -119,6 +123,52 @@ namespace JortPob
                     DialogPapyrus parsed = new DialogPapyrus(json["script_text"].ToString());
                     script = parsed.calls.Count() > 0 || parsed.choice != null ? parsed : null;  // if we parse the script and find its empty (for example, just a comment) discard it
                 }
+
+                unlocks = new();
+            }
+
+            /* Constructor for adding new lines from BingusSpeak */
+            public DialogInfoRecord
+            (
+                Int128 trueId,
+                DialogRecord.Type type,
+                string speaker,
+                string job,
+                string faction,
+                string cell,
+                int rank,
+                CharacterContent.Race race,
+                CharacterContent.Sex sex,
+                string playerFaction,
+                int disposition,
+                int playerRank,
+                List<DialogFilter> filters,
+                string text,
+                string mp3,
+                string script
+            )
+            {
+                this.id = DialogInfoRecord.NEXT_ID += 10;
+                this.trueId = trueId;
+                this.type = type;
+                this.speaker = speaker;
+                this.job = job;
+                this.faction = faction;
+                this.cell = cell;
+                this.rank = rank;
+                this.race = race;
+                this.sex = sex;
+                this.playerFaction = playerFaction;
+                this.disposition = disposition;
+                this.playerRank = playerRank;
+
+                this.filters = filters;
+
+                this.text = text;
+                this.mp3 = mp3;
+
+                DialogPapyrus parsed = new DialogPapyrus(script);
+                this.script = parsed.calls.Count() > 0 || parsed.choice != null ? parsed : null;  // if we parse the script and find its empty (for example, just a comment) discard it
 
                 unlocks = new();
             }
@@ -539,6 +589,20 @@ namespace JortPob
                                                 case "pchasturnin":
                                                 case "pchascrimegold":
                                                     return $"ComparePlayerStat(PlayerStat.RunesCollected, CompareType.GreaterOrEqual, GetEventFlagValue({crimeLevelFlag.id}, {crimeLevelFlag.Bits()})) and GetEventFlagValue({crimeLevelFlag.id}, {crimeLevelFlag.Bits()}) >= 0"; // operator bug. >= is > in esd
+                                                case "pcrace":
+                                                    {
+                                                        // This only supports the == operator for various reasons
+                                                        Script.Flag rflag = scriptManager.GetFlag(Flag.Designation.PlayerRace, $"{(CharacterContent.Race)filter.value}");
+                                                        if(rflag == null) { return "False"; }  // there is some fuckass check that has race >= 20 in base game. likely a mistake/bug. this accounts for it
+                                                        return $"GetEventFlag({rflag.id})";
+                                                    }
+                                                case "pcclass":
+                                                    {
+                                                        // Fuckass hack. This check does not exist in base morrowind. This is a JortPob/BingusSpeak special gamer move
+                                                        Script.Flag jflag = scriptManager.GetFlag(Flag.Designation.PlayerJob, $"{(DialogFilter.PlayerJob)filter.value}");
+                                                        if (jflag == null) { return "False"; }  // there is some fuckass check that has race >= 20 in base game. likely a mistake/bug. this accounts for it
+                                                        return $"GetEventFlag({jflag.id})";
+                                                    }
                                             }
 
                                             Flag gvar = scriptManager.GetFlag(Script.Flag.Designation.Global, filter.id); // look for flag. if not found return a static 'False' as it's probably a float variable
@@ -1667,6 +1731,12 @@ namespace JortPob
                 CreatureTarget, Weather, ReactionHigh, ReactionLow, HealthPercent, FriendHit
             }
 
+            // used by the PcClass global filter. these are custom values so if we ever change our class list this needs an update
+            public enum PlayerJob
+            {
+                Warrior = 0, Archer = 1, Sorcerer = 2, Monk = 3, Thief = 4, Barbarian = 5, Knight = 6, Spellsword = 7, Bard = 8, Pilgrim = 9
+            }
+
             public readonly Type type;
             public readonly Function function;
             public readonly Operator op;
@@ -1691,6 +1761,13 @@ namespace JortPob
                     value = 0;
                 }
 
+            }
+
+            /* For json */
+            [JsonConstructor]
+            public DialogFilter(Type type, Function function, Operator op, string id, int value)
+            {
+                this.type = type; this.function = function; this.op = op; this.id = id; this.value = value;
             }
 
             /* Resolve the comparison value for 0=False / 1=True style filter conditions. EX: SameRace or SameFaction */
