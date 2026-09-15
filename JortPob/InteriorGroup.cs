@@ -128,6 +128,7 @@ namespace JortPob
             public List<PickableContent> pickables { get; init; } = [];
             public List<ItemContent> items { get; init; } = [];
             public List<MarkerContent> markers { get; init; } = [];
+            public List<DummyContent> dummies { get; } = [];
             public List<Layout.WarpDestination> warps { get; init; } = []; // end points for load doors in other cells. also used by travel npcs
             public List<Layout.ScriptedPosition> positions { get; init; } = []; // used by scripts to target locations EX: 'PositionCell'
             public List<Layout.TravelPoint> travels { get; init; } = []; // positions directly referenced in AiPackages
@@ -251,6 +252,8 @@ namespace JortPob
                         creatures.Add(c); break;
                     case MarkerContent m:
                         markers.Add(m); break;
+                    case DummyContent d:
+                        dummies.Add(d); break;
                     default:
                         Lort.Log($" ## WARNING ## Unhandled Content class '{content.type}::{content.id}' fell through AddContent()", Lort.Type.Debug); break;
                 }
