@@ -1,4 +1,5 @@
-﻿using JortPob.Common;
+﻿using ESDLang.Script;
+using JortPob.Common;
 using JortPob.Scripts;
 using Microsoft.Scripting.Utils;
 using PortJob;
@@ -155,6 +156,18 @@ namespace JortPob
                     delayCounter = 0;
                 }
             }
+
+            // real quick set the flag for the players current class. this will be done in the true gamestartup eventually but for now we do it here
+            foreach (Dialog.DialogFilter.PlayerJob job in System.Enum.GetValues<Dialog.DialogFilter.PlayerJob>())
+            {
+                Script.Flag jFlag = scriptManager.GetFlag(Script.Flag.Designation.PlayerJob, job.ToString());
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfPlayersClass(AND_01, {(int)job});"));  // if player class is X...
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"SkipIfConditionGroupStateUncompiled(1, FAIL, AND_01);"));
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {jFlag.id}, ON);")); // set flag
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfElapsedSeconds(MAIN, 0);")); // reset condition groups
+            }
+
+            // deal with mainrunonce
             Script.Flag mainRunOnceFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, "main.runonce");
             if (mainRunOnceFlag != null)  // runonce flag is actually a custom thing i wrote in to the main script in an esp so make this optional to prevent crash
             {

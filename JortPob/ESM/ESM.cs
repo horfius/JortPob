@@ -1,6 +1,9 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
 using JortPob.Worker;
+using Newtonsoft.Json;
+using Noggog;
+using SoulsFormats;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,8 +11,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Windows;
 using static JortPob.Dialog;
+using static JortPob.Override;
 
 namespace JortPob
 {
@@ -180,6 +186,39 @@ namespace JortPob
 
                     DialogInfoRecord dialogInfoRecord = new(isChoice ? DialogRecord.Type.Choice : current.type, record);
                     current.infos.Add(dialogInfoRecord);
+                }
+            }
+
+            /* Apply dialog text changes from BingusSpeak now */
+            string inPath = Path.Combine(Const.CACHE_PATH, "text", "text_replacement_data.json");
+            if (Path.Exists(inPath))
+            {
+                string jsonString = File.ReadAllText(inPath);
+                DataDialog data = JsonConvert.DeserializeObject<DataDialog>(jsonString);
+
+                // And lasty, apply that loaded change data to our working esm so we can continue from where we last saved
+                foreach (DataReplacement replacement in data.replacements)
+                {
+                    DialogInfoRecord dialog = GetDialogInfo(replacement.id);
+                    if (dialog == null)
+                    {
+                        MessageBox.Show($"Error loading replacement line: {replacement.replacement}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        continue;
+                    }
+                    dialog.text = replacement.replacement;
+                }
+                foreach (DataAddition addition in data.additions)
+                {
+                    DialogInfoRecord info = new(
+                        addition.id, addition.type, addition.speaker, addition.job, addition.faction, addition.cell, addition.rank,
+                        addition.race, addition.sex, addition.playerFaction, addition.disposition, addition.playerRank,
+                        addition.filters, addition.replacement, addition.mp3, addition.script
+                    );
+
+                    DialogRecord topic = GetTopic(addition.topic);
+                    DialogInfoRecord parent = GetDialogInfo(addition.id);
+                    int index = topic.infos.IndexOf(parent);
+                    topic.infos.Insert(index, info);
                 }
             }
 
@@ -397,6 +436,29 @@ namespace JortPob
         public Papyrus GetPapyrus(string id) => id is null ? null : scripts.FirstOrDefault(script => script.id == id.ToLower());
 
         public LeveledCreature GetLeveledCreature(string id) => leveled.FirstOrDefault(lc => lc.id == id.ToLower());
+
+        /* Returns a specific dialoginfo by it's true id */
+        public DialogInfoRecord GetDialogInfo(Int128 id)
+        {
+            foreach (DialogRecord record in dialog)
+            {
+                foreach (DialogInfoRecord info in record.infos)
+                {
+                    if (info.trueId == id) { return info; }
+                }
+            }
+            return null;
+        }
+
+        /* Return a DialogRecord by it's topic id */
+        public DialogRecord GetTopic(string id)
+        {
+            foreach (DialogRecord record in dialog)
+            {
+                if (record.id.ToLower() == id.ToLower()) { return record; }
+            }
+            return null;
+        }
 
         /* Get dialog and character data for building esd */
         public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, CharacterContent npc)

@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using static IronPython.Modules._ast;
 
 namespace JortPob
 {
@@ -197,6 +198,12 @@ namespace JortPob
             foreach(JsonNode json in raceJson)
             {
                 raceFlags.Add(common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.PlayerRace, json["id"].GetValue<string>().Replace(" ", ""), 0));
+            }
+
+            // Create flags for playerjobs. this is only used when checking players class via a dialog filter. custom filter. does not exist in base morrowind
+            foreach (Dialog.DialogFilter.PlayerJob job in Enum.GetValues<Dialog.DialogFilter.PlayerJob>())
+            {
+                common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.PlayerJob, job.ToString());
             }
 
             // Crete the HKS file that will set the correct raceflag after character creation
