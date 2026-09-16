@@ -1,5 +1,4 @@
 ﻿using JortPob.Common;
-using SoulsFormats.Formats.Morpheme.NSA;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -35,6 +34,7 @@ namespace JortPob
         public readonly List<ContainerContent> containers;
         public readonly List<PickableContent> pickables;
         public readonly List<ItemContent> items;
+        public readonly List<MarkerContent> markers;
         public readonly List<DummyContent> dummies;
 
         public Cell(ESM esm, JsonNode json)
@@ -93,6 +93,7 @@ namespace JortPob
             containers = new();
             pickables = new();
             items = new();
+            markers = new();
             dummies = new();
 
             foreach (JsonNode reference in json["references"].AsArray())
@@ -103,6 +104,15 @@ namespace JortPob
                 if(record == null) { continue; }
 
                 string mesh = record.json["mesh"]?.ToString(); // mesh can just be "" sometimes
+
+                bool isMarker = false;
+                switch (id)
+                {
+                    case "PrisonMarker": markers.Add(new MarkerContent(this, reference, record, Layout.InterventionPoint.Type.Jail)); isMarker = true; break;
+                    case "TempleMarker": markers.Add(new MarkerContent(this, reference, record, Layout.InterventionPoint.Type.Almsivi)); isMarker = true; break;
+                    case "DivineMarker": markers.Add(new MarkerContent(this, reference, record, Layout.InterventionPoint.Type.Divine)); isMarker = true; break;
+                }
+                if (isMarker) { continue; }
 
                 /* Handles special dummy records */
                 if (id.StartsWith("#"))
@@ -173,6 +183,7 @@ namespace JortPob
             contents.AddRange(containers);
             contents.AddRange(pickables);
             contents.AddRange(items);
+            contents.AddRange(markers);
             contents.AddRange(dummies);
 
             /* Calculate bounding box */
