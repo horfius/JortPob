@@ -1,13 +1,11 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
-using Mutagen.Bethesda.Skyrim;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Nodes;
 using WitchyFormats;
-using static IronPython.Modules._ast;
 
 namespace JortPob
 {

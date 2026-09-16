@@ -1,6 +1,5 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
-using Mutagen.Bethesda.Skyrim;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;
@@ -8,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
-using static JortPob.ItemManager;
 using static JortPob.Scripts.Script;
 
 namespace JortPob
@@ -882,6 +880,7 @@ namespace JortPob
                                     }
 
                                     // Set characters hostilility based on fight values
+                                    if (fightVal >= Const.FIGHT_THRESHOLD) { lines.Add($"GiveSpEffectToEntity({target.entity}, {(int)SpeffManager.Functional.VoidMurder})"); } // if setfight results in a npc going hostile, give them voidmurder so killing them is not a crime
                                     lines.Add($"SetEventFlag({hostileFlag.id}, FlagState.{state})");
                                 }
                                 else { throw new Exception($"SetFight cannot target {target.type}!"); }
@@ -908,6 +907,7 @@ namespace JortPob
                                     }
 
                                     // Set characters hostilility based on fight values
+                                    if (cc.fight + fightVal >= Const.FIGHT_THRESHOLD) { lines.Add($"GiveSpEffectToEntity({target.entity}, {(int)SpeffManager.Functional.VoidMurder})"); } // if setfight results in a npc going hostile, give them voidmurder so killing them is not a crime
                                     lines.Add($"SetEventFlag({hostileFlag.id}, FlagState.{state})");
                                 }
                                 else { throw new Exception($"ModFight cannot target {target.type}!"); }
@@ -1541,7 +1541,7 @@ namespace JortPob
                                     else {
                                         Flag hvar = scriptManager.GetFlag(Flag.Designation.Hostile, targetA);
                                         lines.Add($"SetEventFlag({hvar.id}, FlagState.On)");
-                                        lines.Add($"GiveSpEffectToSelf({(int)SpeffManager.Functional.VoidMurder})");
+                                        lines.Add($"GiveSpEffectToEntity({targetA.entity}, {(int)SpeffManager.Functional.VoidMurder})");
                                     }
                                 }
                                 else

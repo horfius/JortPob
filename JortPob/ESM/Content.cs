@@ -663,9 +663,9 @@ namespace JortPob
     {
         public Layout.InterventionPoint.Type markerType;
 
-        public MarkerContent(Cell cell, JsonNode json, Record record, Layout.InterventionPoint.Type marketType) : base(cell, json, record)
+        public MarkerContent(Cell cell, JsonNode json, Record record, Layout.InterventionPoint.Type markerType) : base(cell, json, record)
         {
-            this.markerType = marketType;
+            this.markerType = markerType;
             rotation += new Vector3(0f, 180f, 0f);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
         }
     }

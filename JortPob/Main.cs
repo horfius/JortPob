@@ -1,7 +1,6 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
 using JortPob.Worker;
-using Noggog;
 using PortJob;
 using SoulsFormats;
 using System;

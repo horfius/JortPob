@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using static JortPob.ItemManager;
 using static JortPob.Papyrus;
 
 namespace JortPob
@@ -1301,7 +1300,7 @@ namespace JortPob
 
                                 // grab flag for the flex item we are goobering
                                 Script.Flag flexFlag;
-                                InventoryInfo inventory;
+                                ItemManager.InventoryInfo inventory;
                                 switch (target)
                                 {
                                     case CharacterContent npc: inventory = npc.inventoryInfo; break;
@@ -1357,7 +1356,7 @@ namespace JortPob
 
                                 // grab flag for the flex item we are goobering
                                 Script.Flag flexFlag;
-                                InventoryInfo inventory;
+                                ItemManager.InventoryInfo inventory;
                                 switch (target)
                                 {
                                     case CharacterContent npc: inventory = npc.inventoryInfo; break;
@@ -1697,6 +1696,7 @@ namespace JortPob
                                 }
 
                                 // Set characters hostilility based on fight values
+                                if (fightVal >= Const.FIGHT_THRESHOLD) { lines.Add($"SetSpEffect({target.entity}, {(int)SpeffManager.Functional.VoidMurder});"); } // add voidmurder speff if setfight makes target hostile so player can kill them without murder crime
                                 lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {hostileFlag.id}, {state});");
                             }
                             else { throw new Exception($"SetFight cannot target {target.type}!"); }
@@ -1724,6 +1724,7 @@ namespace JortPob
                                 }
 
                                 // Set characters hostilility based on fight values
+                                if (cc.fight + fightVal >= Const.FIGHT_THRESHOLD) { lines.Add($"SetSpEffect({target.entity}, {(int)SpeffManager.Functional.VoidMurder});"); } // add voidmurder speff if setfight makes target hostile so player can kill them without murder crime
                                 lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {hostileFlag.id}, {state});");
                             }
                             else { throw new Exception($"ModFight cannot target {target.type}!"); }
@@ -2037,7 +2038,7 @@ namespace JortPob
                                     if (hvar != null)
                                     {
                                         lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {hvar.id}, ON);"); // simply set player hostility flag to true
-                                        lines.Add($"SetSpEffect({content.entity}, {(int)SpeffManager.Functional.VoidMurder});");
+                                        lines.Add($"SetSpEffect({targetA.entity}, {(int)SpeffManager.Functional.VoidMurder});");
                                     }
                                     // Probably a wild creature
                                     else

@@ -7,7 +7,6 @@ using System.Linq;
 
 namespace JortPob.Scripts
 {
-    using static ESDLang.Script.ESDOptions;
     using ScriptFlagLookupKey = (Script.Flag.Designation, string); 
 
     /* Handles CommonEvent and CommonFunc EMEVD. These are different from map scripts so I decided to give them a seperate class */

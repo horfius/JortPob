@@ -1,12 +1,10 @@
 ﻿using JortPob.Common;
-using SoulsFormats.Formats.Morpheme.NSA;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
-using static Mutagen.Bethesda.Skyrim.MapMarker;
 
 namespace JortPob
 {

@@ -1,13 +1,11 @@
 ﻿using JortPob.Common;
 using JortPob.Scripts;
-using Microsoft.Scripting.Utils;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using static ESDLang.Script.ESDOptions;
 using static JortPob.InteriorGroup;
 
 namespace JortPob
@@ -1072,10 +1070,6 @@ namespace JortPob
                     }
                 }
             }
-
-            /* Debug print */
-            //string debug = "";
-            //foreach((string source, Papyrus.Call call) entry in allCalls) { debug += $"{entry.source.PadRight(24)} ::: \t\t\t{entry.call.RAW}\r\n"; }
 
             /* Iterate through all CharacterContent and ContainterContent and adjust their inventory and flex based on matching calls */
             string debugy = "";

@@ -8,10 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Mime;
 using System.Numerics;
 using WitchyFormats;
-using static JortPob.ItemManager;
 
 namespace JortPob
 {
@@ -1653,7 +1651,7 @@ namespace JortPob
 
             int i = 0;
             int baseRow = nextMapItemLotId;
-            foreach (InventoryEntry entry in npc.inventoryInfo.standard)
+            foreach (ItemManager.InventoryEntry entry in npc.inventoryInfo.standard)
             {
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"DeadBody::{npc.id}:{i}");
                 if (i == 0) { npc.treasure = itemLotFlag; }
@@ -1683,7 +1681,7 @@ namespace JortPob
             int i = 0;
             int baseRow = nextMapItemLotId;
             int totalValue = 0;
-            foreach (InventoryEntry entry in content.inventoryInfo.standard)
+            foreach (ItemManager.InventoryEntry entry in content.inventoryInfo.standard)
             {
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"Container::{content.id}:{i}");
                 if(i==0) { content.treasure = itemLotFlag; } 
@@ -1714,7 +1712,7 @@ namespace JortPob
 
             int i = 0;
             int baseRow = nextEnemyItemLotId;
-            foreach (InventoryEntry entry in content.inventoryInfo.standard)
+            foreach (ItemManager.InventoryEntry entry in content.inventoryInfo.standard)
             {
                 FsParam.Row row = CloneRow(itemLotParam[584000500], $"npc inventory, repeatable, {content.id}:{i}:{entry.item.id}", baseRow + i); // 584000500 is a blankish one i found that looked good as a base
                 
@@ -1735,7 +1733,7 @@ namespace JortPob
         /* Generates an item lot for a flex inventory that will be awarded via a script on a character death or placed as treasure */
         public int GenerateFlexItemLot(BaseScript script, Content content)
         {
-            InventoryInfo inventory;
+            ItemManager.InventoryInfo inventory;
             switch (content)
             {
                 case CharacterContent npc: inventory = npc.inventoryInfo; break;
@@ -1751,7 +1749,7 @@ namespace JortPob
             int totalValue = 0;
             for (int i = 0; i < inventory.flex.Count(); i++)
             {
-                FlexEntry entry = inventory.flex[i];
+                ItemManager.FlexEntry entry = inventory.flex[i];
                 Script.Flag flexItemFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.FlexItem, $"Flex::{content.id}:{i}", entry.initial ? 0u : 1u);
                 entry.flag = flexItemFlag;
                 FsParam.Row row = CloneRow(itemLotParam[0], $"flex inventory, {content.id}:{i}:{entry.item.id}", baseRow + i); // 0 is a default template we created in the constructor
