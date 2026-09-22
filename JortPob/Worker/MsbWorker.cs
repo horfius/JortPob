@@ -99,6 +99,7 @@ namespace JortPob.Worker
 
         public static void Go(List<ResourcePool> msbs)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             Lort.Log($"Writing {msbs.Count} msbs...", Lort.Type.Main); // Multithreaded because insanely slow // doing 1 thread per msb with rolling starts since guh
             Lort.NewTask("Writing MSB", msbs.Count);
 

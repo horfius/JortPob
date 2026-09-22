@@ -14,6 +14,7 @@ namespace JortPob
         /* It also contains things like the sky and water so yee */
         public static ResourcePool Generate(Cache cache, ESM esm, Layout layout, Paramanager param)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             Lort.Log($"Building overworld...", Lort.Type.Main);
             Lort.NewTask("Overworld Generation", 2);
 

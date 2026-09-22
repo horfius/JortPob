@@ -9,6 +9,7 @@ namespace JortPob
 
         public MenuTextureManager(ESM esm)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             icon = new(esm);
         }
 

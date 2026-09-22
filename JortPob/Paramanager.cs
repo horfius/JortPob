@@ -99,6 +99,7 @@ namespace JortPob
 
         public Paramanager(Cache cache, TextManager textManager)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             this.cache = cache;
             this.textManager = textManager;
 
@@ -300,6 +301,7 @@ namespace JortPob
 
         public void Write()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             Lort.Log($"Binding {param.Count()} PARAMs...", Lort.Type.Main);
             Lort.NewTask($"Binding PARAMs", param.Count());
             Lort.Log($"Total TalkParam rows: {param[Paramanager.ParamType.TalkParam].Rows.Count()} out of a max of {ushort.MaxValue}", Lort.Type.Debug);
@@ -348,6 +350,7 @@ namespace JortPob
         /* These 3 methods generate the params for assets and assetsfx for emitters */
         public void GenerateAssetRows(List<ModelInfo> assets)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
             FsParam.Row electedStoneBuildingRow = assetParam[7077];
             FsParam.Column drawParamID = assetParam["refDrawParamId"];
@@ -384,6 +387,7 @@ namespace JortPob
 
         public void GenerateAssetRows(List<EmitterInfo> assets)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
             FsParam.Row blessedStoneBuildingRow = assetParam[7077];
             FsParam.Column drawParamID = assetParam["refDrawParamId"];
@@ -460,6 +464,7 @@ namespace JortPob
         /* Generates assetparam rows for pickable (harvestable) plants */
         public void GeneratePickableAssetRows(ItemManager itemManager, List<PickableInfo> pickables)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
             FsParam lotParam = param[ParamType.ItemLotParam_map];
             FsParam actionParam = param[ParamType.ActionButtonParam];
@@ -541,6 +546,7 @@ namespace JortPob
 
         public void GenerateAssetRows(List<LiquidInfo> assets)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam assetParam = param[ParamType.AssetEnvironmentGeometryParam];
             FsParam.Row oceanwaterrow = assetParam[97000];
             foreach (LiquidInfo asset in assets)
@@ -554,6 +560,7 @@ namespace JortPob
         /* Make some parts draw params for us to use on different types of assets */
         public void GeneratePartDrawParams()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam drawParam = param[ParamType.PartsDrawParam];
             float NONE = 99999f;
             short drawParamId = Const.PART_DRAW_PARAM;
@@ -679,6 +686,7 @@ namespace JortPob
 
         public void GenerateMapInfoParam(Layout layout)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             FsParam mapInfoParam = param[ParamType.MapDefaultInfoParam];
             FsParam mapRegionParam = param[ParamType.MapGdRegionInfoParam];
 
@@ -1226,6 +1234,7 @@ namespace JortPob
         /* Generate TexInfo stuff for the 'maptexinfo.bmp' file */
         public void GenerateTexInfoParam(List<RegionInfo> regions)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             // EMEVD enum values converted to param row ids
             Dictionary<ScriptCommon.WeatherEMEVD, short> weatherIds = new()
             {
@@ -1427,6 +1436,7 @@ namespace JortPob
         /* also edits CharMakeMenuListItemParam and CharMakeMenuTopParam for text on the char creation screen */
         public void GenerateCustomCharacterCreation()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             // Race stuff
             List<Override.PlayerRace> playerRaces = Override.GetCharacterCreationRaces();
             int[] charMakeMenuListItemParam_Races = new int[] { 240, 241, 242, 243, 244, 245, 246, 247, 248, 249 };
@@ -1815,6 +1825,7 @@ namespace JortPob
 
             if (Const.DEBUG_SKIP_MENU_TEXTURES) return;
 
+            using var perf = PerformanceMonitor.TrackPerformance();
             // Grab loading menu text override
             List<Override.LoadingTip> loadingTips = Override.GetLoadingTips();
 

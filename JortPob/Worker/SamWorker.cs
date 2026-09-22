@@ -43,6 +43,7 @@ namespace JortPob.Worker
 
         public static void Go(List<SoundManager.SAMData> datas)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             Lort.Log($"Generating {datas.Count()} WEMs...", Lort.Type.Main);
             Lort.NewTask("Writing WEMs", datas.Count);
 

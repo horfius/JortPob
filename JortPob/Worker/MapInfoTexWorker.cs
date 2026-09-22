@@ -1,4 +1,5 @@
-﻿using JortPob.Common;
+﻿using JortPob;
+using JortPob.Common;
 using JortPob.Worker;
 using SoulsFormats;
 using System;
@@ -37,6 +38,7 @@ public class MapInfoTexWorker : Worker
 
     private void Replace()
     {
+        using var perf = PerformanceMonitor.TrackPerformance();
         Lort.Log("Replacing weather map... ", Lort.Type.Main);
         try
         {
@@ -216,6 +218,7 @@ public class MapInfoTexWorker : Worker
 
     internal static void Go()
     {
+        using var perf = PerformanceMonitor.TrackPerformance();
         MapInfoTexWorker worker = new();
 
         while (!worker.IsDone)

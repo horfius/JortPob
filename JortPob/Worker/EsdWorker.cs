@@ -29,6 +29,7 @@ namespace JortPob.Worker
          */
         private void Run()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             ExitCode = 1;
 
             Predicate<string> allowAnyFilter = delegate { return true; };

@@ -32,6 +32,7 @@ namespace JortPob
 
         public Layout(Cache cache, ESM esm, Paramanager param, TextManager text, ScriptManager scriptManager)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             Lort.Log("Generating layout...", Lort.Type.Main);
             Lort.NewTask("Generating Layout", 13);
 

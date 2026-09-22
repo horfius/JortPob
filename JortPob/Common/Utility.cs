@@ -20,6 +20,7 @@ namespace JortPob.Common
 
         public static void InitSRGBCache()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             float ConvertValue(float colorValue)
             {
                 if (colorValue <= 0.0031308f)

@@ -17,6 +17,7 @@ namespace JortPob.Common
         public static int current { get; private set; }
         public static bool update { get; set; }
         public static string logFilePath { get; private set; }
+        public static string performanceLogFilePath { get; private set; }
 
         public static void Initialize()
         {
@@ -29,14 +30,17 @@ namespace JortPob.Common
 
             Directory.CreateDirectory(Path.Combine(Const.OUTPUT_PATH, "logs"));
 
-            logFilePath = Path.Combine(Const.OUTPUT_PATH, @$"logs\jortpob-log-{DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "")}.txt");
+            var timestamp = DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "");
+            logFilePath = Path.Combine(Const.OUTPUT_PATH, @$"logs\jortpob-log-{timestamp}.txt");
+            performanceLogFilePath = Path.Combine(Const.OUTPUT_PATH, @$"logs\jortpob-performance-{timestamp}.txt");
             File.WriteAllText(logFilePath, "");
         }
 
         public enum Type
         {
             Main,
-            Debug
+            Debug,
+            Performance
         }
 
         public static void Log(string message, Lort.Type type)
@@ -47,6 +51,8 @@ namespace JortPob.Common
                     mainOutput.Add(message); break;
                 case Type.Debug:
                     debugOutput.Add(message); break;
+                case Type.Performance:
+                    debugOutput.Add($"PERFORMANCE: {message}"); break;
             }
             update = true;
             AppendTextToLog(message, type);
@@ -75,6 +81,9 @@ namespace JortPob.Common
                     break;
                 case Type.Debug:
                     Task.Run(async () => await File.AppendAllTextAsync(logFilePath, $"[DEBUG] {message}\n"));
+                    break;
+                case Type.Performance:
+                    Task.Run(async () => await File.AppendAllTextAsync(performanceLogFilePath, $"{message}\n"));
                     break;
             }
         }

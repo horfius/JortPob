@@ -14,6 +14,7 @@ namespace JortPob
 
         public static int Create(string bikPath, int forceId = -1)
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             /* Get IDs */
             int id, bk2 = nextBk2;
             if (forceId == -1) { id = nextId; }

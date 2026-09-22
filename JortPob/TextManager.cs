@@ -20,6 +20,7 @@ namespace JortPob
 
         public TextManager()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             nextTopicId = 29000000;
             nextNpcNameId = 11800000;
             nextActionButtonId = 10000;
@@ -280,6 +281,7 @@ namespace JortPob
 
         public void Write()
         {
+            using var perf = PerformanceMonitor.TrackPerformance();
             void WriteBnd(string fileName, Dictionary<TextType, FMG> fmgs)
             {
                 BND4 bnd = new();
