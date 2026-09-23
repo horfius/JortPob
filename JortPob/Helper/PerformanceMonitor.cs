@@ -73,7 +73,14 @@ namespace JortPob
                 }
             }
 
-            Lort.Log($"[{DateTime.UtcNow:G}] {section.Name}:\t\tElapsedTime={section.TotalElapsedTime}\t\tActiveTime={section.ActiveElapsedTime}\t\tStartingMemory={section.StartingMemory}\t\tEndingMemory={section.EndingMemory}\t\tStartTime={section.StartTime:u}\t\tEndTime={section.EndTime:u}",
+            // Technically inefficient to concat like this but there aren't heaps of these operations and otherwise terrible to read
+            Lort.Log($"[{DateTime.UtcNow:G}] {section.Name}:\t\t" +
+                $"ElapsedTime={section.TotalElapsedTimeMilliseconds}ms\t\t" +
+                $"ActiveTime={section.ActiveElapsedTimeMilliseconds}ms\t\t" +
+                $"StartingMemory={section.StartingMemoryBytes / 1000000}MB\t\t" +
+                $"EndingMemory={section.EndingMemoryBytes / 1000000}MB\t\t" +
+                $"StartTime={section.StartTime:u}\t\t" +
+                $"EndTime={section.EndTime:u}",
                 Lort.Type.Performance);
         }
     }
@@ -97,13 +104,13 @@ namespace JortPob
         /// <summary>
         /// Gets the elapsed time on the timer in milliseconds
         /// </summary>
-        public long TotalElapsedTime => _stopwatch.ElapsedMilliseconds;
+        public float TotalElapsedTimeMilliseconds => _stopwatch.ElapsedTicks * (1000f) / Stopwatch.Frequency;
 
-        public long ActiveElapsedTime => _activeStopwatch.ElapsedMilliseconds;
+        public float ActiveElapsedTimeMilliseconds => _activeStopwatch.ElapsedTicks * (1000f) / Stopwatch.Frequency;
 
-        public long StartingMemory { get; init; }
+        public long StartingMemoryBytes { get; init; }
 
-        public long EndingMemory { get; private set; }
+        public long EndingMemoryBytes { get; private set; }
 
         /// <summary>
         /// Performance section name, may be either the caller method name or a specified name
@@ -114,7 +121,7 @@ namespace JortPob
         {
             Name = name;
             ParentSection = parentSection;
-            StartingMemory = Process.GetCurrentProcess().PrivateMemorySize64;
+            StartingMemoryBytes = Process.GetCurrentProcess().PrivateMemorySize64;
             StartTime = DateTime.Now;
             _stopwatch.Start();
             _activeStopwatch.Start();
@@ -139,7 +146,7 @@ namespace JortPob
                     _activeStopwatch.Stop();
                     _stopwatch.Stop();
                     EndTime = DateTime.Now;
-                    EndingMemory = Process.GetCurrentProcess().PrivateMemorySize64;
+                    EndingMemoryBytes = Process.GetCurrentProcess().PrivateMemorySize64;
                     PerformanceMonitor.ReportResults(this);
                 }
 

@@ -5,13 +5,25 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
+using System.Collections.Generic;
+using JortPob.Helper;
 
 namespace JortPob.Common
 {
     public class Lort
     {
-        public static ConcurrentBag<string> mainOutput { get; private set; }
-        public static ConcurrentBag<string> debugOutput { get; private set; }
+        private static readonly Dictionary<Type, List<ILogOutput>> LogOutputs = new()
+        {
+            { Type.Main, new() },
+            { Type.Debug, new() },
+            { Type.Performance, new() },
+        };
+
+        // Screen rendering ordered output for Lort.Type.Main
+        public static readonly BufferedScreenOutput MainScreenOutput = new();
+        // Screen rendering ordered output for non-Lort.Type.Main
+        public static readonly BufferedScreenOutput ScreenOutput = new();
+
         public static string progressOutput { get; private set; }
         public static int total { get; private set; }
         public static int current { get; private set; }
@@ -21,8 +33,6 @@ namespace JortPob.Common
 
         public static void Initialize()
         {
-            mainOutput = new();
-            debugOutput = new();
             progressOutput = string.Empty;
             total = 0;
             current = 0;
@@ -33,7 +43,15 @@ namespace JortPob.Common
             var timestamp = DateTime.UtcNow.ToLongTimeString().Replace(":", "").Replace(" PM", "");
             logFilePath = Path.Combine(Const.OUTPUT_PATH, @$"logs\jortpob-log-{timestamp}.txt");
             performanceLogFilePath = Path.Combine(Const.OUTPUT_PATH, @$"logs\jortpob-performance-{timestamp}.txt");
-            File.WriteAllText(logFilePath, "");
+            var nonPerfLogWriter = new BufferedFileWriter(logFilePath);
+            var perfLogWriter = new BufferedFileWriter(performanceLogFilePath);
+
+            LogOutputs[Type.Main].Add(MainScreenOutput);
+            LogOutputs[Type.Debug].Add(ScreenOutput);
+            LogOutputs[Type.Performance].Add(ScreenOutput);
+            LogOutputs[Type.Main].Add(nonPerfLogWriter);
+            LogOutputs[Type.Debug].Add(nonPerfLogWriter);
+            LogOutputs[Type.Performance].Add(perfLogWriter);
         }
 
         public enum Type
@@ -45,17 +63,8 @@ namespace JortPob.Common
 
         public static void Log(string message, Lort.Type type)
         {
-            switch (type)
-            {
-                case Type.Main:
-                    mainOutput.Add(message); break;
-                case Type.Debug:
-                    debugOutput.Add(message); break;
-                case Type.Performance:
-                    debugOutput.Add($"PERFORMANCE: {message}"); break;
-            }
+            LogOutputs[type].ForEach(output => output.SubmitLog(message));
             update = true;
-            AppendTextToLog(message, type);
         }
 
         public static void NewTask(string task, int max)
@@ -70,22 +79,6 @@ namespace JortPob.Common
         {
             current = Math.Min(current+1, total);
             update = true;
-        }
-
-        private static void AppendTextToLog(string message, Type type)
-        {
-            switch (type)
-            {
-                case Type.Main:
-                    Task.Run(async () => await File.AppendAllTextAsync(logFilePath, $"[MAIN] {message}\n"));
-                    break;
-                case Type.Debug:
-                    Task.Run(async () => await File.AppendAllTextAsync(logFilePath, $"[DEBUG] {message}\n"));
-                    break;
-                case Type.Performance:
-                    Task.Run(async () => await File.AppendAllTextAsync(performanceLogFilePath, $"{message}\n"));
-                    break;
-            }
         }
     }
 }

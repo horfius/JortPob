@@ -16,6 +16,9 @@ namespace JortUX
         {
             InitializeComponent();
 
+            ((TextBlock)FindName("MainOutput")).Text = "";
+            ((TextBlock)FindName("DebugOutput")).Text = "";
+
             running = true;
             job = new(Run);
             log = new(Check);
@@ -47,14 +50,14 @@ namespace JortUX
             TextBlock progress = (TextBlock)FindName("ProgressOutput");
             ProgressBar bar = (ProgressBar)FindName("ProgressBar");
 
-            string mainText = "", debugText = "";
+            string mainText = main.Text, debugText = debug.Text;
 
-            // top-to-bottom order
-            foreach (string line in JortPob.Common.Lort.mainOutput)
-                mainText += line + "\n";
+            // top-to-bottom order, so unfortunately stringbuilder doesn't work for us here
+            while (JortPob.Common.Lort.MainScreenOutput.LogLines.TryDequeue(out var mainLine))
+                mainText = $"{mainLine}\n{mainText}";
 
-            foreach (string line in JortPob.Common.Lort.debugOutput)
-                debugText += line + "\n";
+            while (JortPob.Common.Lort.ScreenOutput.LogLines.TryDequeue(out var line))
+                debugText = $"{line}\n{debugText}";
 
             main.Text = mainText;
             debug.Text = debugText;
