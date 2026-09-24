@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using JortPob.Common;
+using JortPob.Logging;
 using SoulsFormats;
 
 namespace JortPob.Worker

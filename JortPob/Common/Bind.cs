@@ -1,4 +1,4 @@
-﻿using JortPob.Worker;
+﻿using JortPob.Logging;
 using SoulsFormats;
 using System;
 using System.Collections.Generic;

@@ -1,5 +1,6 @@
 ﻿using JortPob;
 using JortPob.Common;
+using JortPob.Logging;
 using JortPob.Worker;
 using SoulsFormats;
 using System;

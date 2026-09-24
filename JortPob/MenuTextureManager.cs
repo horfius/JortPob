@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using JortPob.Common;
+using JortPob.Logging;
 
 namespace JortPob
 {

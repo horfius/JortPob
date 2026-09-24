@@ -1,14 +1,9 @@
-﻿using HKX2;
-using System;
-using System.Collections.Concurrent;
+﻿using System;
 using System.IO;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Threading;
 using System.Collections.Generic;
-using JortPob.Helper;
+using JortPob.Common;
 
-namespace JortPob.Common
+namespace JortPob.Logging
 {
     public class Lort
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace JortPob.Helper
+namespace JortPob.Logging
 {
     public class BufferedScreenOutput : ILogOutput
     {

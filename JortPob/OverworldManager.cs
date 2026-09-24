@@ -1,4 +1,5 @@
 ﻿using JortPob.Common;
+using JortPob.Logging;
 using PortJob;
 using SoulsFormats;
 using System;

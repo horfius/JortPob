@@ -1,4 +1,5 @@
 ﻿using JortPob.Common;
+using JortPob.Logging;
 using JortPob.Worker;
 using System;
 using System.Collections.Concurrent;

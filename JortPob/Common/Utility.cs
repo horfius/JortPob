@@ -1,4 +1,5 @@
-﻿using SoulsFormats;
+﻿using JortPob.Logging;
+using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

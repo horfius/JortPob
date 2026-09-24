@@ -12,16 +12,16 @@ using System.IO;
 
 #nullable enable
 
-namespace JortPob
+namespace JortPob.Logging
 {
     public static class PerformanceMonitor
     {
         // Get the most 
-        private static ConcurrentDictionary<int, PerformanceSection> ThreadSections { get; } = new();
+        private static ConcurrentDictionary<int, IPerformanceSection> ThreadSections { get; } = new();
 
         private static int ThreadId => Thread.CurrentThread.ManagedThreadId;
 
-        public static PerformanceSection? CurrentSection
+        public static IPerformanceSection? CurrentSection
         {
             get
             {
@@ -29,8 +29,11 @@ namespace JortPob
             }
         }
 
-        public static PerformanceSection TrackPerformance([CallerMemberName] string callingMethod = "", [CallerFilePath] string callingFile = "")
+        public static IPerformanceSection TrackPerformance([CallerMemberName] string callingMethod = "", [CallerFilePath] string callingFile = "")
         {
+            if (!Const.DEBUG_LOG_PERFORMANCE)
+                return new PerformanceSection.Dummy();
+
             if (!string.IsNullOrWhiteSpace(callingFile))
                 callingFile = Path.GetFileNameWithoutExtension(callingFile);
             else
@@ -49,21 +52,20 @@ namespace JortPob
 
         public static void ReportResults(PerformanceSection section)
         {
-            // TODO: report performance metrics
             var currentSection = CurrentSection;
             if (!ReferenceEquals(currentSection, section))
             {
                 Lort.Log("WARNING: PerformanceSection reporting for non-current section", Lort.Type.Debug);
             }
-            else if (section.ParentSection != null && !section.ParentSection.DisposedValue) // Parent should never be disposed of before child...
+            else if (section.ParentSection is PerformanceSection parentSection && parentSection is not null && !parentSection.DisposedValue) // Parent should never be disposed of before child...
             {
-                if (!ThreadSections.TryUpdate(ThreadId, section.ParentSection, section))
+                if (!ThreadSections.TryUpdate(ThreadId, parentSection, section))
                 {
                     Lort.Log("WARNING: PerformanceSection reporting failed to set new current section for thread", Lort.Type.Debug);
                 }
                 else
                     // Make sure to resume the parent section's active timer
-                    section.ParentSection.Start();
+                    section.ParentSection.Resume();
             }
             else
             {
@@ -74,18 +76,27 @@ namespace JortPob
             }
 
             // Technically inefficient to concat like this but there aren't heaps of these operations and otherwise terrible to read
-            Lort.Log($"[{DateTime.UtcNow:G}] {section.Name}:\t\t" +
-                $"ElapsedTime={section.TotalElapsedTimeMilliseconds}ms\t\t" +
-                $"ActiveTime={section.ActiveElapsedTimeMilliseconds}ms\t\t" +
-                $"StartingMemory={section.StartingMemoryBytes / 1000000}MB\t\t" +
-                $"EndingMemory={section.EndingMemoryBytes / 1000000}MB\t\t" +
-                $"StartTime={section.StartTime:u}\t\t" +
-                $"EndTime={section.EndTime:u}",
+            Lort.Log($"[{DateTime.UtcNow:G}] {section.Name}:".PadRight(80) +
+                $"ElapsedTime={section.TotalElapsedTimeMilliseconds}ms".PadRight(30) +
+                $"ActiveTime={section.ActiveElapsedTimeMilliseconds}ms".PadRight(30) +
+                $"StartingMemory={section.StartingMemoryBytes / 1000000}MB".PadRight(30) +
+                $"EndingMemory={section.EndingMemoryBytes / 1000000}MB".PadRight(30) +
+                $"StartTime={section.StartTime:u}".PadRight(34) +
+                $"EndTime={section.EndTime:u}".PadRight(34),
                 Lort.Type.Performance);
         }
     }
 
-    public class PerformanceSection : IDisposable
+    public interface IPerformanceSection : IDisposable
+    {
+        // Resume this section as the currently active section for the current thread
+        void Resume();
+
+        // Pause this section as it is not longer the currently active section for the current thread
+        void Pause();
+    }
+
+    public class PerformanceSection : IPerformanceSection
     {
         // Measures the total time since this performance section was created
         private Stopwatch _stopwatch = new();
@@ -95,7 +106,7 @@ namespace JortPob
 
         public bool DisposedValue { get; private set; }
 
-        public PerformanceSection? ParentSection { get; init; } = null;
+        public IPerformanceSection? ParentSection { get; init; } = null;
 
         public DateTime StartTime { get; init; }
 
@@ -117,7 +128,7 @@ namespace JortPob
         /// </summary>
         public string Name { get; init; }
 
-        public PerformanceSection(string name, PerformanceSection? parentSection = null)
+        public PerformanceSection(string name, IPerformanceSection? parentSection = null)
         {
             Name = name;
             ParentSection = parentSection;
@@ -127,7 +138,7 @@ namespace JortPob
             _activeStopwatch.Start();
         }
 
-        public void Start()
+        public void Resume()
         {
             _activeStopwatch.Start();
         }
@@ -159,6 +170,20 @@ namespace JortPob
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        // Dummy class for when performance logging is disabled
+        internal class Dummy : IPerformanceSection
+        {
+            public void Dispose()
+            { }
+
+            // Do nothing
+            public void Resume()
+            { }
+
+            public void Pause()
+            { }
         }
     }
 }
